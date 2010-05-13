@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_install:
+	dh_auto_install $@
+	mkdir -p debian/tmp/etc/sudoers.d
+	install -m 440 -o root -g root debian/vmail-smtp.sudoers debian/tmp/etc/sudoers.d/vmail-smtp
+	install -m 440 -o root -g root debian/vmail-webmail.sudoers debian/tmp/etc/sudoers.d/vmail-webmail
+
+override_dh_auto_clean:
+	dh_auto_clean
+	find . -type d -name '*.egg-info' | xargs rm -rf

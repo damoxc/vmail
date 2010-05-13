@@ -1,0 +1,1322 @@
+#
+#--tab=3	---	---
+#
+
+=head1 NAME vmail/common
+
+vmail/common - common methods for the vmail plugin suite
+
+=head1 VERSION 2007.1
+
+=head1 DESCRIPTION
+
+This is the base class of all plugins in the database plugin suite.
+
+All other plugins inherit methods from here to connect and close the database
+connection, configuration validation, SQL commands, record or notes handling
+and managing errors or return values etc.
+
+=head1 REQUIREMENTS
+
+B<db/common> requires the Perl modules
+
+ DBI
+ Data::Dumper
+ Date::Format
+ Mail::Header
+ Qpsmtpd::Address
+ Qpsmtpd::Transaction
+ Sys::Hostname
+
+It's tested with qpsmtpd 0.32, exim as local queue manager and
+MySQL as database.
+
+=cut
+
+use DBI;
+use Data::Dumper();
+use Date::Format();
+use Mail::Header ();
+use Qpsmtpd::Address ();
+use Qpsmtpd::Transaction ();
+use Sys::Hostname qw(hostname);
+
+=head1 CONSTANTS
+
+=head2 Notes
+
+The following constants are defined for use with C<< qpsmtpd->connection->notes >>,
+please take care when defining new ones locally. They are used in
+upper and lower case! Hopefully they won't interfere with other
+note-keys.
+
+They are only used in this package and aren't exported. Please don't
+set the notes directly, better use the access methods provided by this
+class.
+
+=over
+
+=item * DB_DBH
+
+Stores the database connection handle. See L<"db_open"> and L<"db_close">.
+
+=item * DB_REC
+
+Stores the local user record, if found. See L<"db_rec">.
+
+=item * DB_DEFERRED
+
+Stores a flag about a deferred action, e.g. "defer greylisting from C<hook_rcpt> until C<hook_data_post>".
+See L<"db_deferred">.
+
+=item * DB_NOTIFY
+
+Stores informations about notifying in case of errors. See L<"db_notify">.
+
+=item * DB_LAST_ERROR
+
+Stores the last error message. See L<"db_last_error">.
+
+=back
+
+=head2 Texts
+
+These constants are only used in this package and aren't exported.
+
+=over
+
+=item * DB_LATER
+
+Provides the text I<Internal error - try later>. See L<"db_denysoft"> and L<"db_denysoft_error">.
+
+=item * DB_ERROR
+
+Provides the text I<Unknown Error>. See L<"db_error"> and L<"db_die">.
+
+=back
+
+=cut
+
+use constant DB_DBH			=> 'db_dbh';
+use constant DB_REC			=> 'db_rec';
+
+use constant DB_DEFERRED	=> 'db_deferred';
+use constant DB_NOTIFY		=> 'db_notify';
+use constant DB_LAST_ERROR	=> 'db_last_error';
+
+use constant DB_LATER		=> 'Internal error - try later';
+use constant DB_ERROR		=> 'Unknown Error';
+
+=head1 CONFIGURATION
+
+None. And no entry in C</etc/qpsmtpd/plugins> for B<db/common>.
+
+All other database plugins must follow the basic plugin C<db/base> - e.g.:
+
+ db/base
+ db/relay
+ db/user
+ db/greylist
+
+They have all there own configuration files named C</etc/qpsmtpd/db_base>, C</etc/qpsmtpd/db_user> etc.
+
+=head1 INHERITANCE
+
+A skeleton for a plugin using the database suite looks like this:
+
+   # File: db/myplugin
+   #
+   # Please note the naming convention to inhibit config interference.
+   #
+   # The following expects only the line
+   #
+   #   myplugin_required_field = some_value
+   #
+   # in the config file db_myplugin.
+
+   my %CONFIG_FIELDS = map { $_ => 1 } qw(
+      myplugin_required_field
+      myplugin_other_field
+      myplugin_emtpy_field
+   );
+
+   my %CONFIG_FIELDS_EMPTY = map { $_ => 1 } qw(
+      myplugin_emtpy_field
+   );
+
+   my %CONFIG_FIELDS_DEFAULT =
+   (
+      myplugin_other_field   => 42
+   );
+
+   sub init
+   {
+      my ( $self, $qp )   = @_;
+
+      $self->isa_plugin ( "db/common" );
+
+      $self->db_debug;
+
+      $self->SUPER::init ( $qp );
+   }
+
+   sub db_init_config
+   {
+      my ( $self, $config_fields, $config_fields_empty, $config_fields_default )   = @_;
+
+      %$config_fields         = %CONFIG_FIELDS;
+      %$config_fields_empty   = %CONFIG_FIELDS_EMPTY;
+      %$config_fields_default = %CONFIG_FIELDS_DEFAULT;
+   }
+
+   sub db_valid_config
+   {
+      my ( $self )   = @_;
+
+      my $config   = $self->db_config();
+
+      if ( $config->{myplugin_other_field} != 42 )
+      {
+         my $text   = "Bad param: myplugin_other_field" . $self->db_dump ( $config, '*config' );
+
+         $self->db_die ( $text );
+      }
+
+      #   more checks...
+   }
+
+   sub hook_rcpt
+   {
+      #   ...
+   }
+
+   sub hook_data_post
+   {
+      #   ...
+   }
+
+=cut
+
+=head1 CONSTRUCTOR METHODS
+
+=head2 init
+
+B<Call: $self-E<gt>init ( $qp )>
+
+=over
+
+=item * C<$qp>
+
+Qpsmtpd object
+
+=back
+
+Called from qpsmtpd on startup.
+
+Loads the config for the inheriting plugin, calls L<"db_init_config"> and L<"db_check_config">, stores the config
+items and calls L<"db_valid_config">.
+
+B<On errors in> L<"db_check_config"> B<or> L<"db_valid_config"> B<qpsmtpd won't start>.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub init
+{
+	my ( $self, $qp )	= @_;
+
+	$self->db_debug;
+
+	$self->db_close;
+
+	my $config_fields				= {};
+	my $config_fields_empty		= {};
+	my $config_fields_default	= {};
+
+	$self->db_init_config ( $config_fields, $config_fields_empty, $config_fields_default );
+
+	my $config			= $self->db_config();
+
+	my $plugin_name	= $self->plugin_name;
+	my $config_file	= $plugin_name;
+
+	$config_file		=~ s/::/_/;
+
+#	print STDERR "---- config_file: '$plugin_name' -> '$config_file'\n";
+
+	my $config_local	= { map { split /\s*=\s*/, $_, 2 } $self->qp->config ( $config_file ) };
+
+	$self->db_check_config	( $config_local, $config_fields, $config_fields_empty, $config_fields_default );
+
+	%$config	=
+	(
+		%$config,
+		%$config_local,
+	);
+
+	$self->db_valid_config();
+}
+
+=head2 db_init_config
+
+I<ABSTRACT>
+
+B<Call: $self-E<gt>db_init_config ( $config_fields, $config_fields_empty, $config_fields_default )>
+
+=over
+
+=item * C<$config_fields, $config_fields_empty, $config_fields_default>
+
+Empty references to hashes
+
+=back
+
+Called from L<"init"> on startup I<before> L<"db_check_config">.
+
+B<Must be overwritten to provide the local config structures>. See L<"INHERITANCE">, how.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_init_config
+{
+	my ( $self, $config_fields, $config_fields_empty, $config_fields_default )	= @_;
+
+	my $text	= "Abstract method " . __PACKAGE__ . '::db_init_config called';
+
+	$self->db_die ( $text );
+}
+
+=head2 db_check_config
+
+B<Call: $self-E<gt>db_check_config ( $config, $config_fields, $config_fields_empty, $config_fields_default )>
+
+=over
+
+=item * C<$config>
+
+Reference to the raw config hash just read
+
+=item * C<$config_fields, $config_fields_empty, $config_fields_default>
+
+References to hashes (filled by L<"db_init_config">)
+
+=back
+
+Called from L<"init"> on startup I<after> L<"db_init_config"> and I<before> L<"db_valid_config">.
+
+Sets defaults and checks for missing, unknown or empty config parameters.
+
+Calls L<"db_die"> on errors. Do not overwrite, use L<"db_valid_config"> instead.
+
+B<On errors in> L<"db_check_config"> B<or> L<"db_valid_config"> B<qpsmtpd won't start>.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_check_config
+{
+	my ( $self, $config, $config_fields, $config_fields_empty, $config_fields_default )	= @_;
+
+	my @fields	= ();
+	my @bad		= ();
+
+	foreach ( keys %$config_fields_empty )
+	{
+		$config->{$_}	||= '';
+	}
+
+	foreach ( keys %$config_fields_default )
+	{
+		$config->{$_}	||= $config_fields_default->{$_};
+	}
+
+	foreach ( sort keys %$config_fields )
+	{
+		push @fields, $_		unless $config_fields_empty->{$_};
+	}
+
+	if ( @bad = grep { ! exists $config->{$_} } @fields )
+	{
+		my $text	= "Missing config param(s): " . join (',', @bad ) . $self->db_dump ( $config, '*config' );
+
+		$self->db_die ( $text );
+	}
+
+	if ( @bad = grep { ! exists $config_fields->{$_} } sort keys %$config )
+	{
+		my $text	= "Unknown config param(s): " . join (',', @bad ) . $self->db_dump ( $config, '*config' );
+
+		$self->db_die ( $text );
+	}
+
+	if ( @bad = grep { ! $config->{$_} } @fields )
+	{
+		my $text	= "Empty param(s): " . join (',', @bad ) . $self->db_dump ( $config, '*config' );
+
+		$self->db_die ( $text );
+	}
+}
+
+=head2 db_valid_config
+
+B<Call: $self-E<gt>db_valid_config ()>
+
+Called from L<"init"> on startup I<after> L<"db_check_config">.
+
+Does nothing and can be overwritten to provide more config checks.
+The config is already stored and can be fetched with
+
+	my $config	= $self->db_config();
+
+Please follow the policy of the database plugin suite and call L<"db_die"> on config errors, so that:
+
+B<On errors in> L<"db_check_config"> B<or> L<"db_valid_config"> B<qpsmtpd won't start>.
+See L<"INHERITANCE">, how.
+
+=cut
+
+sub db_valid_config {}
+
+=head1 DATABASE METHODS
+
+=head2 db_open
+
+B<Call: $self-E<gt>db_open ()>
+
+Opens the database connection.
+
+Tries to get the handle from C<< qpsmtpd->connection->notes >> ( L<DB_DBH|"CONSTANTS"> ).
+
+Calls L<"db_connect">, if the handle is C<undef> and stores the result.
+
+B<Returns:>
+
+the database handle	on success.
+C<undef>	on error.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_open
+{
+	my ( $self )	= @_;
+
+	my $dbh	= $self->qp->connection->notes ( DB_DBH );
+
+	return $dbh		if $dbh;
+
+	$dbh	= $self->db_connect;
+
+	$self->qp->connection->notes ( DB_DBH, $dbh );
+
+	return $dbh;
+}
+
+=head2 db_connect
+
+B<Call: $self-E<gt>db_connect ()>
+
+Connects to the database described by the config of L<dbE<47>base|"db_base.shtml#CONFIGURATION">.
+
+B<Returns:>
+
+the database handle	on success.
+C<undef>	on error, which is logged by L<"db_error">.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_connect
+{
+	my ( $self )	= @_;
+
+	my $config	= $self->db_config();
+
+	my $data_source	= 'DBI:' . $config->{driver} . ':' . $config->{database};
+
+	my $dbh	= DBI->connect ( $data_source, $config->{user}, $config->{passwd},
+										{
+											PrintError	=> 0,
+											RaiseError	=> 0,
+											AutoCommit	=> 1,
+										} );
+
+	unless ( $dbh )
+	{
+		$self->db_error ( $DBI::errstr );
+		return undef;
+	}
+
+	return $dbh;
+}
+
+=head2 db_close
+
+B<Call: $self-E<gt>db_close ()>
+
+Closes an open database connection.
+
+Tries to get the handle from C<< qpsmtpd->connection->notes >> ( L<DB_DBH|"CONSTANTS"> ) to disconnect.
+
+B<Returns:>
+
+1	on success.
+0	if connection was not open.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_close
+{
+	my ( $self )	= @_;
+
+#	$self->db_debug ( $self->db_dump ( $self->qp->connection->{_notes}, '*notes' ) );
+
+	my $dbh	= $self->qp->connection->notes ( DB_DBH );
+
+	return 0		unless $dbh;
+
+	$dbh->disconnect;
+
+	$self->qp->connection->notes ( DB_DBH, undef );
+
+#	$self->db_debug ( $self->db_dump ( $self->qp->connection->{_notes}, '*notes' ) );
+
+	return 1;
+}
+
+=head2 db_sql
+
+B<Call: $self-E<gt>db_sql ( $sql [, %param ] )>
+
+=over
+
+=item * C<$sql>
+
+String, SQL statement
+
+=item * C<%param>
+
+Hash containing optional parameters
+
+=back
+
+Executes the SQL statement given in C<$sql>.
+
+B<Returns:>
+
+C<undef>	if not connected to a database and on all SQL errors.
+the statement result	if C<$param{no_fetch}> is given.
+all rows as possibly empty reference to an array of references to hashes	if C<$param{all}> is given.
+first record as possibly emtpy reference to a hash	otherwise.
+
+Errors are logged by L<"db_error">.
+
+=cut
+
+sub db_sql
+{
+	my ( $self, $sql, %param )	= @_;
+
+	$self->db_debug ( $sql );
+
+	my $dbh	= $self->db_open;
+
+	return undef		unless $dbh;
+
+	my $sth			= $dbh->prepare ( $sql );
+
+	unless ( $sth )
+	{
+		$self->db_error ( "ERROR SQL (prepare): $sql\n\t", $dbh->errstr );
+		return undef;
+	}
+
+	my $sth_result	= $sth->execute();
+
+	unless ( $sth_result )
+	{
+		$self->db_error ( "ERROR SQL (execute): $sql\n\t", $sth->errstr );
+		return undef;
+	}
+
+	return $sth_result		if $param{no_fetch};
+
+	if ( $param{all} )
+	{
+		my $rows	= [];
+
+		while ( my $record = $sth->fetchrow_hashref )
+		{
+			push @$rows, $record;
+		}
+
+		if ( $sth->errstr )
+		{
+			$self->db_error ( "ERROR SQL (fetch rows): $sql\n\t", $sth->errstr );
+			return undef;
+		}
+
+		return $rows;
+	}
+	else
+	{
+		my $record	= $sth->fetchrow_hashref;
+
+		unless ( $record )
+		{
+			if ( $sth->errstr )
+			{
+				$self->db_error ( "ERROR SQL (fetch record): $sql\n\t", $sth->errstr );
+				return undef;
+			}
+
+			$record	= {};
+		}
+
+		return $record;
+	}
+}
+
+=head1 ACCESSOR METHODS
+
+=head2 db_config
+
+B<Call: $self-E<gt>db_config ( [ $key [, $value ] ] )>
+
+=over
+
+=item * C<$key>
+
+String
+
+=item * C<$value>
+
+Any value
+
+=back
+
+Accessor for the config hash stored as object attribute.
+
+Stores the new value if C<$key> and C<$value> are given.
+
+B<Returns:>
+
+a reference to the config hash	if no C<$key> is given.
+the stored value	if C<$key> is given.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_config
+{
+	my $self	= shift;
+	my $key	= shift;
+
+	$self->{_db_config}	||= {};
+
+	$key	or		return $self->{_db_config};
+
+	@_		and	$self->{_db_config}->{$key} = shift;
+
+	$self->{_db_config}->{$key};
+}
+
+=head2 db_rec
+
+B<Call: $self-E<gt>db_rec ( [ $record ] )>
+
+=over
+
+=item * C<$record>
+
+Reference to a hash
+
+=back
+
+Accessor for the current user hash stored in C<< qpsmtpd->connection->notes >> ( L<DB_REC|"CONSTANTS"> ).
+
+Stores the new hash if C<$record> is given.
+
+B<Returns:>
+
+a reference to the old hash	if no C<$record> is given.
+the new hash	if C<$record> is given.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_rec
+{
+	my $self	= shift;
+
+	@_		and	$self->qp->connection->notes ( DB_REC, shift );
+
+	return $self->qp->connection->notes ( DB_REC );
+}
+
+=head2 db_deferred
+
+B<Call: $self-E<gt>db_deferred ( [ $value ] )>
+
+=over
+
+=item * C<$value>
+
+Boolean value
+
+=back
+
+Accessor for the data stored in C<< qpsmtpd->connection->notes >>
+( L<DB_DEFERRED|"CONSTANTS"> ) separated by C<$self->plugin_name()>.
+
+Calls L<"db_notes">.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_deferred
+{
+	my $self	= shift;
+
+	my $hash				= $self->db_notes ( DB_DEFERRED ) || {};
+
+	my $plugin_name	= $self->plugin_name;
+
+	if ( @_ )
+	{
+		$hash->{$plugin_name} = shift;
+
+		$self->db_notes ( DB_DEFERRED, $hash );
+	}
+
+	return $hash->{$plugin_name};
+}
+
+=head2 db_notify
+
+=head2 db_last_error
+
+B<Call: $self-E<gt>db_notify ( [ $value ] )>
+
+B<Call: $self-E<gt>db_last_error ( [ $value ] )>
+
+=over
+
+=item * C<$value>
+
+Any value
+
+=back
+
+Accessors for the data stored in C<< qpsmtpd->connection->notes >>
+( L<DB_DEFERRED|"CONSTANTS"> | L<DB_NOTIFY|"CONSTANTS"> | L<DB_LAST_ERROR|"CONSTANTS"> ).
+
+Calls L<"db_notes">.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_notify			{ shift()->db_notes ( DB_NOTIFY, @_ ) }
+sub db_last_error		{ shift()->db_notes ( DB_LAST_ERROR, @_ ) }
+
+=head2 db_notes
+
+B<Call: $self-E<gt>db_notes ( $key [, $value ] )>
+
+=over
+
+=item * C<$key>
+
+String
+
+=item * C<$value>
+
+Any value
+
+=back
+
+Accessor for the data stored in C<< qpsmtpd->connection->notes >> ( C<$key> ).
+
+Stores the new value if C<$key> and C<$value> are given.
+
+B<Returns:>
+
+the value	if C<$key> is given.
+
+=cut
+
+sub db_notes
+{
+	my $self	= shift;
+	my $key	= shift;
+
+	@_		and	$self->qp->connection->notes ( $key, shift );
+
+	return $self->qp->connection->notes ( $key );
+}
+
+=head1 LOGGING METHODS
+
+=head2 db_debug
+
+B<Call: $self-E<gt>db_debug ( [ @text ] )>
+
+=over
+
+=item * C<@text>
+
+Array of strings
+
+=back
+
+Creates a line like C<--- >I<caller-subname>C<: @text>
+
+Calls C<Qpsmtpd::Plugin::log> with the line as C<LOGDEBUG>.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_debug
+{
+	my ( $self, @text )	= @_;
+
+	my $msg	= @text ? ': ' . join ( ' ', @text ) : '';
+
+	my $sub	= (caller(1))[3];
+	$sub	=~ s/^Qpsmtpd::Plugin:://i;
+
+	$self->log ( LOGDEBUG, '--- ' . $sub . $msg );
+}
+
+=head2 db_error
+
+B<Call: $self-E<gt>db_error ( [ @text ] )>
+
+=over
+
+=item * C<@text>
+
+Array of strings
+
+=back
+
+Creates a line like C<PLUGIN ERROR: >I<Qpsmtpd::Plugin::plugin_name>C<: @text>.
+Uses L<DB_ERROR|"CONSTANTS">, if C<@text> is empty.
+
+Calls C<Qpsmtpd::Plugin::log> with the line as C<LOGCRIT>.
+
+Stores the line calling L<"db_last_error">.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_error
+{
+	my ( $self, @text )	= @_;
+
+	my $msg	= @text ? join ( ' ', @text ) : DB_ERROR;
+
+	$msg	= 'PLUGIN ERROR: ' . $self->plugin_name() . ': ' . $msg;
+
+	$self->db_last_error ( $msg );
+
+	$self->log ( LOGCRIT, $msg );
+}
+
+=head2 db_log
+
+B<Call: $self-E<gt>db_log ( [ @text ] )>
+
+=over
+
+=item * C<@text>
+
+Array of strings
+
+=back
+
+Creates a line like C<Plugin >I<Qpsmtpd::Plugin::plugin_name>C<: @text>
+
+Calls C<Qpsmtpd::Plugin::log> with the line as C<LOGINFO>.
+
+=cut
+
+sub db_log
+{
+	my ( $self, @text )	= @_;
+
+	my $msg	= @text ? join ( ' ', @text ) : '';
+
+	$self->log ( LOGINFO, 'Plugin ' . $self->plugin_name() . ': ' . $msg );
+}
+
+=head1 RETURNING METHODS
+
+=head2 db_ok
+
+B<Call: $self-E<gt>db_declined ( [ $msg ] )>
+
+=over
+
+=item * C<$msg>
+
+String
+
+=back
+
+B<Returns:> C<DECLINED> along with the optional C<$msg>.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_ok
+{
+	my ( $self, $msg ) = @_;
+	
+	return OK
+}
+
+=head2 db_declined
+
+B<Call: $self-E<gt>db_declined ( [ $msg ] )>
+
+=over
+
+=item * C<$msg>
+
+String
+
+=back
+
+B<Returns:> C<DECLINED> along with the optional C<$msg>.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_declined
+{
+	my ( $self, $msg )	= @_;
+
+	return $msg ? ( DECLINED, $msg ) : ( DECLINED );
+}
+
+=head2 db_deny
+
+B<Call: $self-E<gt>db_deny ( [ $msg ] )>
+
+=over
+
+=item * C<$msg>
+
+String
+
+=back
+
+B<Returns:> C<DENY> along with the optional C<$msg>.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_deny
+{
+	my ( $self, $msg )	= @_;
+
+	return $msg ? ( DENY, $msg ) : ( DENY );
+}
+
+=head2 db_denysoft
+
+B<Call: $self-E<gt>db_denysoft ( [ $msg ] )>
+
+=over
+
+=item * C<$msg>
+
+String
+
+=back
+
+B<Returns:> C<DENYSOFT> along with the optional C<$msg>
+or L<DB_LATER|"CONSTANTS">.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_denysoft
+{
+	my ( $self, $msg )	= @_;
+
+	return $msg ? ( DENYSOFT, $msg ) : ( DENYSOFT, DB_LATER );
+}
+
+=head2 db_denysoft_error
+
+B<Call: $self-E<gt>db_denysoft_error ( [ $msg ] )>
+
+=over
+
+=item * C<$msg>
+
+String
+
+=back
+
+B<Returns:> C<DENYSOFT> along with the optional C<$msg>
+or L<DB_LATER|"CONSTANTS">.
+
+If the call to L<"db_notify"> returns an entry for C<notify_email>,
+this B<notify address is sent an email> with the error message stored
+in L<"db_last_error"> using C<hook_queue>.
+
+=cut
+
+sub db_denysoft_error
+{
+	my ( $self, $msg )	= @_;
+
+	my $notify	= $self->db_notify() || {};
+
+	return $self->db_denysoft ( $msg )		unless $notify->{notify_email};
+
+	$self->db_log ( "--- Notifying $notify->{notify_email}" );
+
+	my $curr_transaction	= $self->qp->transaction;
+	my $temp_transaction	= Qpsmtpd::Transaction->new();
+
+	my $from			= $notify->{notify_from};
+	my $from_name	= $notify->{notify_from_name} . " <$from>";
+
+	my $sender		= Qpsmtpd::Address->new ( $from );
+	my $recipient	= Qpsmtpd::Address->new ( $notify->{notify_email} );
+
+	$temp_transaction->sender			( $sender );
+	$temp_transaction->add_recipient	( $recipient );
+
+	$temp_transaction->header ( Mail::Header->new ( Modify => 1, MailFrom => "COERCE" ) );
+
+	$temp_transaction->header->add ( "Subject", "QPSMTPD Error in " . $self->plugin_name() );
+	$temp_transaction->header->add ( "From", $from_name );
+	$temp_transaction->header->add ( "To", $notify->{notify_email} );
+	$temp_transaction->header->add ( "Date", Date::Format::time2str ( '%C', time ) );
+
+	my $text	= '';
+
+	$text	.= "\n";
+	$text	.= "*SYSTEMERROR*\n";
+	$text	.= "\n";
+	$text	.= $self->db_last_error() . "\n";
+	$text	.= "\n";
+	$text	.= 'log entry   : ' . scalar localtime() . ' ' . hostname() . '[' . $$ . ']' . "\n";
+
+	my $o_sender	= $curr_transaction->sender() ? $curr_transaction->sender()->format() : '';
+	my $o_rcpt		= '';
+
+	foreach ( $curr_transaction->recipients() )
+	{
+		$o_rcpt	.= ', '		if $o_rcpt;
+		$o_rcpt	.= $_->format();
+	}
+
+	$text	.= "sender      : $o_sender\n";
+	$text	.= "recipient(s): $o_rcpt\n";
+	$text	.= "\n";
+	$text	.= "result      : DENYSOFT " . ( $msg || DB_LATER ) . "\n";
+	$text	.= "\n";
+
+	$temp_transaction->body_write ( $text );
+
+	$self->qp->{_transaction}	= $temp_transaction;		#	private !?
+	$self->qp->run_hooks ( "queue" );
+	$self->qp->{_transaction}	= $curr_transaction;		#	private !?
+
+	$self->db_log ( "--- Finished notifying");
+
+	return $self->db_denysoft ( $msg );
+}
+
+=head1 HELPER METHODS
+
+=head2 db_die
+
+B<Call: $self-E<gt>db_die ( [ $msg ] )>
+
+=over
+
+=item * C<$msg>
+
+String
+
+=back
+
+Calls L<"db_error"> and dies with the optional C<$msg>
+or L<DB_ERROR|"CONSTANTS">.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_die
+{
+	my ( $self, $msg )	= @_;
+
+	$msg	||= DB_ERROR;
+
+	$self->db_error ( $msg );
+
+	die $msg;
+}
+
+=head2 db_complete_field_names
+
+B<Call: $self-E<gt>db_complete_field_names ( $record, $table )>
+
+=over
+
+=item * C<$record>
+
+Reference to a hash
+
+=item * C<$table>
+
+String
+
+=back
+
+Prefixes all keys of C<$record> with the C<$table.>.
+
+B<Returns:> a reference to a new hash.
+
+E.g.:
+
+	my $record     = { 'field1' => 'value1', 'field2' => 2 };
+	my $new_record = $self->db_complete_field_names ( $record, 'mytable' );
+
+	# $new_record now looks like { 'mytable.field1' => 'value1', 'mytable.field2' => 2 }
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_complete_field_names
+{
+	my ( $self, $record, $table )	= @_;
+
+	my $hash	= {};
+
+	my $new_key;
+
+	while ( my ( $key, $val ) = each %$record )
+	{
+		$new_key	= ( $key	=~ /\./ ) ? $key : "$table\.$key";				#	is there a tablename ?
+
+		$hash->{$new_key} = $val;
+	}
+
+	return $hash;
+}
+
+=head2 db_raw_field_names
+
+B<Call: $self-E<gt>db_raw_field_names ( $record, $table )>
+
+=over
+
+=item * C<$record>
+
+Reference to a hash
+
+=item * C<$table>
+
+String
+
+=back
+
+Removes the prefix C<$table.> from all keys of C<$record>.
+
+B<Returns:> a reference to a new hash.
+
+E.g.:
+
+	my $record     = { 'mytable.field1' => 'value1', 'othertable.field2' => 2 }
+	my $new_record = $self->db_raw_field_names ( $record, 'mytable' );
+
+	# $new_record now looks like { 'field1' => 'value1', 'othertable.field2' => 2 }
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_raw_field_names
+{
+	my ( $self, $record, $table )	= @_;
+
+	my $hash	= {};
+
+	my $new_key;
+
+	while ( my ( $key, $val ) = each %$record )
+	{
+		$new_key	= $key;
+
+		$new_key	=~ s/^$table\.//;							#	only this table...
+
+		$hash->{$key} = $val;
+	}
+
+	return $hash;
+}
+
+=head2 db_valid_email
+
+B<Call: $self-E<gt>db_valid_email ( $email_adr )>
+
+=over
+
+=item * C<$email_adr>
+
+String
+
+=back
+
+Checks, if C<$email_adr> is wellformed.
+
+B<Returns:> I<(three-state)>
+
+0	if C<$email_adr> is uncomplete or contains spaces.
+-1	if C<$email_adr> contains dangerous chars.
+1	on success.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_valid_email
+{
+	my ( $self, $email_adr )	= @_;
+
+	$email_adr	||= '';
+
+	unless ( $email_adr =~ /^[^@]+\@[^@]+$/ )						{ return 0; }		#	is uncomplete
+	if ( $email_adr =~ / / )											{ return 0; }		#	contains spaces
+	if ( $email_adr =~ /[^A-Z0-9a-z_\.\@-]/ )						{ return -1; }		#	has dangerous chars
+
+	return 1;																						#	ok
+}
+
+=head2 db_dump
+
+B<Call: $self-E<gt>db_dump ( $values [, @names ] )>
+
+=over
+
+=item * C<$values>
+
+Single reference to a value or reference to an array of values
+
+=item * C<@names>
+
+Array of strings (names of the values)
+
+=back
+
+B<Returns:> a text created by a C<Data::Dumper> object using the params.
+
+It uses the symbol substitution provided by C<Data::Dumper>.
+
+Calling examples:
+
+	my $text = $self->db_dump ( $config, qw( *config ) );
+
+	# gives:
+	#
+	# %config = (
+	#             'email_address' => undef,
+	#             'email_enabled' => 'is_enabled',
+	#             'email_table' => 'emailtable',
+	#             'email_user' => 'local_part',
+	#             'domain_domain' => 'domain',
+	#             'email_domain' => 'domain',
+	#             'email_enabled_value' => 'yes',
+	#             'domain_table' => 'emailtable'
+	#           );
+
+	my $text = $self->db_dump
+	            (
+	               [ $user, $host, $delivery, $config ],
+	               qw( user host delivery *config )
+	            );
+
+	# gives:
+	#
+	# $user = 'ernesto';
+	# $host = 'dienstleistung-kultur.de';
+	# $delivery = 'ernesto@dienstleistung-kultur.de';
+	# %config = ( same as above... )
+
+=cut
+
+sub db_dump ($$;@)
+{
+	my ( $self, $values, @names )	= @_;
+
+	my @d_values	= ();
+
+	if ( ref $values eq 'ARRAY' )
+	{
+		@d_values	= @$values;
+	}
+	else
+	{
+		@d_values	= ( $values );
+	}
+
+	if ( @names )
+	{
+		"\n"  . new Data::Dumper ( [ @d_values ], [ @names ] )->Dump;
+	}
+	else
+	{
+		"\n"  . new Data::Dumper ( [ @d_values ] )->Dump;
+	}
+}
+
+
+=head1 HOOKS None
+
+=head1 CREDITS
+
+Thanks to Ask Bjoern Hansen for qpsmtpd.
+
+http://smtpd.develooper.com/
+
+=head1 COPYRIGHT
+
+(c) Ernesto 2007, ernesto@dienstleistung-kultur.de
+
+http://dienstleistung-kultur.de/qpsmtpd/
+
+=head1 LICENCE
+
+As per the qpsmtpd license.
+
+=cut
+
+# vim: ft=perl

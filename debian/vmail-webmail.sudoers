@@ -1,0 +1,2 @@
+# allows the web user to check quota usage and remove mail directories
+www-data ALL = (vmail) NOPASSWD: /usr/bin/getmaildirsize, /usr/bin/delmaildir

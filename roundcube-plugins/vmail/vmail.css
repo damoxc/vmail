@@ -1,0 +1,73 @@
+/*
+	Accounts CSS file
+	default CSS last updated in version 2009-09-26
+*/
+
+#accounts-list, #forwards-list {
+	position: absolute;
+	overflow: auto;
+	top: 95px;
+	left: 20px;
+	bottom: 60px;
+	width: 420px;
+	border: 1px solid #999;
+}
+
+#accounts-detail, #forwards-detail {
+	position: absolute;
+	overflow: auto;
+	top: 95px;
+	right: 20px;
+	left: 450px;
+	bottom: 60px;
+	border: 1px solid #999;
+}
+
+#accounts-detail .disabled, #forwards-detail .disabled {
+	color: #ccc;
+}
+
+#accounts-detail .disabled input, #forwards-detail .disabled input {
+	border: 1px solid #ccc;
+}
+
+#accounts-details img, #forwards-details img {
+	margin: 0 auto;
+	width: 260px;
+	height: 228px;
+}
+
+#accounts-table, #forwards-table {
+	width: 100%;
+}
+
+#accounts-table .accounts.quota {
+	width: 15%;
+}
+
+#accounts-table .accounts.enabled {
+	width: 15%;
+}
+
+#accounts-table .current-user {
+	font-weight: bold;
+}
+
+#domain-quota {
+	position: absolute;
+	width: 416px;
+	padding: 2px;
+
+	border-top: 1px solid #999;
+	bottom: 0px;
+}
+
+#domain-accounts {
+	float: left;
+	font-size: 11px;
+}
+
+#domain-usage {
+	float: right;
+	font-size: 11px;
+}

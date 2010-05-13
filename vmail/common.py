@@ -1,0 +1,237 @@
+#
+# vmail/common.py
+#
+# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+#
+# Author:
+#   2010 Damien Churchill <damoxc@gmail.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3, or (at your option)
+# any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.    See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.    If not, write to:
+#   The Free Software Foundation, Inc.,
+#   51 Franklin Street, Fifth Floor
+#   Boston, MA    02110-1301, USA.
+#
+
+import os
+import re
+try:
+    import json
+except ImportError:
+    import simplejson as json
+import smtplib
+import subprocess
+import email.utils
+
+MDS_RE = re.compile('\s*([\d\-\+]+)\s+([\d\-\+]+)')
+ADDR_RE = re.compile('([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4})', re.I)
+CONFIG_DIR = '/etc/vmail'
+STATE_DIR = '/var/lib/vmail'
+_config = None
+
+class VmailError(Exception):
+    pass
+
+class Address(object):
+
+    def __init__(self, address, name=None):
+        self.address = address
+        self.name = name
+        (self.user, self.host) = address.split('@')
+
+    def __str__(self):
+        return email.utils.formataddr((self.name, self.address))
+
+    @staticmethod
+    def parse(address):
+        name, address = email.utils.parseaddr(address)
+        if '@' not in address:
+            raise VmailError('Unable to parse address')
+        return Address(address, name)
+
+def get_config():
+    global _config
+    if not _config:
+        _config = json.load(open(get_config_dir('vmail.cfg')))
+    return _config
+
+def get_config_dir(filename=None):
+    if filename:
+        return os.path.join(CONFIG_DIR, filename)
+    else:
+        return CONFIG_DIR
+
+def get_mail_dir(domain, user=None):
+    mailstore = get_config().get('mailstore')
+    if user:
+        return os.path.join(mailstore, domain, user)
+    else:
+        return os.path.join(mailstore, domain)
+
+def get_msg_path(domain, user, folder, uid):
+    """
+    Gets the filesystem path for the specified message and raises
+    an error if it cannot be found.
+
+    :param domain: The domain to use
+    :param user: The user to use
+    :param folder: The IMAP folder to look in
+    :param uid: The message uid
+    """
+
+    if not folder.startswith('INBOX'):
+        raise VmailError('Invalid folder specification')
+
+    maildir = get_mail_dir(domain, user)
+    if folder != 'INBOX':
+        if '.' not in folder:
+            raise VmailError('Invalid folder specification')
+
+        parts = map(lambda x: '.' + x, folder.split('.')[1:])
+        maildir = os.path.join(maildir, *parts)
+
+    imapserver = get_config().get('imapserver')
+    uid = str(uid)
+
+    if imapserver == 'courier':
+        for line in open(os.path.join(maildir, 'courierimapuiddb')):
+            if not line.startswith(uid):
+                continue
+            filename = line.split()[-1]
+            path = os.path.join(maildir, 'cur')
+            for item in os.listdir(path):
+                if item.startswith(filename):
+                    return os.path.join(path, item)
+        raise VmailError('Unable to find message')
+
+    else:
+        raise VmailError('Unsupported imap server')
+
+def load_state_file(filename):
+    path = os.path.join(STATE_DIR, filename)
+    if os.path.exists(path):
+        try:
+            return json.load(open(path))
+        except:
+            return {}
+    else:
+        return {}
+
+def save_state_file(filename, state):
+    return json.dump(state, open(os.path.join(STATE_DIR, filename), 'w'))
+
+def read_maildirsize(maildir_path, with_quota=False):
+    total_bytes = 0
+    path = os.path.join(maildir_path, 'maildirsize')
+    if not os.path.isfile(path):
+        raise Exception('Cannot find maildirsize: %s', os.path.basename(maildir_path))
+    
+    if with_quota:
+        fp = open(path)
+        quota = fp.readline()
+    else:
+        fp = open(path)
+
+    for line in fp:
+        m = MDS_RE.search(line)
+        if not m:
+            continue
+        total_bytes += int(m.group(1))
+    fp.close()
+
+    if with_quota:
+        return (total_bytes, quota)
+    return total_bytes
+
+def get_usage(domain, user=None):
+    if not user:
+        maildir = get_mail_dir(domain)
+        if not os.path.isdir(maildir):
+            raise Exception('Domain does not exist')
+
+        total_usage = 0
+        for user in os.listdir(maildir):
+            path = get_mail_dir(domain, user)
+
+            # skip users that don't have this file, it's better to get an estimate
+            if not os.path.isfile(os.path.join(path, 'maildirsize')):
+                continue
+
+            try:
+                total_usage += read_maildirsize(path)
+            except:
+                log.warning('unable to read maildir for %s', user)
+        return total_usage
+    else:
+        return read_maildirsize(get_mail_dir(domain, user))
+
+def send_welcome_message(address, smtphost=None):
+    """
+    Send the configured welcome message to the specified address.
+
+    :param address: The address to send the message to.
+    :type address: str
+    """
+
+    # Check to see if there is a welcome message to send
+    if not os.path.isfile(get_config_dir('welcome.msg')):
+        raise VmailError('Missing welcome message')
+
+    # Build up the subsitutable parameters
+    params = {
+        'to': address,
+        'date': email.utils.formatdate()
+    }
+
+    # Read in the welcome message
+    message = open(get_config_dir('welcome.msg')).read()
+
+    # Make the subsitutions
+    for key, value in params.iteritems():
+        message = message.replace(':' + key, value)
+    
+    # Send the welcome messsage.
+    smtp = smtplib.SMTP(smtphost or 'localhost')
+    smtp.sendmail('postmaster@' + get_config().get('defaulthost'), address, message)
+
+def maildrop(msg, deliver_to, sender):
+    """
+    Deliver the message to an address.
+
+    :param msg: A file-like object containing the message to deliver
+    :type msg: file-like object
+    :param deliver_to: The address to deliver to
+    :type deliver_to: str or vmail.common.Address
+    :param sender: The sender of the message
+    :type sender:str or vmail.common.Address
+    """
+
+    if not isinstance(deliver_to, Address):
+        deliver_to = Address(deliver_to)
+
+    if isinstance(sender, Address):
+        sender = sender.address
+
+    print deliver_to.address
+    return
+
+    p = subprocess.Popen(['maildrop', '-d', deliver_to.address,
+                        '',
+                        deliver_to.address,
+                        deliver_to.user,
+                        deliver_to.host,
+                        sender], stdin=msg)
+    if p.wait() > 0:
+        raise VmailError('Unable to deliver message')
+
+    return True

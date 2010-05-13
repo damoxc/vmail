@@ -1,0 +1,7 @@
+# required for maildrop to correct the permissions of the directory
+# when creating new maildirs.
+vmail   ALL=NOPASSWD: /bin/chown
+
+# required by the check_validrcptto plugin in qpsmtpd for checking
+# maildirsize for users/domains.
+qpsmtpd ALL = (vmail) NOPASSWD: /usr/bin/is_validrcptto

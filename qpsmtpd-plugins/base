@@ -1,0 +1,301 @@
+=head1 NAME vmail/base
+
+vmail/base - base plugin for the vmail plugin suite
+
+=head1 VERSION 2007.1
+
+=head1 DESCRIPTION
+
+On the beginning of a SMTP connection this module connects to the
+configured database. It disconnects when the SMTP connection is
+closed.
+
+=head1 REQUIREMENTS
+
+B<vmail/base> requires the plugin L<dbE<47>common|"db_common.shtml"> to be installed.
+
+It's tested with qpsmtpd 0.32 and MySQL as database.
+
+=head1 CONFIGURATION
+
+=head2 /etc/qpsmtpd/plugins
+
+All other database plugins must follow the basic plugin B<db/base> - e.g.:
+
+ vmail/base
+ vmail/relay
+ vmail/user
+ vmail/greylist
+
+=head2 /etc/qpsmtpd/vmail_base
+
+Parameter	Example	Optional/Default
+driver	C<driver=mysql>
+database	C<database=maildb>
+user	C<user=mailuser>
+passwd	C<passwd=x5fasoe4>	optional
+notify_email	C<notify_email=heinz@werner.de>	optional
+notify_from	C<notify_from=webmaster@myserver.de>	default: postmaster@(qp->config->me)
+notify_from_name	C<notify_from_name=MYSERVER Mailer>	default: QPSMTPD Mail System
+
+=cut
+
+my %CONFIG_FIELDS = map { $_ => 1 } qw(
+	notify_email
+	notify_from
+	notify_from_name
+);
+
+my %CONFIG_FIELDS_EMPTY = map { $_ => 1 } qw(
+	notify_email
+	notify_from
+);
+
+my %CONFIG_FIELDS_DEFAULT =
+(
+	notify_from_name	=> 'QPSMTPD Mail System',
+);
+
+=head1 CONSTRUCTOR METHODS
+
+=head2 init
+
+B<Call: $self-E<gt>init ( $qp )>
+
+=over
+
+=item * C<$qp>
+
+Qpsmtpd object
+
+=back
+
+Called from qpsmtpd on startup.
+
+Calls C<isa_plugin('db/common')> and L<dbE<47>common::init ( $qp )|"db_common.shtml#init">.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub init
+{
+	my ( $self, $qp, @args )	= @_;		# no args used
+
+	$self->isa_plugin ("vmail/common");
+
+	$self->db_debug;
+
+	$self->SUPER::init ( $qp );
+}
+
+=head2 db_init_config
+
+B<Call: $self-E<gt>db_init_config ( $config_fields, $config_fields_empty, $config_fields_default )>
+
+=over
+
+=item * C<$config_fields, $config_fields_empty, $config_fields_default>
+
+Empty references to hashes
+
+=back
+
+Called from L<dbE<47>common::init|"db_common.shtml#init">.
+
+Sets the local config hashes. See L<"CONFIGURATION">.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub db_init_config
+{
+	my ( $self, $config_fields, $config_fields_empty, $config_fields_default )	= @_;
+
+	%$config_fields			= %CONFIG_FIELDS;
+	%$config_fields_empty	= %CONFIG_FIELDS_EMPTY;
+	%$config_fields_default	= %CONFIG_FIELDS_DEFAULT;
+}
+
+=head2 db_get_settings
+
+B<Call: $self-E<gt>db_get_settings ()>
+
+Gets the settings for the database from vmail
+
+=cut
+
+sub db_get_settings
+{
+	my ($self) = @_;
+
+	my $config = $self->db_config();
+
+	my $text = "Can't get database settings: ";
+	
+	# Get the database settings.
+	$ENV{PATH} = '/usr/local/bin:/usr/bin';
+	open(GVC, "vgetconfig dburi |") || $self->db_die("$text $!\n");
+	my $dburi = <GVC>;
+	close(GVC);
+
+	if ($dburi =~ /dburi: (\w+):\/\/([\w_-]+):(.+?)@(.+?)\/(.+?)$/) {
+		$config->{driver} = $1;
+		$config->{database} = "$5;host=$4";
+		$config->{user} = $2;
+		$config->{passwd} = $3;
+	} else {
+		$self->db_die ("$text $dburi");
+	}
+}
+
+=head2 db_valid_config
+
+B<Call: $self-E<gt>db_valid_config ()>
+
+Called from L<dbE<47>common::init|"db_common.shtml#init">.
+
+Tries to connect to the database calling
+L<dbE<47>common::db_connect|"db_common.shtml#db_connect">,
+disconnects on success.
+
+If L<notify_email|"CONFIGURATION"> is given, validates
+L<notify_email|"CONFIGURATION"> and L<notify_from|"CONFIGURATION"> by calling
+L<dbE<47>common::db_valid_email|"db_common.shtml#db_valid_email">.
+
+Calls L<dbE<47>common::db_die|"db_common.shtml#db_die"> on errors.
+
+B<On errors in> L<"db_valid_config"> B<qpsmtpd won't start>.
+
+=cut
+
+sub db_valid_config
+{
+	my ( $self )	= @_;
+
+	my $config	= $self->db_config();
+
+	$self->db_get_settings();
+
+	my $dbh		= $self->db_connect;
+
+	unless ( $dbh )
+	{
+		my $text	= "Can't connect to database: " . $self->db_dump ( $config, '*config' );
+
+		$self->db_die ( $text );
+	}
+
+	$dbh->disconnect;
+
+	if ( $config->{notify_email} )
+	{
+		$config->{notify_from}			||= 'postmaster@' . $self->qp->config('me');
+
+		my @bad	= ();
+
+		if ( $self->db_valid_email ( $config->{notify_email} ) != 1 )
+		{
+			my $text	= "Bad notify email address: " . $self->db_dump ( $config, '*config' );
+
+			$self->db_die ( $text );
+		}
+
+		if ( $self->db_valid_email ( $config->{notify_from} ) != 1 )
+		{
+			my $text	= "Bad notify from address: " . $self->db_dump ( $config, '*config' );
+
+			$self->db_die ( $text );
+		}
+
+		if ( @bad = grep { ! $config->{$_} } qw( notify_from notify_from_name ) )
+		{
+			my $text	= "Empty param(s): " . join (',', @bad ) . $self->db_dump ( $config, '*config' );
+
+			$self->db_die ( $text );
+		}
+	}
+}
+
+=head1 HOOKS
+
+=head2 hook_connect
+
+Calls L<dbE<47>common::db_notify|"db_common.shtml#db_notify"> ( L<notify_*|"CONFIGURATION"> ).
+
+Calls L<dbE<47>common::db_open|"db_common.shtml#db_open">.
+
+B<Returns:>
+
+L<dbE<47>common::db_declined|"db_common.shtml#db_declined">	on success.
+L<dbE<47>common::db_denysoft_error|"db_common.shtml#db_denysoft_error">	on error.
+
+=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
+
+=cut
+
+sub hook_connect
+{
+	my ( $self, $transaction )	= @_;
+
+	$self->db_debug;
+
+	my $config	= $self->db_config();
+
+	$self->db_notify
+					(
+						{
+							notify_email		=> $config->{notify_email},
+							notify_from			=> $config->{notify_from},
+							notify_from_name	=> $config->{notify_from_name},
+						}
+					);
+
+	my $dbh	= $self->db_open;
+	$dbh->{mysql_auto_reconnect} = 1;
+
+	return	$dbh
+				? $self->db_declined()
+				: $self->db_denysoft_error();
+}
+
+=head2 hook_disconnect
+
+Calls L<dbE<47>common::db_close|"db_common.shtml#db_close">.
+
+B<Returns:>
+
+L<dbE<47>common::db_declined|"db_common.shtml#db_declined">.
+
+=cut
+
+sub hook_disconnect
+{
+	my ( $self, $transaction )	= @_;
+
+	$self->db_debug;
+
+	$self->db_close;
+
+	return $self->db_declined();
+}
+
+=head1 CREDITS
+
+Thanks to Ask Bjoern Hansen for qpsmtpd.
+
+http://smtpd.develooper.com/
+
+=head1 COPYRIGHT
+
+(c) Ernesto 2007, ernesto@dienstleistung-kultur.de
+
+http://dienstleistung-kultur.de/qpsmtpd/
+
+=head1 LICENCE
+
+As per the qpsmtpd license.
+
+=cut
+# vim: ft=perl

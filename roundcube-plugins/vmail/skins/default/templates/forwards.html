@@ -1,0 +1,27 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<title><roundcube:object name="pagetitle" /></title>
+		<roundcube:include file="/includes/links.html" />
+		<script type="text/javascript" src="/functions.js"></script>
+	</head>
+	<body>
+		<roundcube:include file="/includes/taskbar.html" />
+		<roundcube:include file="/includes/header.html" />
+		<roundcube:include file="/includes/settingstabs.html" />
+
+		<div id="forwards-list">
+			<roundcube:object name="plugin.forwardslist" id="forwards-table" summary="Forwards list" class="records-table" />
+		</div>
+		
+		<p id="listbuttons">
+			<roundcube:button command="plugin.forward-new" type="input" label="vmail.newforward" class="button" condition="config:forwards_level:0<2" />
+		</p>
+
+		<div id="forwards-detail">
+			<div style="margin: 10px auto; text-align: center;">
+				<img src="/images/watermark.gif" width="260" height="228" alt="" />
+			</div>
+		</div>
+	</body>
+</html>
