@@ -95,6 +95,15 @@ sub db_auth_hook
 
 		(defined $passHash and
 			$passHash eq hmac_md5_hex($ticket, $cleartext))) {
+		my $client_ip = lc $self->qp->connection->remote_ip;
+
+		$ENV{PATH} = '/usr/local/bin:/usr/bin';
+		$user =~ m/(.*)/;
+		my $cmd = "vlastlogin '$1' 'smtp' '$client_ip'";
+		$self->log(LOGDEBUG, "Executing: $cmd");
+
+		# We don't care whether or not this succeeds really, it's only logging.
+		`$cmd`;
 		return (OK);
 	}
 
