@@ -97,7 +97,8 @@ Provides the text I<Unknown Error>. See L<"db_error"> and L<"db_die">.
 
 =cut
 
-use constant DB_DBH			=> 'db_dbh';
+use constant DB_RO_DBH		=> 'db_ro_dbh';
+use constant DB_RW_DBH		=> 'db_rw_dbh';
 use constant DB_REC			=> 'db_rec';
 
 use constant DB_DEFERRED	=> 'db_deferred';
@@ -404,15 +405,15 @@ C<undef>	on error.
 
 sub db_open
 {
-	my ( $self )	= @_;
+	my ($self, $connection_type) = @_;
 
-	my $dbh	= $self->qp->connection->notes ( DB_DBH );
+	$connection_type = ($connection_type) ? $connection_type : DB_RO_DBH;
 
-	return $dbh		if $dbh;
+	my $dbh	= $self->qp->connection->notes($connection_type);
+	return $dbh	if $dbh;
 
-	$dbh	= $self->db_connect;
-
-	$self->qp->connection->notes ( DB_DBH, $dbh );
+	$dbh = $self->db_connect($connection_type);
+	$self->qp->connection->notes($connection_type, $dbh);
 
 	return $dbh;
 }
@@ -434,13 +435,29 @@ C<undef>	on error, which is logged by L<"db_error">.
 
 sub db_connect
 {
-	my ( $self )	= @_;
+	my ($self, $connection_type) = @_;
+	$connection_type = ($connection_type) ? $connection_type : DB_RO_DBH;
 
-	my $config	= $self->db_config();
+	my $config = $self->db_config();
+	my $dbconfig;
 
-	my $data_source	= 'DBI:' . $config->{driver} . ':' . $config->{database};
+	if ($connection_type eq DB_RW_DBH) {
+		# There isn't a read-only connection uri specified so
+		# we will have an open read-write connection to return.
+		if (!$self->db_notes('ro_dbconfig')) {
+			return $self->qp->connection->notes (DB_RO_DBH);
+		}
+		$self->log(LOGINFO, "Attempting to open read-write connection");
+		$dbconfig = $self->db_notes('rw_dbconfig');
+	} else {
+		# We have a read-only connection so we should open that one
+		$dbconfig = ($self->db_notes('ro_dbconfig'))
+			? $self->db_notes('ro_dbconfig') : $self->db_notes('rw_dbconfig');
+	}
 
-	my $dbh	= DBI->connect ( $data_source, $config->{user}, $config->{passwd},
+	my $data_source	= 'DBI:' . $dbconfig->{driver} . ':' . $dbconfig->{database};
+
+	my $dbh	= DBI->connect ( $data_source, $dbconfig->{user}, $dbconfig->{passwd},
 										{
 											PrintError	=> 0,
 											RaiseError	=> 0,
@@ -475,21 +492,69 @@ B<Returns:>
 
 sub db_close
 {
-	my ( $self )	= @_;
+	my ($self) = @_;
 
-#	$self->db_debug ( $self->db_dump ( $self->qp->connection->{_notes}, '*notes' ) );
-
-	my $dbh	= $self->qp->connection->notes ( DB_DBH );
-
-	return 0		unless $dbh;
-
+	my $dbh	= $self->qp->connection->notes(DB_RO_DBH);
+	return 0 unless $dbh;
 	$dbh->disconnect;
-
-	$self->qp->connection->notes ( DB_DBH, undef );
-
-#	$self->db_debug ( $self->db_dump ( $self->qp->connection->{_notes}, '*notes' ) );
-
+	$self->qp->connection->notes(DB_RO_DBH, undef);
+	$self->qp->connection->notes(DB_RW_DBH, undef);
 	return 1;
+}
+
+sub _db_sql
+{
+	my ($self, $dbh, $sql, %param) = @_;
+	return undef unless $dbh;
+
+	$self->db_debug($sql);
+	my $sth	= $dbh->prepare ($sql);
+
+	unless ($sth)
+	{
+		$self->db_error("ERROR SQL (prepare): $sql\n\t", $dbh->errstr);
+		return undef;
+	}
+
+	my $sth_result = $sth->execute();
+	unless ($sth_result)
+	{
+		$self->db_error ( "ERROR SQL (execute): $sql\n\t", $sth->errstr );
+		return undef;
+	}
+	return $sth_result if $param{no_fetch};
+
+	if ($param{all})
+	{
+		my $rows = [];
+
+		while (my $record = $sth->fetchrow_hashref)
+		{
+			push @$rows, $record;
+		}
+
+		if ($sth->errstr)
+		{
+			$self->db_error("ERROR SQL (fetch rows): $sql\n\t", $sth->errstr);
+			return undef;
+		}
+
+		return $rows;
+	}
+	else
+	{
+		my $record = $sth->fetchrow_hashref;
+		unless ($record)
+		{
+			if ($sth->errstr)
+			{
+				$self->db_error("ERROR SQL (fetch record): $sql\n\t", $sth->errstr);
+				return undef;
+			}
+			$record	= {};
+		}
+		return $record;
+	}
 }
 
 =head2 db_sql
@@ -523,66 +588,16 @@ Errors are logged by L<"db_error">.
 
 sub db_sql
 {
-	my ( $self, $sql, %param )	= @_;
-
-	$self->db_debug ( $sql );
-
+	my ($self, $sql, %param) = @_;
 	my $dbh	= $self->db_open;
+	return $self->_db_sql($dbh, $sql, %param);
+}
 
-	return undef		unless $dbh;
-
-	my $sth			= $dbh->prepare ( $sql );
-
-	unless ( $sth )
-	{
-		$self->db_error ( "ERROR SQL (prepare): $sql\n\t", $dbh->errstr );
-		return undef;
-	}
-
-	my $sth_result	= $sth->execute();
-
-	unless ( $sth_result )
-	{
-		$self->db_error ( "ERROR SQL (execute): $sql\n\t", $sth->errstr );
-		return undef;
-	}
-
-	return $sth_result		if $param{no_fetch};
-
-	if ( $param{all} )
-	{
-		my $rows	= [];
-
-		while ( my $record = $sth->fetchrow_hashref )
-		{
-			push @$rows, $record;
-		}
-
-		if ( $sth->errstr )
-		{
-			$self->db_error ( "ERROR SQL (fetch rows): $sql\n\t", $sth->errstr );
-			return undef;
-		}
-
-		return $rows;
-	}
-	else
-	{
-		my $record	= $sth->fetchrow_hashref;
-
-		unless ( $record )
-		{
-			if ( $sth->errstr )
-			{
-				$self->db_error ( "ERROR SQL (fetch record): $sql\n\t", $sth->errstr );
-				return undef;
-			}
-
-			$record	= {};
-		}
-
-		return $record;
-	}
+sub db_sql_rw
+{
+	my ($self, $sql, %param) = @_;
+	my $dbh	= $self->db_open(DB_RW_DBH);
+	return $self->_db_sql($dbh, $sql, %param);
 }
 
 =head1 ACCESSOR METHODS
@@ -618,14 +633,14 @@ the stored value	if C<$key> is given.
 
 sub db_config
 {
-	my $self	= shift;
-	my $key	= shift;
+	my $self = shift;
+	my $key = shift;
 
 	$self->{_db_config}	||= {};
 
-	$key	or		return $self->{_db_config};
+	$key or return $self->{_db_config};
 
-	@_		and	$self->{_db_config}->{$key} = shift;
+	@_ and $self->{_db_config}->{$key} = shift;
 
 	$self->{_db_config}->{$key};
 }
@@ -657,11 +672,9 @@ the new hash	if C<$record> is given.
 
 sub db_rec
 {
-	my $self	= shift;
-
-	@_		and	$self->qp->connection->notes ( DB_REC, shift );
-
-	return $self->qp->connection->notes ( DB_REC );
+	my $self = shift;
+	@_ and $self->qp->connection->notes(DB_REC, shift);
+	return $self->qp->connection->notes(DB_REC);
 }
 
 =head2 db_deferred
@@ -687,19 +700,15 @@ Calls L<"db_notes">.
 
 sub db_deferred
 {
-	my $self	= shift;
-
-	my $hash				= $self->db_notes ( DB_DEFERRED ) || {};
-
+	my $self = shift;
+	my $hash = $self->db_notes (DB_DEFERRED) || {};
 	my $plugin_name	= $self->plugin_name;
 
 	if ( @_ )
 	{
 		$hash->{$plugin_name} = shift;
-
-		$self->db_notes ( DB_DEFERRED, $hash );
+		$self->db_notes(DB_DEFERRED, $hash);
 	}
-
 	return $hash->{$plugin_name};
 }
 
@@ -728,8 +737,8 @@ Calls L<"db_notes">.
 
 =cut
 
-sub db_notify			{ shift()->db_notes ( DB_NOTIFY, @_ ) }
-sub db_last_error		{ shift()->db_notes ( DB_LAST_ERROR, @_ ) }
+sub db_notify			{ shift()->db_notes (DB_NOTIFY, @_) }
+sub db_last_error		{ shift()->db_notes (DB_LAST_ERROR, @_) }
 
 =head2 db_notes
 
@@ -886,8 +895,7 @@ B<Returns:> C<DECLINED> along with the optional C<$msg>.
 
 sub db_ok
 {
-	my ( $self, $msg ) = @_;
-	
+	my ($self, $msg) = @_;
 	return OK
 }
 
@@ -912,8 +920,7 @@ B<Returns:> C<DECLINED> along with the optional C<$msg>.
 sub db_declined
 {
 	my ( $self, $msg )	= @_;
-
-	return $msg ? ( DECLINED, $msg ) : ( DECLINED );
+	return $msg ? (DECLINED, $msg) : ( DECLINED );
 }
 
 =head2 db_deny
@@ -1075,12 +1082,9 @@ or L<DB_ERROR|"CONSTANTS">.
 
 sub db_die
 {
-	my ( $self, $msg )	= @_;
-
-	$msg	||= DB_ERROR;
-
-	$self->db_error ( $msg );
-
+	my ($self, $msg)	= @_;
+	$msg ||= DB_ERROR;
+	$self->db_error($msg);
 	die $msg;
 }
 
@@ -1210,11 +1214,11 @@ B<Returns:> I<(three-state)>
 
 sub db_valid_email
 {
-	my ( $self, $email_adr )	= @_;
+	my ($self, $email_adr) = @_;
 
-	$email_adr	||= '';
+	$email_adr ||= '';
 
-	unless ( $email_adr =~ /^[^@]+\@[^@]+$/ )						{ return 0; }		#	is uncomplete
+	unless ($email_adr =~ /^[^@]+\@[^@]+$/ )						{ return 0; }		#	is uncomplete
 	if ( $email_adr =~ / / )											{ return 0; }		#	contains spaces
 	if ( $email_adr =~ /[^A-Z0-9a-z_\.\@-]/ )						{ return -1; }		#	has dangerous chars
 

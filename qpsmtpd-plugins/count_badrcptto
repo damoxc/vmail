@@ -65,7 +65,7 @@ sub blacklist_server {
 	my ($self, $server) = @_;
 
 	my $config = $self->db_config;
-	my $dbh = $self->db_open;
+	my $dbh = $self->db_open('db_rw_dbh');
 	return $self->db_declined unless $dbh;
 
 	my $table = $dbh->quote_identifier($config->{hosts_table});
@@ -78,7 +78,7 @@ sub blacklist_server {
 		. " $ip_field = $value "
 		. ", $action_field = 'DENY_DISCONNECT' "
 		. ", $comment_field = 'Suspected spam source. Please go to\nhttp://www.ukplc.net/abuse?ip=$server for more information.';";
-	$self->db_sql($sql, no_fetch => 1);
+	$self->db_sql_rw($sql, no_fetch => 1);
 
 	$self->log(LOGINFO, "blacklisted [$server]");
 }

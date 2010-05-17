@@ -44,16 +44,22 @@ my %CONFIG_FIELDS = map { $_ => 1 } qw(
 	notify_email
 	notify_from
 	notify_from_name
+	rw
+	ro
 );
 
 my %CONFIG_FIELDS_EMPTY = map { $_ => 1 } qw(
 	notify_email
 	notify_from
+	rw
+	ro
 );
 
 my %CONFIG_FIELDS_DEFAULT =
 (
 	notify_from_name	=> 'QPSMTPD Mail System',
+	rw                  => 0,
+	ro                  => 0
 );
 
 =head1 CONSTRUCTOR METHODS
@@ -80,12 +86,9 @@ Calls C<isa_plugin('db/common')> and L<dbE<47>common::init ( $qp )|"db_common.sh
 
 sub init
 {
-	my ( $self, $qp, @args )	= @_;		# no args used
-
+	my ($self, $qp, @args) = @_; # no args used
 	$self->isa_plugin ("vmail/common");
-
 	$self->db_debug;
-
 	$self->SUPER::init ( $qp );
 }
 
@@ -131,22 +134,27 @@ sub db_get_settings
 	my ($self) = @_;
 
 	my $config = $self->db_config();
+	$config->{rw} = {};
 
 	my $text = "Can't get database settings: ";
 	
 	# Get the database settings.
 	$ENV{PATH} = '/usr/local/bin:/usr/bin';
-	open(GVC, "vgetconfig dburi |") || $self->db_die("$text $!\n");
-	my $dburi = <GVC>;
-	close(GVC);
-
-	if ($dburi =~ /dburi: (\w+):\/\/([\w_-]+):(.+?)@(.+?)\/(.+?)$/) {
-		$config->{driver} = $1;
-		$config->{database} = "$5;host=$4";
-		$config->{user} = $2;
-		$config->{passwd} = $3;
-	} else {
-		$self->db_die ("$text $dburi");
+	open(VGC, "vgetconfig rwdburi rodburi |") || $self->db_die("$text $!\n");
+	while(my $dburi = <VGC>) {
+		if ($dburi =~ /r(w|o)dburi: (\w+):\/\/([\w_-]+):(.+?)@(.+?)\/(.+?)$/) {
+			my $dbconfig = {};
+			$dbconfig->{driver} = $2;
+			$dbconfig->{database} = "$6;host=$5";
+			$dbconfig->{user} = $3;
+			$dbconfig->{passwd} = $4;
+			# Store the read-write db config for later.
+			$self->db_notes("r$1_dbconfig", $dbconfig);
+		} 
+	}
+	close(VGC);
+	if (!$self->db_notes("rw_dbconfig") && !$self->db_notes("ro_dbconfig")) {
+		$self->db_die ("$text no dburi found");
 	}
 }
 
@@ -172,19 +180,16 @@ B<On errors in> L<"db_valid_config"> B<qpsmtpd won't start>.
 
 sub db_valid_config
 {
-	my ( $self )	= @_;
+	my ($self) = @_;
 
 	my $config	= $self->db_config();
-
 	$self->db_get_settings();
 
-	my $dbh		= $self->db_connect;
-
-	unless ( $dbh )
+	my $dbh	= $self->db_connect;
+	unless ($dbh)
 	{
-		my $text	= "Can't connect to database: " . $self->db_dump ( $config, '*config' );
-
-		$self->db_die ( $text );
+		my $text = "Can't connect to database: " . $self->db_dump ($config, '*config');
+		$self->db_die ($text);
 	}
 
 	$dbh->disconnect;
@@ -237,11 +242,9 @@ L<dbE<47>common::db_denysoft_error|"db_common.shtml#db_denysoft_error">	on error
 
 sub hook_connect
 {
-	my ( $self, $transaction )	= @_;
-
+	my ($self, $transaction) = @_;
 	$self->db_debug;
-
-	my $config	= $self->db_config();
+	my $config = $self->db_config();
 
 	$self->db_notify
 					(
@@ -255,9 +258,8 @@ sub hook_connect
 	my $dbh	= $self->db_open;
 	$dbh->{mysql_auto_reconnect} = 1;
 
-	return	$dbh
-				? $self->db_declined()
-				: $self->db_denysoft_error();
+
+	return $dbh ? $self->db_declined() : $self->db_denysoft_error();
 }
 
 =head2 hook_disconnect
@@ -272,12 +274,9 @@ L<dbE<47>common::db_declined|"db_common.shtml#db_declined">.
 
 sub hook_disconnect
 {
-	my ( $self, $transaction )	= @_;
-
+	my ($self, $transaction) = @_;
 	$self->db_debug;
-
 	$self->db_close;
-
 	return $self->db_declined();
 }
 
