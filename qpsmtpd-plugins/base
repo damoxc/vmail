@@ -51,15 +51,11 @@ my %CONFIG_FIELDS = map { $_ => 1 } qw(
 my %CONFIG_FIELDS_EMPTY = map { $_ => 1 } qw(
 	notify_email
 	notify_from
-	rw
-	ro
 );
 
 my %CONFIG_FIELDS_DEFAULT =
 (
 	notify_from_name	=> 'QPSMTPD Mail System',
-	rw                  => 0,
-	ro                  => 0
 );
 
 =head1 CONSTRUCTOR METHODS
