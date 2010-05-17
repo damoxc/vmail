@@ -1,0 +1,12 @@
+sub init {
+    my ($self, $qp, @args) = @_;
+    $self->isa_plugin("spamassassin");
+}
+
+sub hook_data_post {
+    my ($self, $transaction) = @_;
+    return DECLINED if $self->qp->connection->relay_client;
+    return $self->SUPER::hook_data_post($transaction);
+}
+
+# vim: ft=perl
