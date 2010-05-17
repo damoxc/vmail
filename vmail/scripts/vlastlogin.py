@@ -37,7 +37,7 @@ class VLastLogin(ScriptBase):
     @argcount(2)
     def run(self):
         method = self.args[1].lower()
-        if method not in ('imap', 'pop3', 'smtp'):
+        if method not in ('imap', 'pop3', 'rcube', 'smtp'):
             log.error('incorrect method supplied')
             return 2
 
