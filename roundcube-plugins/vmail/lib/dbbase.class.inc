@@ -15,7 +15,8 @@ class DBBase
 
 	public static function get_db()
 	{
-		$dsn = DBBase::$vmail->rcmail->config->get('users_db_dsn');
+		$dburi = explode(':', exec("vgetconfig rwdburi"), 2);
+		$dsn = trim($dburi[1]);
 		$db = new rcube_mdb2($dsn, '', FALSE);
 		$db->set_debug((bool)DBBase::$vmail->rcmail->config->get('sql_debug'));
 		$db->db_connect('w');

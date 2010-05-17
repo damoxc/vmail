@@ -25,7 +25,6 @@ class vmail extends rcube_plugin
 	function init()
 	{
 		$this->rcmail = &rcmail::get_instance();
-		$this->load_config();
 		$this->add_texts('localization/', array('vmail'));
 
 		// Setup the database access
