@@ -44,8 +44,6 @@ my %CONFIG_FIELDS = map { $_ => 1 } qw(
 	notify_email
 	notify_from
 	notify_from_name
-	rw
-	ro
 );
 
 my %CONFIG_FIELDS_EMPTY = map { $_ => 1 } qw(
