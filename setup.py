@@ -28,7 +28,7 @@ from setuptools import setup, find_packages
 
 setup(
     name         = 'vmail',
-    version      = '0.2',
+    version      = '0.2.1',
     author       = 'Damien Churchill',
     author_email = 'damoxc@gmail.com',
 
