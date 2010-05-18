@@ -42,7 +42,7 @@ class VLastLogin(ScriptBase):
             return 2
 
         try:
-            user = db.query(User).filter_by(email=self.args[0]).one()
+            user = rw_db.query(User).filter_by(email=self.args[0]).one()
         except:
             log.error('unable to find user')
             return 3
@@ -55,6 +55,6 @@ class VLastLogin(ScriptBase):
         login.remote_addr = addr
         login.date = datetime.datetime.now()
         user.logins.append(login)
-        db.commit()
+        rw_db.commit()
 
         return 0
