@@ -52,24 +52,53 @@ class ObjectProxy(object):
     def __nonzero__(self):
         return bool(self._wrapped)
 
+    def __repr__(self):
+        return repr(self._wrapped)
+
+    def __str__(self):
+        return str(self._wrapped)
+
 class DBObjectProxy(ObjectProxy):
 
-    def __getattribute__(self, key):
-        if not engine:
-            connect()
-        return ObjectProxy.__getattribute__(self, key)
+    def __init__(self, connector=None, engine=None):
+        super(DBObjectProxy, self).__init__()
+        object.__setattr__(self, '_connector', connector)
+        object.__setattr__(self, '_engine', engine)
 
-db = DBObjectProxy()
-engine = ObjectProxy()
+    def __getattribute__(self, key):
+        if not object.__getattribute__(self, '_engine') and \
+                object.__getattribute__(self, '_connector') and \
+                key not in ('_wrapped', '_set_wrapped'):
+            object.__getattribute__(self, '_connector')()
+        return ObjectProxy.__getattribute__(self, key)
 
 def connect():
     config = get_config()
-    engine = create_engine(config['dburi'])
-    init_model(engine)
+    dburi = config.get('rodburi', None)
+    if not dburi:
+        dburi = config.get('rwdburi')
+    init_model(create_engine(dburi))
+
+def rw_connect():
+    dburi = get_config().get('rwdburi')
+    init_rw_model(create_engine(dburi))
 
 def init_model(dbengine):
     global db, engine
-    log.debug('Initialising the database model')
+    log.debug('Initialising the read-only database model')
     engine._set_wrapped(dbengine)
     sm = sessionmaker(autoflush=False, autocommit=False, bind=dbengine)
     db._set_wrapped(scoped_session(sm))
+
+def init_rw_model(dbengine):
+    global rw_db, rw_engine
+    log.debug('Initialising the read-write database model')
+    rw_engine._set_wrapped(dbengine)
+    sm = sessionmaker(autoflush=False, autocommit=False, bind=dbengine)
+    rw_db._set_wrapped(scoped_session(sm))
+
+engine = ObjectProxy()
+db = DBObjectProxy(connect, engine)
+
+rw_engine = ObjectProxy()
+rw_db = DBObjectProxy(rw_connect, rw_engine)
