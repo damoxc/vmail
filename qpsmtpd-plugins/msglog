@@ -1,0 +1,59 @@
+sub init
+{
+	my ($self, $qp) = @_;
+	$self->isa_plugin("vmail/common");
+	$self->db_debug;
+	$self->SUPER::init($qp);
+}
+
+sub db_init_config
+{
+	my ($self, $config_fields, $config_fields_empty, $config_fields_default)  = @_;
+	%$config_fields         = ();
+	%$config_fields_empty   = ();
+	%$config_fields_default = ();
+}
+
+sub hook_queue_pre
+{
+	my ($self, $transaction) = @_;
+
+	my $sender    = lc $transaction->sender->address;
+	my $user      = lc $self->qp->connection->notes("authuser");
+	my $client_ip = lc $self->qp->connection->remote_ip;
+	my $subject   = $transaction->header->get('Subject');
+	
+	# Remove the trailing newline.
+	$subject =~ s/\n$//g;
+
+	# Build the recipients option
+	my $recipients;
+	foreach my $rcpt ($transaction->recipients) {
+		lc $rcpt->address =~ m/(.*)/;
+		$recipients .= "-r$1 ";
+	}
+
+	# Begin constructing the command
+	my $cmd = "vlogmessage -s\"$subject\" $recipients";
+	if ($user) {
+		$user =~ m/(.*)/;
+		$cmd .= "-u\"$1\" ";
+	}
+
+	# Sanitise the subject and sender variables.
+	$subject =~ m/(.*)/;
+	$subject = $1;
+
+	$sender =~ m/(.*)/;
+	$sender = $1;
+
+	# Build the final command string
+	$cmd .= "\"$1\" \"$client_ip\"";
+
+	# Log the message.
+	`$cmd`;
+
+	return (DECLINED);
+}
+
+# vim: ft=perl
