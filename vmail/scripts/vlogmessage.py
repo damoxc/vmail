@@ -41,6 +41,8 @@ class VLogMessage(ScriptBase):
             metavar='RCPT', default=[])
         self.parser.add_option('-s', '--subject', dest='subject',
             action='store', help='Set the message subject')
+        self.parser.add_option('-u', '--user', dest='user',
+            action='store', help='Set the user sending the message')
 
     @argcount(1)
     def run(self):
@@ -49,6 +51,7 @@ class VLogMessage(ScriptBase):
         message = Message()
         message.date = datetime.datetime.now()
         message.sender = sender
+        message.user = self.options.user
         message.subject = self.options.subject
         message.local_addr = socket.gethostname()
         message.remote_addr = self.args[1] if len(self.args) == 2 else None
