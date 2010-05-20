@@ -41,20 +41,12 @@ class VLastLogin(ScriptBase):
             log.error('incorrect method supplied')
             return 2
 
-        try:
-            user = rw_db.query(User).filter_by(email=self.args[0]).one()
-        except:
-            log.error('unable to find user')
-            return 3
-
-        addr = self.args[2] if len(self.args) == 3 else None
-
         login = Login()
+        login.email = self.args[0]
         login.method = method
         login.local_addr = socket.gethostname()
-        login.remote_addr = addr
+        login.remote_addr = self.args[2] if len(self.args) == 3 else None
         login.date = datetime.datetime.now()
-        user.logins.append(login)
+        rw_db.add(login)
         rw_db.commit()
-
         return 0

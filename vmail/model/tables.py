@@ -72,6 +72,7 @@ hosts = Table('hosts', meta,
 
 logins = Table('logins', meta,
     Column('id', Integer, primary_key=True),
+    Column('email', String(255)),
     Column('user_id', Integer, ForeignKey('users.id')),
     Column('method', String(10)),
     Column('local_addr', String(15)),
