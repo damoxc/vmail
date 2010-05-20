@@ -96,6 +96,7 @@ sub db_auth_hook
 		(defined $passHash and
 			$passHash eq hmac_md5_hex($ticket, $cleartext))) {
 		my $client_ip = lc $self->qp->connection->remote_ip;
+		$self->qp->connection->notes("authuser", $user);
 
 		$ENV{PATH} = '/usr/local/bin:/usr/bin';
 		$user =~ m/(.*)/;
