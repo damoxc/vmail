@@ -19,6 +19,11 @@ sub hook_rcpt {
 		return (OK);
 	}
 
+	# This is when the connection to the database failed
+	if ($exit_code == 255) {
+		return Qpsmtpd::DSN->sys_unspecified("Unable to check address, try again later");
+	}
+
 	# This is the exit code when the account is disabled
 	if ($exit_code == 2) {
 		return Qpsmtpd::DSN->mbox_disabled;
