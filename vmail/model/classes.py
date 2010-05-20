@@ -85,6 +85,12 @@ class Host(object):
 class Login(object):
     pass
 
+class Message(object):
+    pass
+
+class MessageRecipient(object):
+    pass
+
 class Transport(object):
     pass
 
@@ -121,6 +127,10 @@ mapper(Forward, forwardings, properties = {
 mapper(Greylist, greylist)
 mapper(Host, hosts)
 mapper(Login, logins)
+mapper(Message, messages)
+mapper(MessageRecipient, message_recipients, properties = {
+    'message': relation(Message, backref='recipients', uselist=False)
+});
 mapper(Transport, transport, properties = {
     'domain': relation(Domain, backref='transports')
 })

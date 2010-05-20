@@ -80,6 +80,20 @@ logins = Table('logins', meta,
     Column('date', DateTime)
 )
 
+messages = Table('messages', meta,
+    Column('id', Integer, primary_key=True),
+    Column('date', DateTime),
+    Column('sender', String(100)),
+    Column('subject', String(255)),
+    Column('local_addr', String(50)),
+    Column('remote_addr', String(50))
+)
+
+message_recipients = Table('message_recipients', meta,
+    Column('message_id', Integer, ForeignKey('messages.id'), primary_key=True),
+    Column('recipient', String(100), primary_key=True)
+)
+
 packages = Table('packages', meta,
     Column('id', Integer, primary_key=True),
     Column('name', String(100)),
