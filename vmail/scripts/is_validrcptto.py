@@ -27,26 +27,27 @@ import logging
 
 from vmail.common import get_usage
 from vmail.model import connect, db
-from vmail.scripts.base import ScriptBase
+from vmail.scripts.base import ScriptBase, argcount
 
 log = logging.getLogger(__name__)
 
 class IsValidRcptTo(ScriptBase):
 
+    @argcount(1)
     def run(self):
-        if not self.args:
-            log.error('no argument provided')
-            return 1
-
         if '@' not in self.args[0]:
             log.error('invalid argument')
             return 1
-
         email = self.args[0]
-        connect()
-        result = db.execute('CALL is_validrcptto(:email)', {'email': email})
-        row = result.fetchone()
-        result.close()
+
+        try:
+            result = db.execute('CALL is_validrcptto(:email)', {'email': email})
+            row = result.fetchone()
+            result.close()
+        except Exception, e:
+            log.error('error checking database')
+            log.exception(e)
+            return 255
 
         if not row:
             log.critical('is_validrcptto query failed with no result')
