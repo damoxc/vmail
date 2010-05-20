@@ -23,13 +23,16 @@ sub hook_queue_pre
 	my $client_ip = lc $self->qp->connection->remote_ip;
 	my $subject   = $transaction->header->get('Subject');
 	
-	# Remove the trailing newline.
+	# Remove the trailing newline and sanitize.
 	$subject =~ s/\n$//g;
+	$subject =~ m/(.*)/;
+	$subject = $1;
 
 	# Build the recipients option
 	my $recipients;
 	foreach my $rcpt ($transaction->recipients) {
-		lc $rcpt->address =~ m/(.*)/;
+		my $addr = lc $rcpt->address;
+		$addr =~ m/(.*)/;
 		$recipients .= "-r$1 ";
 	}
 
@@ -40,10 +43,7 @@ sub hook_queue_pre
 		$cmd .= "-u\"$1\" ";
 	}
 
-	# Sanitise the subject and sender variables.
-	$subject =~ m/(.*)/;
-	$subject = $1;
-
+	# Sanitise the sender variable.
 	$sender =~ m/(.*)/;
 	$sender = $1;
 
@@ -51,6 +51,7 @@ sub hook_queue_pre
 	$cmd .= "\"$1\" \"$client_ip\"";
 
 	# Log the message.
+	$self->log(LOGDEBUG, $cmd);
 	`$cmd`;
 
 	return (DECLINED);
