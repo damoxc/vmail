@@ -41,8 +41,11 @@ class VLastLogin(ScriptBase):
             log.error('incorrect method supplied')
             return 2
 
+        user = db.query(User).filter_by(email=self.args[0]).one()
+
         login = Login()
-        login.email = self.args[0]
+        login.email = user.email
+        login.user_id = user.id
         login.method = method
         login.local_addr = socket.gethostname()
         login.remote_addr = self.args[2] if len(self.args) == 3 else None
