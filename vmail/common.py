@@ -72,7 +72,10 @@ def get_config():
     global _config
     if not _config:
         _config = DEFAULT_CONFIG.copy()
-        _config.update(json.load(open(get_config_dir('vmail.cfg'))))
+        try:
+            _config.update(json.load(open(get_config_dir('vmail.cfg'))))
+        except IOError:
+            pass
     return _config
 
 def get_config_dir(filename=None):
