@@ -37,6 +37,15 @@ MDS_RE = re.compile('\s*([\d\-\+]+)\s+([\d\-\+]+)')
 ADDR_RE = re.compile('([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4})', re.I)
 CONFIG_DIR = '/etc/vmail'
 STATE_DIR = '/var/lib/vmail'
+DEFAULT_CONFIG = {
+    'rwdburi': '',
+    'rodburi': '',
+    'mailstore': '/var/mail',
+    'defaulthost': 'example.com',
+    'filterhost': 'filter.example.com',
+    'listhost': 'list.example.com',
+    'autohost': 'autoreply.example.com'
+}
 _config = None
 
 class VmailError(Exception):
@@ -62,7 +71,8 @@ class Address(object):
 def get_config():
     global _config
     if not _config:
-        _config = json.load(open(get_config_dir('vmail.cfg')))
+        _config = DEFAULT_CONFIG.copy()
+        _config.update(json.load(open(get_config_dir('vmail.cfg'))))
     return _config
 
 def get_config_dir(filename=None):
