@@ -1,3 +1,30 @@
+vmail (0.2.1-1~lucid4) lucid; urgency=low
+
+  * create /etc/vmail
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Tue, 25 May 2010 22:33:24 +0100
+
+vmail (0.2.1-1~lucid3) lucid; urgency=low
+
+  * debian/control:
+    - drop courier-authdaemon and maildrop from vmail-smtp, we use dovecot
+      exclusively now.
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Tue, 25 May 2010 16:21:26 +0100
+
+vmail (0.2.1-1~lucid2) lucid; urgency=low
+
+  * debian/control:
+    - change vmail-webmail to depend on dovecot rather than courier
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Mon, 24 May 2010 13:11:16 +0100
+
+vmail (0.2.1-1~lucid1) lucid; urgency=low
+
+  * Rebuild for lucid.
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Mon, 24 May 2010 11:16:41 +0100
+
 vmail (0.2.1-1) karmic; urgency=low
 
   * New release from upstream.

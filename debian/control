@@ -6,7 +6,7 @@ Uploaders: Damien Churchill <damoxc@gmail.com>
 Build-Depends: debhelper (>= 7)
 Build-Depends-Indep: python-dev,
                      python-support (>= 0.90),
-                     python-setuptools (>= 0.6c9)
+                     python-setuptools (>= 0.6.10)
 Standards-Version: 3.8.3
 Homepage: http://www.ukplc.net
 
@@ -24,9 +24,8 @@ Description: A database driven virtual mail setup
 Package: vmail-smtp
 Architecture: all
 Depends: ${perl:Depends}, vmail (= ${source:Version}),
-         postfix, postfix-mysql, maildrop,
-         courier-authdaemon, courier-authlib, courier-authlib-mysql,
-         qpsmtpd, qpsmtpd-plugins-vmail,
+         postfix, postfix-mysql, dovecot-common,
+         qpsmtpd, qpsmtpd-vmail,
          libmime-encwords-perl,
          libemail-valid-perl,
          libmail-sender-perl,
@@ -42,8 +41,9 @@ Description: A database driven virtual mail setup
 Package: vmail-webmail
 Architecture: all
 Depends: vmail-smtp (= ${source:Version}),
-         courier-imap,
-         courier-pop
+         dovecot-imapd,
+         dovecot-pop3d,
+         dovecot-antispam
 Description: A database driven virtual mail setup
  VMail is a Postfix/Qpsmtpd based virtual mail project that
  stores it's configuration in a database.

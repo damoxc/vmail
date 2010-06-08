@@ -40,6 +40,7 @@ STATE_DIR = '/var/lib/vmail'
 DEFAULT_CONFIG = {
     'rwdburi': '',
     'rodburi': '',
+    'socket': '/var/run/vmail/vmaild.sock',
     'mailstore': '/var/mail',
     'defaulthost': 'example.com',
     'filterhost': 'filter.example.com',

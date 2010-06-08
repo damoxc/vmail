@@ -28,13 +28,14 @@ from setuptools import setup, find_packages
 
 setup(
     name         = 'vmail',
-    version      = '0.2.2',
+    version      = '0.3.0',
     author       = 'Damien Churchill',
     author_email = 'damoxc@gmail.com',
 
     packages     = find_packages(exclude=['tests', 'docs']),
     entry_points = """
     [console_scripts]
+    vmaild         = vmail.scripts.vmaild:VMailD.main
     getmaildirsize = vmail.scripts.getmaildirsize:GetMailDirSize.main
     createmaildir  = vmail.scripts.createmaildir:CreateMailDir.main
     delmaildir     = vmail.scripts.delmaildir:DelMailDir.main
