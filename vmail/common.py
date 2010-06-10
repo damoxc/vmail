@@ -69,7 +69,7 @@ class Address(object):
             raise VmailError('Unable to parse address')
         return Address(address, name)
 
-def get_config():
+def get_config(key=None):
     global _config
     if not _config:
         _config = DEFAULT_CONFIG.copy()
@@ -77,7 +77,10 @@ def get_config():
             _config.update(json.load(open(get_config_dir('vmail.cfg'))))
         except IOError:
             pass
-    return _config
+    if key:
+        return _config.get(key)
+    else:
+        return _config
 
 def get_config_dir(filename=None):
     if filename:
