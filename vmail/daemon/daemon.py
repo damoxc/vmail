@@ -1,5 +1,5 @@
 #
-# vmail/daemon/main.py
+# vmail/daemon/monitor.py
 #
 # Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 #
@@ -24,30 +24,52 @@
 #
 
 import os
-import socket
-import logging
+import pyinotify
 
-import vmail.common
-from vmail.scripts.base import ScriptBase
+from twisted.internet.task import LoopingCall
+from vmail.common import get_config
 
-log = logging.getLogger(__name__)
+class MDSEventHandler(pyinotify.ProcessEvent):
 
-class Daemon(object):
-    
-    def __init__(self):
-        self.sock = socket.socket(socket.AF_UNIX)
-        self.config = vmail.common.get_config()
+    def process_default(self, event):
+        if event.name != 'maildirsize':
+            return
+        print '%s: %s' % (event_name, os.path.join(event.path, event.name))
+
+
+class Monitor(object):
+
+    def __init__(self, mask=pyinotify.IN_DELETE | pyinotify.IN_CREATE |
+            pyinotify.IN_MODIFY):
+        self.mask = mask
+        self.manager = pyinotify.WatchManager()
+        self.handler = MDSEventHandler()
+        self.notifier = pyinotify.Notifier(self.manager, self.handler)
 
     def start(self):
-        sock_path = self.config['socket']
-        if not os.path.isdir(os.path.dirname(sock_path)):
-            log.error("Could not create socket: directory doesn't exist")
-            return 1
-        self.sock.bind(self.config['socket'])
-        self.sock.listen(2)
-        self.sock.accept()
-        self.stop()
+        """
+        Start the maildir monitor running
+        """
+        dirs = []
+        mailstore = get_config('mail_store')
+        for domain in os.listdir(mailstore):
+            # hidden folder
+            if domain[0] == '.':
+                continue
+
+            domain = os.path.join(mailstore, domain)
+            for user in os.listdir(domain):
+                dirs.append(os.path.join(domain, user))
+        
+        self.watches = [self.manager.add_watch(d, self.mask) for d in dirs]
+        self.loop = LoopingCall(self.process_events)
+        self.loop.start(0.1)
 
     def stop(self):
-        sock_path = self.config['socket']
-        os.remove(sock_path)
+        self.loop.stop()
+        self.notifier.stop()
+
+    def process_events(self):
+        self.notifier.process_events()
+        if notifier.check_events():
+            notifier.read_events()
