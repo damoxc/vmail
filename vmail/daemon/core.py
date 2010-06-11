@@ -1,5 +1,5 @@
 #
-# vmail/daemon/daemon.py
+# vmail/daemon/core.py
 #
 # Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 #
@@ -23,20 +23,15 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-from twisted.internet import reactor
-from vmail.daemon.core import Core
-from vmail.daemon.rpcserver import RpcServer
+from vmail.common import *
+from vmail.daemon.rpcserver import export
+from vmail.model import *
 
-class Daemon(object):
+class Core(object):
 
     def __init__(self):
-        self.rpcserver = RpcServer()
-        self.core = Core()
-        self.rpcserver.register_object(self.core)
+        pass
 
-    def start(self):
-        self.rpcserver.start()
-        reactor.run()
-
-    def stop(self):
-        reactor.stop()
+    @export
+    def get_usage(self, domain, user=None):
+        return get_usage(domain, user)

@@ -25,18 +25,24 @@
 
 import os
 import stat
-import select
-import socket
 import logging
 
 from twisted.internet.protocol import Protocol, Factory
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 
 import vmail.common
 from vmail.scripts.base import ScriptBase
 
 log = logging.getLogger(__name__)
 json = vmail.common.json
+
+def export(func, *args, **kwargs):
+    func._rpcserver_export = True
+    doc = func.__doc__
+    func.__doc__ = "**RPC Exported Function** \n\n"
+    if doc:
+        func.__doc__ += doc
+    return func
 
 class VmailProtocol(Protocol):
 
@@ -75,26 +81,67 @@ class VmailProtocol(Protocol):
     def sendData(self, data):
         self.transport.write(json.dumps(data))
 
+    def sendResponse(self, request_id, result):
+        response = {
+            'id': request_id,
+            'result': result,
+            'error': None
+        }
+        self.sendData(response)
+
     def _dispatch(self, request_id, method, args, kwargs):
-        print 'calling method %s' % method
+
+        if method in self.factory.methods:
+            try:
+                ret = self.factory.methods[method](*args, **kwargs)
+            except Exception, e:
+                if not isinstance(e, VmailError):
+                    log.exception("Exception calling %s: %s", method, e)
+            else:
+                if isinstance(ret, defer.Deferred):
+                    pass
+                else:
+                    self.sendResponse(request_id, ret)
 
 class RpcServer(object):
     
     def __init__(self):
         self.factory = Factory()
         self.factory.protocol = VmailProtocol
+        self.factory.methods = {}
         self.config = vmail.common.get_config()
+
+    def register_object(self, obj, name=None):
+        """
+        Registers an object to export it's RPC methods. These methods should
+        be exported with the export decorator prior to registering the
+        object.
+
+        :param obj: the object we want to export
+        :type obj: object
+        :param name: the name to use, if None, it will be the class name
+        of the object
+        :type name: str
+        """
+        if not name:
+            name = obj.__class__.__name__.lower()
+
+        for d in dir(obj):
+            if d[0] == "_":
+                continue
+            if getattr(getattr(obj, d), '_rpcserver_export', False):
+                log.debug("Registering method: %s.%s", name, d)
+                self.factory.methods[name + "." + d] = getattr(obj, d)
 
     def start(self):
         sock_path = self.config['socket']
         if not os.path.isdir(os.path.dirname(sock_path)):
-            log.error("Could not create socket: directory doesn't exist")
-            return 1
+            log.fatal('Cannot create socket: directory missing')
+            exit(1)
 
         reactor.listenUNIX(sock_path, self.factory)
         os.chmod(sock_path,
             stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO | stat.S_ISGID)
-        reactor.run()
 
     def stop(self):
         reactor.stop()
