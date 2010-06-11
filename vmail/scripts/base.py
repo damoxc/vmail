@@ -58,9 +58,10 @@ class ScriptBase(object):
     filename = None
     usage = None
 
-    def __init__(self):
+    def __init__(self, add_help_option=True):
         self.name = sys.argv[0]
-        self.parser = optparse.OptionParser(usage=self.usage)
+        self.parser = optparse.OptionParser(usage=self.usage,
+            add_help_option=add_help_option)
         self.parser.add_option('-L', '--loglevel', dest='loglevel',
             action='store', help='Set the log level')
 
