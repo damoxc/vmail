@@ -28,4 +28,11 @@ function delmaildir($email) {
 	exec($cmd);
 }
 
+function getconfig($key) {
+	$cmd = 'vgetconfig "%k"';
+	$cmd = str_replace('%k', $key, $cmd);
+	$output = explode(':', exec($cmd), 2);
+	return trim($output[1]);
+}
+
 ?>
