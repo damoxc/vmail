@@ -1,3 +1,9 @@
+vmail (0.2.2-1) lucid; urgency=low
+
+  * Emergency bugfix build, bug in roundcube plugin.
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Fri, 11 Jun 2010 12:12:43 +0100
+
 vmail (0.2.1-1~lucid4) lucid; urgency=low
 
   * create /etc/vmail
