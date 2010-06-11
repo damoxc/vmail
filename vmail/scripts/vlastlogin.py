@@ -27,6 +27,7 @@ import socket
 import datetime
 
 from vmail.model import *
+#from vmail.client import client
 from vmail.scripts.base import ScriptBase, argcount
 
 class VLastLogin(ScriptBase):
@@ -41,13 +42,17 @@ class VLastLogin(ScriptBase):
             log.error('incorrect method supplied')
             return 2
 
+        #client.connect()
+        #return 0
+
+
         user = db.query(User).filter_by(email=self.args[0]).one()
 
         login = Login()
         login.email = user.email
         login.user_id = user.id
         login.method = method
-        login.local_addr = socket.gethostname()
+        login.local_addr = socket.getfqdn()
         login.remote_addr = self.args[2] if len(self.args) == 3 else None
         login.date = datetime.datetime.now()
         rw_db.add(login)
