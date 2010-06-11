@@ -4,12 +4,6 @@ set -e
 
 case "$1" in
 	configure)
-		# check to see if sudoers.d/vmail-webmail is included in /etc/sudoers
-		grep -P "#include\\s+/etc/sudoers.d/vmail-webmail" /etc/sudoers 2>&1 > /dev/null && {
-			# add sudoers.d/vmail-webmail to be included if not.
-			echo "\n#include /etc/sudoers.d/vmail-webmail" >> /etc/sudoers
-		}
-
 		# ensure that the sudoers file has the correct perms
 		chmod 440 /etc/sudoers.d/vmail-webmail
 	;;
