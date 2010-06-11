@@ -41,7 +41,7 @@ class Account extends DBBase
 		parent::__construct();
 		$this->id = $id;
 		$this->data = array(
-			'quota'      => $this->config->get('default_quota'),
+			'quota'      => $this->config['default_quota'],
 			'enabled'    => 1,
 			'admin'      => 0,
 			'forwarding' => 'std',
@@ -108,7 +108,7 @@ class Account extends DBBase
 
 		// We want to check to see if autoreply is enabled on the account
 		$autoreply_email = str_replace('@', '#', $this->data['email']);
-		$autoreply_email .= '@' . $this->config->get('autoreply_domain');
+		$autoreply_email .= '@' . $this->config['autohost'];
 
 		$this->data['autoreply'] = in_array($autoreply_email, $destinations);
 		if ($this->data['autoreply']) {
@@ -260,7 +260,7 @@ class Account extends DBBase
 	{
 		if ($this->data['autoreply']) {
 			$autoreply_email = str_replace('@', '#', $this->data['email']);
-			$autoreply_email .= '@' . $this->config->get('autoreply_domain');
+			$autoreply_email .= '@' . $this->config['autohost'];
 
 			if ($this->data['forwarding'] == 'fwd') {
 				if ($this->data['savecopy']) {

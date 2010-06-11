@@ -26,6 +26,10 @@ class vmail extends rcube_plugin
 	{
 		$this->rcmail = &rcmail::get_instance();
 		$this->add_texts('localization/', array('vmail'));
+		$this->config = array(
+			'dburi'    => getconfig('rwdburi'),
+			'autohost' => getconfig('autohost')
+		);
 
 		// Setup the database access
 		DBBase::$vmail = $this;

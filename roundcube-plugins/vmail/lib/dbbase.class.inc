@@ -7,7 +7,7 @@ class DBBase
 
 	function __construct()
 	{
-		$this->config = DBBase::$vmail->rcmail->config;
+		$this->config = DBBase::$vmail->config;
 		$this->data = array();
 		$this->modified = array();
 		$this->vmail = DBBase::$vmail;
@@ -15,9 +15,7 @@ class DBBase
 
 	public static function get_db()
 	{
-		$dburi = explode(':', exec("vgetconfig rwdburi"), 2);
-		$dsn = trim($dburi[1]);
-		$db = new rcube_mdb2($dsn, '', FALSE);
+		$db = new rcube_mdb2(DBBase::$vmail->config['dburi'], '', FALSE);
 		$db->set_debug((bool)DBBase::$vmail->rcmail->config->get('sql_debug'));
 		$db->db_connect('w');
 		return $db;
