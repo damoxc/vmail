@@ -25,7 +25,7 @@
 
 import logging
 
-from vmail.common import get_usage
+from vmail.common import get_usage, fsize
 from vmail.scripts.base import ScriptBase
 from vmail.model import *
 
@@ -34,9 +34,17 @@ log = logging.getLogger(__name__)
 class GetMailDirSize(ScriptBase):
 
     def __init__(self):
-        super(GetMailDirSize, self).__init__()
+        super(GetMailDirSize, self).__init__(add_help_option=False)
         self.parser.add_option('-q', '--quota', dest='quota',
             action='store_true', help='Display the quota as well')
+        self.parser.add_option('-h', '--human-readable', dest='human',
+            action='store_true', help='Display human readable figures')
+        self.parser.add_option('--help', action='callback',
+            callback=self.print_help, help='show this help message and exit')
+
+    def print_help(self, *args):
+        self.parser.print_help()
+        exit(0)
 
     def run(self):
         if not self.args:
@@ -55,7 +63,12 @@ class GetMailDirSize(ScriptBase):
                 domain = db.query(Domain).filter_by(domain=self.args[0]).one()
                 quota = domain.quota
 
+        if self.options.human:
+            usage = fsize(usage)
+            if self.options.quota:
+                quota = fsize(quota)
+
         if self.options.quota:
-            print '%d/%d' % (usage, quota)
+            print '%s/%s' % (usage, quota)
         else:
-            print '%d' % usage
+            print '%s' % usage
