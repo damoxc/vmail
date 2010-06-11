@@ -63,7 +63,7 @@ class ScriptBase(object):
         self.parser = optparse.OptionParser(usage=self.usage,
             add_help_option=add_help_option)
         self.parser.add_option('-L', '--loglevel', dest='loglevel',
-            action='store', help='Set the log level')
+            action='store', help='Set the log level', default='info')
 
     def setup_logging(self, level='INFO'):
         level = LEVELS.get(level.upper(), logging.INFO)
@@ -96,7 +96,7 @@ class ScriptBase(object):
         instance = cls()
         instance.log = logging.getLogger(instance.__class__.__module__)
         (instance.options, instance.args) = instance.parser.parse_args()
-        instance.setup_logging()
+        instance.setup_logging(instance.options.loglevel)
         retval = instance.run()
         if isinstance(retval, int):
             sys.exit(retval)
