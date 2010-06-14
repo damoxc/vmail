@@ -19,4 +19,4 @@ pre-start script
 	chown vmail:root /var/run/vmaild
 end script
 
-exec su vmail -c "exec /usr/bin/vmaild"
+exec /usr/bin/vmaild
