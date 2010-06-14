@@ -23,64 +23,24 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-import logging
-
-from vmail.common import get_usage
-from vmail.model import connect, db
+from vmail.client import client, reactor
 from vmail.scripts.base import ScriptBase, argcount
 
-log = logging.getLogger(__name__)
-
 class IsValidRcptTo(ScriptBase):
+
+    def on_connected(self, result):
+        client.core.is_validrcptto(self.args[0]).addCallback(self.on_got_result)
+
+    def on_got_result(self, result):
+        self.result = result
+        reactor.stop()
 
     @argcount(1)
     def run(self):
         if '@' not in self.args[0]:
             log.error('invalid argument')
             return 1
-        email = self.args[0]
 
-        try:
-            result = db.execute('CALL is_validrcptto(:email)', {'email': email})
-            row = result.fetchone()
-            result.close()
-        except Exception, e:
-            log.error('error checking database')
-            log.exception(e)
-            return 255
-
-        if not row:
-            log.critical('is_validrcptto query failed with no result')
-            return 1
-
-        # received a > 0 returncode, so exit with it.
-        if row[0]:
-            return int(row[0])
-
-        # see if we want to do some quota checking now
-        if row[2] == 'local' or (row[2] == 'forward' and row[3]):
-            if row[2] == 'forward':
-                email = row[1]
-
-            result = db.execute('CALL get_quotas(:email)', {'email': email})
-            row = result.fetchone()
-            if not row:
-                # we'd rather let a message through than fail on quota
-                return 0
-
-            try:
-                user_quota, domain_quota = row 
-                (user, domain) = email.split('@')
-
-                if get_usage(domain, user) >= user_quota:
-                    # user is over quota, may as well stop it before maildrop
-                    return 4
-
-                if get_usage(domain) >= domain_quota:
-                    # domain is over quota
-                    return 5
-            except Exception, e:
-                log.error('error checking email %s', email)
-                log.exception(e)
-
-        return 0
+        client.connect().addCallback(self.on_connected)
+        reactor.run()
+        return self.result

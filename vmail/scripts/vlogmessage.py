@@ -23,10 +23,7 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-import socket
-import datetime
-
-from vmail.model import *
+from vmail.client import client, reactor
 from vmail.scripts.base import ScriptBase, argcount
 
 class VLogMessage(ScriptBase):
@@ -44,23 +41,18 @@ class VLogMessage(ScriptBase):
         self.parser.add_option('-u', '--user', dest='user',
             action='store', help='Set the user sending the message')
 
+    def on_connected(self, result):
+        sender = self.args[0].lower()
+        remote_addr = self.args[1] if len(self.args) == 2 else None
+        client.core.log_message(sender, self.options.user,
+            self.options.subject, remote_addr,
+            self.options.recipients).addCallback(self.on_logged_message)
+
+    def on_logged_message(self, result):
+        reactor.stop()
+
     @argcount(1)
     def run(self):
-        sender = self.args[0].lower()
-
-        message = Message()
-        message.date = datetime.datetime.now()
-        message.sender = sender
-        message.user = self.options.user
-        message.subject = self.options.subject
-        message.local_addr = socket.gethostname()
-        message.remote_addr = self.args[1] if len(self.args) == 2 else None
-        rw_db.add(message)
-        rw_db.commit()
-
-        for rcpt in self.options.recipients:
-            recipient = MessageRecipient()
-            recipient.message_id = message.id
-            recipient.recipient = rcpt
-            rw_db.add(recipient)
-        rw_db.commit()
+        client.connect().addCallback(self.on_connected)
+        reactor.run()
+        return 0
