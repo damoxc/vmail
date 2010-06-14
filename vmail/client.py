@@ -113,16 +113,14 @@ class DaemonProxy(object):
         self.__request_counter = 0
         self.__deferred = {}
         self.config = vmail.common.get_config()
-
         self.protocol = None
 
     def connect(self):
-        self.socket = reactor.connectUNIX(self.config.get('socket'), self.factory)
+        log.debug('connecting to: %s', self.config.get('socket'))
+        self.socket = reactor.connectUNIX(self.config.get('socket'), 
+            self.factory)
         self.connect_deferred = defer.Deferred()
         return self.connect_deferred
-
-    def _on_connect(self, result):
-        self.connect_deferred.callback(True)
 
     def _on_connect_fail(self, result):
         self.connect_deferred.errback(False)
