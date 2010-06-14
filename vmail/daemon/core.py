@@ -29,9 +29,17 @@ from vmail.model import *
 
 class Core(object):
 
-    def __init__(self):
-        pass
-
     @export
     def get_usage(self, domain, user=None):
         return get_usage(domain, user)
+
+    @export
+    def get_quota(self, domain, user=None):
+        """
+        Return the quota for the specified user or domain.
+        """
+        if user:
+            email = '%s@%s' % (user, domain)
+            return db.query(User).filter_by(email=email).one().quota
+        else:
+            return db.query(Domain).filter_by(domain=domain).one().quota
