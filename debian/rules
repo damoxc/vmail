@@ -8,6 +8,7 @@ override_dh_auto_install:
 	mkdir -p debian/tmp/etc/sudoers.d
 	install -m 440 -o root -g root debian/vmail-smtp.sudoers debian/tmp/etc/sudoers.d/vmail-smtp
 	install -m 440 -o root -g root debian/vmail-webmail.sudoers debian/tmp/etc/sudoers.d/vmail-webmail
+	install -o root -g root -m 644 debian/vmail.upstart debian/vmail/etc/init/vmail.conf
 
 override_dh_auto_clean:
 	dh_auto_clean

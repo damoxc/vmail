@@ -1,0 +1,22 @@
+# vmail - VMail server
+#
+# The VMail server provides a json-rpc interface via unix socket for
+# mail queries to be made.
+
+description "VMail server"
+
+start on filesystem
+stop on runlevel S
+
+respawn
+respawn limit 10 5
+
+pre-start script
+	test -x /usr/bin/vmaild || { stop; exit 0; }
+	test -e /etc/vmail/vmail.cfg || { stop; exit 0; }
+
+	mkdir -p -m0755 /var/run/vmaild
+	chown vmail:root /var/run/vmaild
+end script
+
+exec su vmail -c "exec /usr/bin/vmaild"
