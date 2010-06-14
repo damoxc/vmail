@@ -23,11 +23,7 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-import socket
-import datetime
-
-from vmail.model import *
-#from vmail.client import client
+from vmail.client import client, reactor
 from vmail.scripts.base import ScriptBase, argcount
 
 class VLastLogin(ScriptBase):
@@ -35,26 +31,21 @@ class VLastLogin(ScriptBase):
     script = 'vlastlogin'
     usage  = 'Usage: %prog [options] user method [addr]'
 
+    def on_connect(self, result):
+        client.core.last_login(self.args[0], self.method,
+            self.args[2] if len(self.args) == 3 else None).addCallback(
+                self.on_logged_login)
+
+    def on_logged_login(self, result):
+        reactor.stop()
+
     @argcount(2)
     def run(self):
-        method = self.args[1].lower()
-        if method not in ('imap', 'pop3', 'rcube', 'smtp'):
+        self.method = self.args[1].lower()
+        if self.method not in ('imap', 'pop3', 'rcube', 'smtp'):
             log.error('incorrect method supplied')
             return 2
 
-        #client.connect()
-        #return 0
-
-
-        user = db.query(User).filter_by(email=self.args[0]).one()
-
-        login = Login()
-        login.email = user.email
-        login.user_id = user.id
-        login.method = method
-        login.local_addr = socket.getfqdn()
-        login.remote_addr = self.args[2] if len(self.args) == 3 else None
-        login.date = datetime.datetime.now()
-        rw_db.add(login)
-        rw_db.commit()
+        client.connect().addCallback(self.on_connect)
+        reactor.run()
         return 0
