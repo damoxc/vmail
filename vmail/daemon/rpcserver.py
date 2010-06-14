@@ -146,7 +146,7 @@ class RpcServer(object):
         reactor.listenUNIX(sock_path, self.factory)
         os.chmod(sock_path,
             stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO | stat.S_ISGID)
-
+        
     def stop(self):
         reactor.stop()
         sock_path = self.config['socket']

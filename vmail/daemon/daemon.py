@@ -23,18 +23,34 @@
 #   Boston, MA    02110-1301, USA.
 #
 
+import os
+import grp
+import pwd
+
 from twisted.internet import reactor
+
+from vmail.common import get_config
 from vmail.daemon.core import Core
 from vmail.daemon.rpcserver import RpcServer
 
 class Daemon(object):
 
     def __init__(self):
+        self.config = get_config()
         self.rpcserver = RpcServer()
         self.core = Core()
         self.rpcserver.register_object(self.core)
 
     def start(self):
+        # Get the uid and gid we want to run as
+        gid = grp.getgrnam(self.config['group']).gr_gid
+        uid = pwd.getpwnam(self.config['user']).pw_uid
+
+        # Relinquish our root privileges
+        os.setgid(gid)
+        os.setuid(uid)
+
+        # Start the RPC server
         self.rpcserver.start()
         reactor.run()
 
