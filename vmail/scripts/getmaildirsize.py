@@ -25,9 +25,11 @@
 
 import logging
 
-from vmail.common import get_usage, fsize
+from twisted.internet import reactor
+
+from vmail.common import fsize
+from vmail.client import client
 from vmail.scripts.base import ScriptBase
-from vmail.model import *
 
 log = logging.getLogger(__name__)
 
@@ -46,29 +48,37 @@ class GetMailDirSize(ScriptBase):
         self.parser.print_help()
         exit(0)
 
+    def on_connect(self, result):
+        if self.options.quota:
+            client.core.get_quota(self.domain, self.user).addCallback(self.on_got_quota)
+        else:
+            client.core.get_usage(self.domain, self.user).addCallback(self.on_got_usage)
+
+    def on_connect_fail(self, reason):
+        reactor.stop()
+
+    def on_got_usage(self, usage):
+        if self.options.human:
+            usage = fsize(usage)
+            if self.options.quota:
+                self.quota = fsize(self.quota)
+        print ('%s/%s' % (usage, self.quota) if 
+            self.options.quota else '%s' % usage)
+        reactor.stop()
+
+    def on_got_quota(self, quota):
+        self.quota = quota
+        client.core.get_usage(self.domain, self.user).addCallback(self.on_got_usage)
+
     def run(self):
         if not self.args:
             log.error('no argument provided')
             return 1
 
         if '@' in self.args[0]:
-            (user, domain) = self.args[0].split('@')
-            usage = get_usage(domain, user)
-            if self.options.quota:
-                user = db.query(User).filter_by(email=self.args[0]).one()
-                quota = user.quota
+            (self.user, self.domain) = self.args[0].split('@')
         else:
-            usage = get_usage(self.args[0])
-            if self.options.quota:
-                domain = db.query(Domain).filter_by(domain=self.args[0]).one()
-                quota = domain.quota
+            (self.user, self.domain) = (None, self.args[0])
 
-        if self.options.human:
-            usage = fsize(usage)
-            if self.options.quota:
-                quota = fsize(quota)
-
-        if self.options.quota:
-            print '%s/%s' % (usage, quota)
-        else:
-            print '%s' % usage
+        client.connect().addCallback(self.on_connect)
+        reactor.run()
