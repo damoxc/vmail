@@ -139,6 +139,10 @@ class RpcServer(object):
             log.fatal('Cannot create socket: directory missing')
             exit(1)
 
+        if os.path.exists(self.config['socket']):
+            log.fatal('Socket already exists')
+            exit(1)
+
         reactor.listenUNIX(sock_path, self.factory)
         os.chmod(sock_path,
             stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO | stat.S_ISGID)
