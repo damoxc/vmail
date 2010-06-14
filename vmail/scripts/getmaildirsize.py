@@ -25,10 +25,8 @@
 
 import logging
 
-from twisted.internet import reactor
-
 from vmail.common import fsize
-from vmail.client import client
+from vmail.client import client, reactor
 from vmail.scripts.base import ScriptBase
 
 log = logging.getLogger(__name__)
