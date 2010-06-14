@@ -29,7 +29,8 @@ from vmail.scripts.base import ScriptBase, argcount
 class IsValidRcptTo(ScriptBase):
 
     def on_connected(self, result):
-        client.core.is_validrcptto(self.args[0]).addCallback(self.on_got_result)
+        client.core.is_validrcptto(self.args[0]).addCallback(
+            self.on_got_result)
 
     def on_got_result(self, result):
         self.result = result
