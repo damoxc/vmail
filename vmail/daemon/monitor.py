@@ -27,15 +27,34 @@ import os
 import pyinotify
 
 from twisted.internet.task import LoopingCall
-from vmail.common import get_config
+from vmail.common import get_config, get_usage
+from vmail.model import User, rw_db
 
 class MDSEventHandler(pyinotify.ProcessEvent):
+    """
+    This handler listends for changes to maildirsize files and then updates
+    the database accordingly.
+    """
 
     def process_default(self, event):
         if event.name != 'maildirsize':
             return
-        print '%s: %s' % (event_name, os.path.join(event.path, event.name))
 
+        # As this is an MDS file we want to scan it and update the user's
+        # quota figures.
+        username = os.path.basename(event.path)
+        domain = os.path.basename(os.path.dirname(event.path))
+        email = '%s@%s' % (username, domain)
+        try:
+            user = rw_db.query(User).filter_by(email=email).one()
+        except:
+            return
+
+        try:
+            user.usage = get_usage(domain, username)
+        except:
+            user.usage = 0
+        rw_db.commit()
 
 class Monitor(object):
 

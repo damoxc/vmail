@@ -66,4 +66,7 @@ class Daemon(object):
         reactor.run()
 
     def stop(self):
+        if self.monitor:
+            self.monitor.stop()
+        self.rpcserver.stop()
         reactor.stop()
