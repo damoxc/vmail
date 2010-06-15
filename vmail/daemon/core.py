@@ -34,9 +34,30 @@ from vmail.model import *
 log = logging.getLogger(__name__)
 
 class Core(object):
+    
+    @export
+    def check_host(self, remote_addr):
+        """
+        CHeck whether the host is allowed to connect to the server.
+
+        :param remote_addr: The remote address
+        :type remote_addr: string
+        :returns: (action, comment)
+        :rtype: tuple
+        """
+        host = db.query(Host).filter(
+            Host.ip_address.like('%' + remote_addr + '%')).first()
+
+        if host:
+            return (host.action, host.comment)
+        else:
+            return None
 
     @export
     def get_usage(self, domain, user=None):
+        """
+        Get the total quota usage for the specified domain or account.
+        """
         return get_usage(domain, user)
 
     @export
