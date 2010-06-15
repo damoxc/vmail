@@ -117,6 +117,7 @@ users = Table('users', meta,
     Column('password', String(20)),
     Column('cleartext', String(20)),
     Column('quota', Integer),
+    Column('usage', Integer),
     Column('enabled', Boolean),
     Column('admin', Boolean)
 )
