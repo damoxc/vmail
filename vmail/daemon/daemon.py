@@ -39,6 +39,13 @@ class Daemon(object):
         self.config = get_config()
         self.rpcserver = RpcServer()
         self.core = Core()
+
+        if self.config['monitor']:
+            from vmail.daemon.monitor import Monitor
+            self.monitor = Monitor()
+        else:
+            self.monitor = None
+
         self.rpcserver.register_object(self.core)
 
     def start(self):
@@ -52,6 +59,10 @@ class Daemon(object):
 
         # Start the RPC server
         self.rpcserver.start()
+
+        # Start the monitor
+        if self.monitor:
+            self.monitor.start()
         reactor.run()
 
     def stop(self):

@@ -51,7 +51,7 @@ class Monitor(object):
         Start the maildir monitor running
         """
         dirs = []
-        mailstore = get_config('mail_store')
+        mailstore = get_config('mailstore')
         for domain in os.listdir(mailstore):
             # hidden folder
             if domain[0] == '.':
@@ -71,5 +71,5 @@ class Monitor(object):
 
     def process_events(self):
         self.notifier.process_events()
-        if notifier.check_events():
-            notifier.read_events()
+        if self.notifier.check_events():
+            self.notifier.read_events()
