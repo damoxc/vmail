@@ -23,6 +23,7 @@
 #   Boston, MA    02110-1301, USA.
 #
 
+import hmac
 import socket
 import logging
 import datetime
@@ -34,7 +35,45 @@ from vmail.model import *
 log = logging.getLogger(__name__)
 
 class Core(object):
+
+    @export
+    def authenticate(self, user, pw_clear):
+        user = self._authenticate(user)
+        if not user:
+            return False
+
+        if user.password != pw_clear:
+            return False
+        
+        return True
     
+    @export
+    def authenticate_cram(self, user, pw_hash, ticket):
+        user = self._authenticate(user)
+        if not user:
+            return False
+
+        pw_hash = pw_hash.encode('utf8')
+        ticket = ticket.encode('utf8')
+
+        if pw_hash != hmac.new(user.password, ticket).hexdigest():
+            return False
+
+        return True
+
+    def _authenticate(self, user):
+        user = db.query(User).filter_by(email=user).first()
+        if not user:
+            return False
+
+        if not user.enabled:
+            return False
+
+        if not user.domain.enabled:
+            return False
+
+        return user
+
     @export
     def check_host(self, remote_addr):
         """

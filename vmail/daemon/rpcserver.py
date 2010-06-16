@@ -31,7 +31,7 @@ from twisted.internet.protocol import Protocol, Factory
 from twisted.internet import reactor, defer
 
 import vmail.common
-from vmail.scripts.base import ScriptBase
+from vmail.error import VmailError
 
 log = logging.getLogger(__name__)
 json = vmail.common.json
