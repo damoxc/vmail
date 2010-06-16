@@ -1,5 +1,21 @@
 use Qpsmtpd::DSN();
 
+sub init
+{
+	my ($self, $qp) = @_;
+	$self->isa_plugin("vmail/common");
+	$self->vm_debug;
+	$self->SUPER::init($qp);
+}
+
+sub vm_init_config
+{
+    my ($self, $config_fields, $config_fields_empty, $config_fields_default)  = @_; 
+    %$config_fields         = (); 
+    %$config_fields_empty   = (); 
+    %$config_fields_default = (); 
+}
+
 sub hook_rcpt {
 	my ($self, $transaction, $recipient) = @_;
 	my $user        = lc $recipient->user;
@@ -11,9 +27,9 @@ sub hook_rcpt {
 		return (OK);
 	}
 
-	# run the script that checks the email address
-	`sudo -u vmail is_validrcptto "$delivery"`;
-	my $exit_code = $? >> 8;
+	my $exit_code = $self->vm_call("core.is_validrcptto", $delivery);
+
+	$self->log(LOGINFO, "Got response: $exit_code");
 
 	if ($exit_code == 0) {
 		return (OK);

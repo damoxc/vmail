@@ -1,32 +1,23 @@
 use Qpsmtpd::DSN();
 
 my %CONFIG_FIELDS = map { $_ => 1 } qw(
-	hosts_table
-	ip_field
-	action_field
-	comment_field
 );
 
 my %CONFIG_FIELDS_EMPTY = map { $_ => 1 } qw(
-	comment_field
 );
 
 my %CONFIG_FIELDS_DEFAULT = (
-	'hosts_table'   => 'hosts',
-	'ip_field'      => 'ip_address',
-	'action_field'  => 'action',
-	'comment_field' => 'comment'
 );
 
 sub init
 {
 	my ($self, $qp) = @_;
 	$self->isa_plugin("vmail/common");
-	$self->db_debug;
+	$self->vm_debug;
 	$self->SUPER::init($qp);
 }
 
-sub db_init_config
+sub vm_init_config
 {
 	my ($self, $config_fields, $config_fields_empty, $config_fields_default)  = @_;
 	%$config_fields         = %CONFIG_FIELDS;
@@ -34,10 +25,10 @@ sub db_init_config
 	%$config_fields_default = %CONFIG_FIELDS_DEFAULT;
 }
 
-sub db_valid_config
+sub vm_valid_config
 {
 	my ($self) = @_;
-	my $config  = $self->db_config();
+	my $config  = $self->vm_config();
 }
 
 sub hook_rcpt {
@@ -53,34 +44,12 @@ sub hook_rcpt {
 	$transaction->notes("bad_rcpt_to", $bad_rcpt_to);
 
 	if ($bad_rcpt_to >= 5) {
-		$self->blacklist_server($client_ip);
+		$self->vm_call("core.block_host", $client_ip);
 		return (DENY_DISCONNECT);
 	}
 
 	$self->log(LOGINFO, "[$client_ip] has bad_rcpt_to count: $bad_rcpt_to");
 	return Qpsmtpd::DSN->relaying_denied();
-}
-
-sub blacklist_server {
-	my ($self, $server) = @_;
-
-	my $config = $self->db_config;
-	my $dbh = $self->db_open('db_rw_dbh');
-	return $self->db_declined unless $dbh;
-
-	my $table = $dbh->quote_identifier($config->{hosts_table});
-	my $ip_field = $dbh->quote_identifier($config->{ip_field});
-	my $action_field = $dbh->quote_identifier($config->{action_field});
-	my $comment_field = $dbh->quote_identifier($config->{comment_field});
-	my $value = $dbh->quote($server);
-
-	my $sql = "INSERT IGNORE INTO $table SET"
-		. " $ip_field = $value "
-		. ", $action_field = 'DENY_DISCONNECT' "
-		. ", $comment_field = 'Suspected spam source. Please go to\nhttp://www.ukplc.net/abuse?ip=$server for more information.';";
-	$self->db_sql_rw($sql, no_fetch => 1);
-
-	$self->log(LOGINFO, "blacklisted [$server]");
 }
 
 # vim: ft=perl

@@ -21,40 +21,28 @@ Version 0.1
 
 use constant SMTP_PORT => getservbyname("smtp", "tcp") || 25;
 use constant SSMTP_PORT => getservbyname("ssmtp", "tcp") || 465;
-use Digest::HMAC_MD5 qw(hmac_md5_hex);
 
 my %CONFIG_FIELDS = map { $_ => 1 } qw( 
-	users_table
-	username_field
-	enabled_field
-	password_field
-	cleartext_field
 );
 
 my %CONFIG_FIELDS_EMPTY = map { $_ => 1 } qw( 
-	cleartext_field
 );
 
 my %CONFIG_FIELDS_DEFAULT =
 (
-	'users_table'     => 'users',
-	'username_field'  => 'email',
-	'enabled_field'   => 'enabled',
-	'password_field'  => 'password',
-	'cleartext_field' => 'cleartext'
 );
 
 sub init {
 	my ($self, $qp) = @_;
 	$self->isa_plugin("vmail/common");
-	$self->db_debug;
-	$self->register_hook("auth-plain", "db_auth_hook");
-	$self->register_hook("auth-login", "db_auth_hook");
-	$self->register_hook("auth-cram-md5", "db_auth_hook");
+	$self->vm_debug;
+	$self->register_hook("auth-plain", "vm_auth_hook");
+	$self->register_hook("auth-login", "vm_auth_hook");
+	$self->register_hook("auth-cram-md5", "vm_auth_hook");
 	$self->SUPER::init($qp);
 }
 
-sub db_init_config
+sub vm_init_config
 {
 	my ($self, $config_fields, $config_fields_empty, $config_fields_default)  = @_; 
 	%$config_fields         = %CONFIG_FIELDS;
@@ -62,71 +50,29 @@ sub db_init_config
 	%$config_fields_default = %CONFIG_FIELDS_DEFAULT;
 }
 
-sub db_valid_config
+sub vm_valid_config
 {
 	my ($self) = @_; 
-	my $config  = $self->db_config();
+	my $config  = $self->vm_config();
 }
 
-sub db_auth_hook
+sub vm_auth_hook
 {
 	my ($self, $transaction, $method, $user, $passClear, $passHash, $ticket) = @_;
-	my $config = $self->db_config;
-	my $user_record = $self->user_email_record($user);
-	
-	# first check to see if the user is enabled, if not they should go away.
-	if (!$user_record->{$config->{enabled_field}}) {
-		# user is disabled in the database so they can't authenticate
-		# using this method.
-		return (DENY);
-	}
 
-	# TODO: uncomment this when ssl is supported.
-	# We don't want to support any other auth type than cram-md5
-	# over non-ssl connections.
-	#if ($method !~ /CRAM-MD5/i and $self->qp->connection->local_port == SMTP_PORT) {
-	#	return (DENY);
-	#}
-
-	my $cleartext = $user_record->{$config->{cleartext_field}};
 	if (
 		(defined $passClear and
-			$passClear eq $cleartext) or
+			$self->vm_call("core.authenticate", $user, $passClear)) or
 
 		(defined $passHash and
-			$passHash eq hmac_md5_hex($ticket, $cleartext))) {
+			$self->vm_call("core.authenticate_cram", $user, $passHash, $ticket))) {
+
 		my $client_ip = lc $self->qp->connection->remote_ip;
 		$self->qp->connection->notes("authuser", $user);
 
-		$ENV{PATH} = '/usr/local/bin:/usr/bin';
-		$user =~ m/(.*)/;
-		my $cmd = "vlastlogin '$1' 'smtp' '$client_ip'";
-		$self->log(LOGDEBUG, "Executing: $cmd");
-
-		# We don't care whether or not this succeeds really, it's only logging.
-		`$cmd`;
+		$self->vm_call("core.last_login", $user, "smtp", $client_ip);
 		return (OK);
 	}
 
 	return (DENY);
-}
-
-sub user_email_record
-{
-	my ($self, $user) = @_;
-	$self->db_debug;
-
-	my $config = $self->db_config;
-	my $dbh    = $self->db_open;
-	return undef unless $dbh;
-
-	my $table = $dbh->quote_identifier($config->{users_table});
-	my $user_field = $dbh->quote_identifier($config->{username_field});
-	my $user_value = $dbh->quote($user);
-
-	my $sql = "SELECT * FROM $table WHERE $user_field=$user_value";
-	my $record = $self->db_sql($sql);
-	return undef unless $dbh;
-
-	return $record;
 }

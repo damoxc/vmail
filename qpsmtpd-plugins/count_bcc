@@ -1,23 +1,10 @@
 use Mail::Address;
 use Qpsmtpd::DSN();
 
-my %CONFIG_FIELDS = map { $_ => 1 } qw (
-	whitelist_table
-	address_field
-);
-
-my %CONFIG_FIELDS_EMPTY = map { $_ => 1 } qw (
-);
-
-my %CONFIG_FIELDS_DEFAULT = (
-	'whitelist_table' => 'whitelist',
-	'address_field'   => 'address'
-);
-
 sub init {
 	my ($self, $qp) = @_;
 	$self->isa_plugin("vmail/common");
-	$self->db_debug;
+	$self->vm_debug;
 	$self->SUPER::init($qp);
 }
 
@@ -26,25 +13,25 @@ sub register {
 	$self->{_bcc_count} = $arg{count};
 }
 
-sub db_init_config
+sub vm_init_config
 {
     my ($self, $config_fields, $config_fields_empty, $config_fields_default)  = @_;
-    %$config_fields         = %CONFIG_FIELDS;
-    %$config_fields_empty   = %CONFIG_FIELDS_EMPTY;
-    %$config_fields_default = %CONFIG_FIELDS_DEFAULT;
+    %$config_fields         = ();
+    %$config_fields_empty   = ();
+    %$config_fields_default = ();
 }
 
-sub db_valid_config
+sub vm_valid_config
 {
     my ($self) = @_; 
-    my $config  = $self->db_config();
+    my $config  = $self->vm_config();
 }
 
 sub hook_data_post {
 	my ($self, $transaction) = @_;
 
 	my $sender = lc $transaction->sender()->address();
-	return (DECLINED) if $self->check_whitelist($sender);
+	return (DECLINED) if $self->vm_call("core.check_whitelist", $sender);
 
 	# Get the recipient count.
 	my $rcpt_count = scalar($transaction->recipients());
@@ -65,24 +52,3 @@ sub hook_data_post {
 
 	return (DECLINED);
 }
-
-sub check_whitelist {
-	my ($self, $address) = @_;
-	
-	my $config = $self->db_config;
-	my $dbh = $self->db_open;
-	return $self->db_declined unless $dbh;
-
-	my $table = $dbh->quote_identifier($config->{whitelist_table});
-	my $field = $dbh->quote_identifier($config->{address_field});
-	my $value = $dbh->quote($address);
-	
-	my $sql = "SELECT count($field) AS 'count' FROM $table WHERE $value LIKE CONCAT('%', $field)";
-	my $record = $self->db_sql($sql);
-
-	return 0 unless $record;
-
-	return $record->{count};
-}
-
-# vim: ft=perl

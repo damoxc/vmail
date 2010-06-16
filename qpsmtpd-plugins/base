@@ -12,7 +12,7 @@ closed.
 
 =head1 REQUIREMENTS
 
-B<vmail/base> requires the plugin L<dbE<47>common|"db_common.shtml"> to be installed.
+B<vmail/base> requires the plugin L<dbE<47>common|"vm_common.shtml"> to be installed.
 
 It's tested with qpsmtpd 0.32 and MySQL as database.
 
@@ -27,7 +27,7 @@ All other database plugins must follow the basic plugin B<db/base> - e.g.:
  vmail/user
  vmail/greylist
 
-=head2 /etc/qpsmtpd/vmail_base
+=head2 /etc/qpsmtpd/vm_base
 
 Parameter	Example	Optional/Default
 driver	C<driver=mysql>
@@ -72,7 +72,7 @@ Qpsmtpd object
 
 Called from qpsmtpd on startup.
 
-Calls C<isa_plugin('db/common')> and L<dbE<47>common::init ( $qp )|"db_common.shtml#init">.
+Calls C<isa_plugin('db/common')> and L<dbE<47>common::init ( $qp )|"vm_common.shtml#init">.
 
 =for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
 
@@ -82,13 +82,13 @@ sub init
 {
 	my ($self, $qp, @args) = @_; # no args used
 	$self->isa_plugin ("vmail/common");
-	$self->db_debug;
-	$self->SUPER::init ( $qp );
+	$self->vm_debug;
+	$self->SUPER::init ($qp);
 }
 
-=head2 db_init_config
+=head2 vm_init_config
 
-B<Call: $self-E<gt>db_init_config ( $config_fields, $config_fields_empty, $config_fields_default )>
+B<Call: $self-E<gt>vm_init_config ( $config_fields, $config_fields_empty, $config_fields_default )>
 
 =over
 
@@ -98,7 +98,7 @@ Empty references to hashes
 
 =back
 
-Called from L<dbE<47>common::init|"db_common.shtml#init">.
+Called from L<dbE<47>common::init|"vm_common.shtml#init">.
 
 Sets the local config hashes. See L<"CONFIGURATION">.
 
@@ -106,7 +106,7 @@ Sets the local config hashes. See L<"CONFIGURATION">.
 
 =cut
 
-sub db_init_config
+sub vm_init_config
 {
 	my ( $self, $config_fields, $config_fields_empty, $config_fields_default )	= @_;
 
@@ -115,104 +115,92 @@ sub db_init_config
 	%$config_fields_default	= %CONFIG_FIELDS_DEFAULT;
 }
 
-=head2 db_get_settings
+=head2 vm_get_settings
 
-B<Call: $self-E<gt>db_get_settings ()>
+B<Call: $self-E<gt>vm_get_settings ()>
 
 Gets the settings for the database from vmail
 
 =cut
 
-sub db_get_settings
+sub vm_get_settings
 {
 	my ($self) = @_;
 
-	my $config = $self->db_config();
-	$config->{rw} = {};
-
-	my $text = "Can't get database settings: ";
+	my $config = $self->vm_config();
+	my $text = "Can't get socket settings: ";
 	
 	# Get the database settings.
 	$ENV{PATH} = '/usr/local/bin:/usr/bin';
-	open(VGC, "vgetconfig rwdburi rodburi |") || $self->db_die("$text $!\n");
-	while(my $dburi = <VGC>) {
-		if ($dburi =~ /r(w|o)dburi: (\w+):\/\/([\w_-]+):(.+?)@(.+?)\/(.+?)$/) {
-			my $dbconfig = {};
-			$dbconfig->{driver} = $2;
-			$dbconfig->{database} = "$6;host=$5";
-			$dbconfig->{user} = $3;
-			$dbconfig->{passwd} = $4;
-			# Store the read-write db config for later.
-			$self->db_notes("r$1_dbconfig", $dbconfig);
+	open(VGC, "vgetconfig socket|") || $self->vm_die("$text $!\n");
+	while(my $sock = <VGC>) {
+		if ($sock =~ /^socket: (.*)$/) {
+			$config->{sock} = $1;
 		} 
 	}
 	close(VGC);
-	if (!$self->db_notes("rw_dbconfig") && !$self->db_notes("ro_dbconfig")) {
-		$self->db_die ("$text no dburi found");
-	}
 }
 
-=head2 db_valid_config
+=head2 vm_valid_config
 
-B<Call: $self-E<gt>db_valid_config ()>
+B<Call: $self-E<gt>vm_valid_config ()>
 
-Called from L<dbE<47>common::init|"db_common.shtml#init">.
+Called from L<dbE<47>common::init|"vm_common.shtml#init">.
 
 Tries to connect to the database calling
-L<dbE<47>common::db_connect|"db_common.shtml#db_connect">,
+L<dbE<47>common::vm_connect|"db_common.shtml#db_connect">,
 disconnects on success.
 
 If L<notify_email|"CONFIGURATION"> is given, validates
 L<notify_email|"CONFIGURATION"> and L<notify_from|"CONFIGURATION"> by calling
-L<dbE<47>common::db_valid_email|"db_common.shtml#db_valid_email">.
+L<dbE<47>common::vm_valid_email|"db_common.shtml#db_valid_email">.
 
-Calls L<dbE<47>common::db_die|"db_common.shtml#db_die"> on errors.
+Calls L<dbE<47>common::vm_die|"db_common.shtml#db_die"> on errors.
 
-B<On errors in> L<"db_valid_config"> B<qpsmtpd won't start>.
+B<On errors in> L<"vm_valid_config"> B<qpsmtpd won't start>.
 
 =cut
 
-sub db_valid_config
+sub vm_valid_config
 {
 	my ($self) = @_;
 
-	my $config	= $self->db_config();
-	$self->db_get_settings();
+	my $config	= $self->vm_config();
+	$self->vm_get_settings();
 
-	my $dbh	= $self->db_connect;
-	unless ($dbh)
+	my $sock = $self->vm_connect;
+	unless ($sock)
 	{
-		my $text = "Can't connect to database: " . $self->db_dump ($config, '*config');
-		$self->db_die ($text);
+		my $text = "Can't connect to socket: " . $self->vm_dump ($config, '*config');
+		$self->vm_die($text);
 	}
+	$sock->shutdown(2);
 
-	$dbh->disconnect;
-
-	if ( $config->{notify_email} )
+	if ($config->{notify_email})
 	{
 		$config->{notify_from}			||= 'postmaster@' . $self->qp->config('me');
 
 		my @bad	= ();
 
-		if ( $self->db_valid_email ( $config->{notify_email} ) != 1 )
+		if ( $self->vm_valid_email ( $config->{notify_email} ) != 1 )
 		{
-			my $text	= "Bad notify email address: " . $self->db_dump ( $config, '*config' );
+			my $text	= "Bad notify email address: " . $self->vm_dump ( $config, '*config' );
 
-			$self->db_die ( $text );
+			$self->vm_die ( $text );
 		}
 
-		if ( $self->db_valid_email ( $config->{notify_from} ) != 1 )
+		if ( $self->vm_valid_email ( $config->{notify_from} ) != 1 )
 		{
-			my $text	= "Bad notify from address: " . $self->db_dump ( $config, '*config' );
+			my $text	= "Bad notify from address: " . $self->vm_dump ( $config, '*config' );
 
-			$self->db_die ( $text );
+			$self->vm_die ( $text );
 		}
 
 		if ( @bad = grep { ! $config->{$_} } qw( notify_from notify_from_name ) )
 		{
-			my $text	= "Empty param(s): " . join (',', @bad ) . $self->db_dump ( $config, '*config' );
+			my $text	= "Empty param(s): " . join (',', @bad ) . $self->vm_dump ( $config, '*config' );
 
-			$self->db_die ( $text );
+			$self->vm_die ( $text );
 		}
 	}
 }
@@ -221,14 +209,14 @@ sub db_valid_config
 
 =head2 hook_connect
 
-Calls L<dbE<47>common::db_notify|"db_common.shtml#db_notify"> ( L<notify_*|"CONFIGURATION"> ).
+Calls L<dbE<47>common::vm_notify|"db_common.shtml#db_notify"> ( L<notify_*|"CONFIGURATION"> ).
 
-Calls L<dbE<47>common::db_open|"db_common.shtml#db_open">.
+Calls L<dbE<47>common::vm_open|"db_common.shtml#db_open">.
 
 B<Returns:>
 
-L<dbE<47>common::db_declined|"db_common.shtml#db_declined">	on success.
-L<dbE<47>common::db_denysoft_error|"db_common.shtml#db_denysoft_error">	on error.
+L<dbE<47>common::vm_declined|"db_common.shtml#db_declined">	on success.
+L<dbE<47>common::vm_denysoft_error|"db_common.shtml#db_denysoft_error">	on error.
 
 =for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
 
@@ -237,10 +225,10 @@ L<dbE<47>common::db_denysoft_error|"db_common.shtml#db_denysoft_error">	on error
 sub hook_connect
 {
 	my ($self, $transaction) = @_;
-	$self->db_debug;
-	my $config = $self->db_config();
+	$self->vm_debug;
+	my $config = $self->vm_config();
 
-	$self->db_notify
+	$self->vm_notify
 					(
 						{
 							notify_email		=> $config->{notify_email},
@@ -249,29 +237,26 @@ sub hook_connect
 						}
 					);
 
-	my $dbh	= $self->db_open;
-	$dbh->{mysql_auto_reconnect} = 1;
-
-
-	return $dbh ? $self->db_declined() : $self->db_denysoft_error();
+	my $sock = $self->vm_open;
+	return $sock ? $self->vm_declined() : $self->db_denysoft_error();
 }
 
 =head2 hook_disconnect
 
-Calls L<dbE<47>common::db_close|"db_common.shtml#db_close">.
+Calls L<dbE<47>common::vm_close|"db_common.shtml#db_close">.
 
 B<Returns:>
 
-L<dbE<47>common::db_declined|"db_common.shtml#db_declined">.
+L<dbE<47>common::vm_declined|"db_common.shtml#db_declined">.
 
 =cut
 
 sub hook_disconnect
 {
 	my ($self, $transaction) = @_;
-	$self->db_debug;
-	$self->db_close;
-	return $self->db_declined();
+	$self->vm_debug;
+	$self->vm_close;
+	return $self->vm_declined();
 }
 
 =head1 CREDITS

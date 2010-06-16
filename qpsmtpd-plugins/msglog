@@ -2,11 +2,11 @@ sub init
 {
 	my ($self, $qp) = @_;
 	$self->isa_plugin("vmail/common");
-	$self->db_debug;
+	$self->vm_debug;
 	$self->SUPER::init($qp);
 }
 
-sub db_init_config
+sub vm_init_config
 {
 	my ($self, $config_fields, $config_fields_empty, $config_fields_default)  = @_;
 	%$config_fields         = ();
@@ -29,30 +29,14 @@ sub hook_queue_pre
 	$subject = $1;
 
 	# Build the recipients option
-	my $recipients;
+	my @recipients = ();
 	foreach my $rcpt ($transaction->recipients) {
 		my $addr = lc $rcpt->address;
-		$addr =~ m/(.*)/;
-		$recipients .= "-r$1 ";
+		push(@recipients, $addr);
 	}
 
-	# Begin constructing the command
-	my $cmd = "vlogmessage -s\"$subject\" $recipients";
-	if ($user) {
-		$user =~ m/(.*)/;
-		$cmd .= "-u\"$1\" ";
-	}
-
-	# Sanitise the sender variable.
-	$sender =~ m/(.*)/;
-	$sender = $1;
-
-	# Build the final command string
-	$cmd .= "\"$1\" \"$client_ip\"";
-
-	# Log the message.
-	$self->log(LOGDEBUG, $cmd);
-	`$cmd`;
+	# Log the message to the database
+	$self->vm_call("core.log_message", $sender, $user, $subject, $client_ip, \@recipients);
 
 	return (DECLINED);
 }

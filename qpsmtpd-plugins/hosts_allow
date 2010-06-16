@@ -3,32 +3,23 @@ use Qpsmtpd::DSN();
 use Socket;
 
 my %CONFIG_FIELDS = map { $_ => 1 } qw(
-	hosts_table
-	ip_field
-	action_field
-	comment_field
 );
 
 my %CONFIG_FIELDS_EMPTY = map { $_ => 1 } qw(
-	comment_field
 );
 
 my %CONFIG_FIELDS_DEFAULT =
 (
-	'hosts_table'   => 'hosts',
-	'ip_field'      => 'ip_address',
-	'action_field'  => 'action',
-	'comment_field' => 'comment'
 );
 
 sub init {
 	my ($self, $qp) = @_;
 	$self->isa_plugin("vmail/common");
-	$self->db_debug;
+	$self->vm_debug;
 	$self->SUPER::init($qp);
 }
 
-sub db_init_config
+sub vm_init_config
 {
 	 my ($self, $config_fields, $config_fields_empty, $config_fields_default)  = @_;
 	 %$config_fields         = %CONFIG_FIELDS;
@@ -36,41 +27,31 @@ sub db_init_config
 	 %$config_fields_default = %CONFIG_FIELDS_DEFAULT;
 }
 
-sub db_valid_config
+sub vm_valid_config
 {
 	my ($self) = @_;
-	my $config  = $self->db_config();
+	my $config  = $self->vm_config();
 }
 
 sub hook_connect {
 	my ($self,$transaction,%args) = @_;
-
 	my $remote = lc $self->qp->connection->remote_ip;
+	my @args = ($remote);
 
-	# We've tried the usual methods to discover what to do with this host
-	# so now we should proceed to check the database.
-	$self->db_debug;
-	my $config = $self->db_config;
-	my $dbh = $self->db_open;
-	return $self->db_declined unless $dbh;
+	# Check the host via vmaild
+	my $result = $self->vm_call("core.check_host", $remote);
 
-	my $table = $dbh->quote_identifier($config->{hosts_table});
-	my $ip_field = $dbh->quote_identifier($config->{ip_field});
-	$remote = $dbh->quote($remote);
+	# We haven't received anything back so decline
+	return $self->vm_declined unless $result;
 
-	my $sql = "SELECT * FROM $table WHERE $remote LIKE ";
-	$sql .= " CONCAT('%', $ip_field, '%')";
-
-	my $record = $self->db_sql($sql);
-	return $self->db_declined unless $record;
-
-	my $action = $record->{$config->{action_field}};
+	
+	my $action = $result->[0];
 	if ($action) {
 		$self->log(LOGINFO, "Sending $action to $remote");
 	}
 
 	my $const = Qpsmtpd::Constants::return_code($action) || DECLINED;
-	return ($const, $record->{$config->{comment_field}});
+	return ($const, $result->[1]);
 }
 
 # vim: ft=perl

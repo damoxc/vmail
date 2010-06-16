@@ -33,9 +33,10 @@ MySQL as database.
 
 =cut
 
-use DBI;
 use Data::Dumper();
 use Date::Format();
+use IO::Socket;
+use JSON;
 use Mail::Header ();
 use Qpsmtpd::Address ();
 use Qpsmtpd::Transaction ();
@@ -56,26 +57,26 @@ class.
 
 =over
 
-=item * DB_DBH
+=item * VM_DBH
 
-Stores the database connection handle. See L<"db_open"> and L<"db_close">.
+Stores the database connection handle. See L<"vm_open"> and L<"vmail_close">.
 
-=item * DB_REC
+=item * VM_REC
 
-Stores the local user record, if found. See L<"db_rec">.
+Stores the local user record, if found. See L<"vm_rec">.
 
-=item * DB_DEFERRED
+=item * VM_DEFERRED
 
 Stores a flag about a deferred action, e.g. "defer greylisting from C<hook_rcpt> until C<hook_data_post>".
-See L<"db_deferred">.
+See L<"vm_deferred">.
 
-=item * DB_NOTIFY
+=item * VM_NOTIFY
 
-Stores informations about notifying in case of errors. See L<"db_notify">.
+Stores informations about notifying in case of errors. See L<"vm_notify">.
 
-=item * DB_LAST_ERROR
+=item * VM_LAST_ERROR
 
-Stores the last error message. See L<"db_last_error">.
+Stores the last error message. See L<"vm_last_error">.
 
 =back
 
@@ -85,28 +86,31 @@ These constants are only used in this package and aren't exported.
 
 =over
 
-=item * DB_LATER
+=item * VM_LATER
 
-Provides the text I<Internal error - try later>. See L<"db_denysoft"> and L<"db_denysoft_error">.
+Provides the text I<Internal error - try later>. See L<"vm_denysoft"> and L<"vmail_denysoft_error">.
 
-=item * DB_ERROR
+=item * VM_ERROR
 
-Provides the text I<Unknown Error>. See L<"db_error"> and L<"db_die">.
+Provides the text I<Unknown Error>. See L<"vm_error"> and L<"vm_die">.
 
 =back
 
 =cut
 
-use constant DB_RO_DBH		=> 'db_ro_dbh';
-use constant DB_RW_DBH		=> 'db_rw_dbh';
-use constant DB_REC			=> 'db_rec';
+use constant VM_RO_DBH		=> 'vm_ro_dbh';
+use constant VM_RW_DBH		=> 'vm_rw_dbh';
+use constant VM_REC			=> 'vm_rec';
 
-use constant DB_DEFERRED	=> 'db_deferred';
-use constant DB_NOTIFY		=> 'db_notify';
-use constant DB_LAST_ERROR	=> 'db_last_error';
+use constant VM_SOCK        => 'vm_sock';
+use constant VM_CALL        => 'vm_call';
 
-use constant DB_LATER		=> 'Internal error - try later';
-use constant DB_ERROR		=> 'Unknown Error';
+use constant VM_DEFERRED	=> 'vm_deferred';
+use constant VM_NOTIFY		=> 'vm_notify';
+use constant VM_LAST_ERROR	=> 'vm_last_error';
+
+use constant VM_LATER		=> 'Internal error - try later';
+use constant VM_ERROR		=> 'Unknown Error';
 
 =head1 CONFIGURATION
 
@@ -119,7 +123,7 @@ All other database plugins must follow the basic plugin C<db/base> - e.g.:
  db/user
  db/greylist
 
-They have all there own configuration files named C</etc/qpsmtpd/db_base>, C</etc/qpsmtpd/db_user> etc.
+They have all there own configuration files named C</etc/qpsmtpd/vm_base>, C</etc/qpsmtpd/vmail_user> etc.
 
 =head1 INHERITANCE
 
@@ -133,7 +137,7 @@ A skeleton for a plugin using the database suite looks like this:
    #
    #   myplugin_required_field = some_value
    #
-   # in the config file db_myplugin.
+   # in the config file vm_myplugin.
 
    my %CONFIG_FIELDS = map { $_ => 1 } qw(
       myplugin_required_field
@@ -156,12 +160,12 @@ A skeleton for a plugin using the database suite looks like this:
 
       $self->isa_plugin ( "db/common" );
 
-      $self->db_debug;
+      $self->vm_debug;
 
       $self->SUPER::init ( $qp );
    }
 
-   sub db_init_config
+   sub vm_init_config
    {
       my ( $self, $config_fields, $config_fields_empty, $config_fields_default )   = @_;
 
@@ -170,17 +174,17 @@ A skeleton for a plugin using the database suite looks like this:
       %$config_fields_default = %CONFIG_FIELDS_DEFAULT;
    }
 
-   sub db_valid_config
+   sub vm_valid_config
    {
       my ( $self )   = @_;
 
-      my $config   = $self->db_config();
+      my $config   = $self->vm_config();
 
       if ( $config->{myplugin_other_field} != 42 )
       {
-         my $text   = "Bad param: myplugin_other_field" . $self->db_dump ( $config, '*config' );
+         my $text   = "Bad param: myplugin_other_field" . $self->vm_dump ( $config, '*config' );
 
-         $self->db_die ( $text );
+         $self->vm_die ( $text );
       }
 
       #   more checks...
@@ -214,10 +218,10 @@ Qpsmtpd object
 
 Called from qpsmtpd on startup.
 
-Loads the config for the inheriting plugin, calls L<"db_init_config"> and L<"db_check_config">, stores the config
-items and calls L<"db_valid_config">.
+Loads the config for the inheriting plugin, calls L<"vm_init_config"> and L<"vmail_check_config">, stores the config
+items and calls L<"vm_valid_config">.
 
-B<On errors in> L<"db_check_config"> B<or> L<"db_valid_config"> B<qpsmtpd won't start>.
+B<On errors in> L<"vm_check_config"> B<or> L<"vmail_valid_config"> B<qpsmtpd won't start>.
 
 =for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
 
@@ -225,30 +229,26 @@ B<On errors in> L<"db_check_config"> B<or> L<"db_valid_config"> B<qpsmtpd won't 
 
 sub init
 {
-	my ( $self, $qp )	= @_;
-
-	$self->db_debug;
-
-	$self->db_close;
+	my ($self, $qp)	= @_;
+	$self->vm_debug;
+	$self->vm_close;
 
 	my $config_fields				= {};
 	my $config_fields_empty		= {};
 	my $config_fields_default	= {};
 
-	$self->db_init_config ( $config_fields, $config_fields_empty, $config_fields_default );
+	$self->vm_init_config($config_fields, $config_fields_empty, $config_fields_default);
 
-	my $config			= $self->db_config();
+	my $config			= $self->vm_config();
 
 	my $plugin_name	= $self->plugin_name;
 	my $config_file	= $plugin_name;
 
 	$config_file		=~ s/::/_/;
 
-#	print STDERR "---- config_file: '$plugin_name' -> '$config_file'\n";
-
 	my $config_local	= { map { split /\s*=\s*/, $_, 2 } $self->qp->config ( $config_file ) };
 
-	$self->db_check_config	( $config_local, $config_fields, $config_fields_empty, $config_fields_default );
+	$self->vm_check_config	( $config_local, $config_fields, $config_fields_empty, $config_fields_default );
 
 	%$config	=
 	(
@@ -256,14 +256,14 @@ sub init
 		%$config_local,
 	);
 
-	$self->db_valid_config();
+	$self->vm_valid_config();
 }
 
-=head2 db_init_config
+=head2 vm_init_config
 
 I<ABSTRACT>
 
-B<Call: $self-E<gt>db_init_config ( $config_fields, $config_fields_empty, $config_fields_default )>
+B<Call: $self-E<gt>vm_init_config ( $config_fields, $config_fields_empty, $config_fields_default )>
 
 =over
 
@@ -273,7 +273,7 @@ Empty references to hashes
 
 =back
 
-Called from L<"init"> on startup I<before> L<"db_check_config">.
+Called from L<"init"> on startup I<before> L<"vm_check_config">.
 
 B<Must be overwritten to provide the local config structures>. See L<"INHERITANCE">, how.
 
@@ -281,18 +281,16 @@ B<Must be overwritten to provide the local config structures>. See L<"INHERITANC
 
 =cut
 
-sub db_init_config
+sub vm_init_config
 {
-	my ( $self, $config_fields, $config_fields_empty, $config_fields_default )	= @_;
-
-	my $text	= "Abstract method " . __PACKAGE__ . '::db_init_config called';
-
-	$self->db_die ( $text );
+	my ($self, $config_fields, $config_fields_empty, $config_fields_default)	= @_;
+	my $text = "Abstract method " . __PACKAGE__ . '::vm_init_config called';
+	$self->vm_die($text);
 }
 
-=head2 db_check_config
+=head2 vm_check_config
 
-B<Call: $self-E<gt>db_check_config ( $config, $config_fields, $config_fields_empty, $config_fields_default )>
+B<Call: $self-E<gt>vm_check_config ( $config, $config_fields, $config_fields_empty, $config_fields_default )>
 
 =over
 
@@ -302,28 +300,28 @@ Reference to the raw config hash just read
 
 =item * C<$config_fields, $config_fields_empty, $config_fields_default>
 
-References to hashes (filled by L<"db_init_config">)
+References to hashes (filled by L<"vm_init_config">)
 
 =back
 
-Called from L<"init"> on startup I<after> L<"db_init_config"> and I<before> L<"db_valid_config">.
+Called from L<"init"> on startup I<after> L<"vm_init_config"> and I<before> L<"vmail_valid_config">.
 
 Sets defaults and checks for missing, unknown or empty config parameters.
 
-Calls L<"db_die"> on errors. Do not overwrite, use L<"db_valid_config"> instead.
+Calls L<"vm_die"> on errors. Do not overwrite, use L<"vm_valid_config"> instead.
 
-B<On errors in> L<"db_check_config"> B<or> L<"db_valid_config"> B<qpsmtpd won't start>.
+B<On errors in> L<"vm_check_config"> B<or> L<"vmail_valid_config"> B<qpsmtpd won't start>.
 
 =for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
 
 =cut
 
-sub db_check_config
+sub vm_check_config
 {
-	my ( $self, $config, $config_fields, $config_fields_empty, $config_fields_default )	= @_;
+	my ($self, $config, $config_fields, $config_fields_empty, $config_fields_default) = @_;
 
-	my @fields	= ();
-	my @bad		= ();
+	my @fields  = ();
+	my @bad     = ();
 
 	foreach ( keys %$config_fields_empty )
 	{
@@ -342,57 +340,57 @@ sub db_check_config
 
 	if ( @bad = grep { ! exists $config->{$_} } @fields )
 	{
-		my $text	= "Missing config param(s): " . join (',', @bad ) . $self->db_dump ( $config, '*config' );
+		my $text	= "Missing config param(s): " . join (',', @bad ) . $self->vm_dump ( $config, '*config' );
 
-		$self->db_die ( $text );
+		$self->vm_die ( $text );
 	}
 
 	if ( @bad = grep { ! exists $config_fields->{$_} } sort keys %$config )
 	{
-		my $text	= "Unknown config param(s): " . join (',', @bad ) . $self->db_dump ( $config, '*config' );
+		my $text	= "Unknown config param(s): " . join (',', @bad ) . $self->vm_dump ( $config, '*config' );
 
-		$self->db_die ( $text );
+		$self->vm_die ( $text );
 	}
 
 	if ( @bad = grep { ! $config->{$_} } @fields )
 	{
-		my $text	= "Empty param(s): " . join (',', @bad ) . $self->db_dump ( $config, '*config' );
+		my $text	= "Empty param(s): " . join (',', @bad ) . $self->vm_dump ( $config, '*config' );
 
-		$self->db_die ( $text );
+		$self->vm_die ( $text );
 	}
 }
 
-=head2 db_valid_config
+=head2 vm_valid_config
 
-B<Call: $self-E<gt>db_valid_config ()>
+B<Call: $self-E<gt>vm_valid_config ()>
 
-Called from L<"init"> on startup I<after> L<"db_check_config">.
+Called from L<"init"> on startup I<after> L<"vm_check_config">.
 
 Does nothing and can be overwritten to provide more config checks.
 The config is already stored and can be fetched with
 
-	my $config	= $self->db_config();
+	my $config	= $self->vm_config();
 
-Please follow the policy of the database plugin suite and call L<"db_die"> on config errors, so that:
+Please follow the policy of the database plugin suite and call L<"vm_die"> on config errors, so that:
 
-B<On errors in> L<"db_check_config"> B<or> L<"db_valid_config"> B<qpsmtpd won't start>.
+B<On errors in> L<"vm_check_config"> B<or> L<"vmail_valid_config"> B<qpsmtpd won't start>.
 See L<"INHERITANCE">, how.
 
 =cut
 
-sub db_valid_config {}
+sub vm_valid_config {}
 
 =head1 DATABASE METHODS
 
-=head2 db_open
+=head2 vm_open
 
-B<Call: $self-E<gt>db_open ()>
+B<Call: $self-E<gt>vm_open ()>
 
 Opens the database connection.
 
-Tries to get the handle from C<< qpsmtpd->connection->notes >> ( L<DB_DBH|"CONSTANTS"> ).
+Tries to get the handle from C<< qpsmtpd->connection->notes >> ( L<VM_DBH|"CONSTANTS"> ).
 
-Calls L<"db_connect">, if the handle is C<undef> and stores the result.
+Calls L<"vm_connect">, if the handle is C<undef> and stores the result.
 
 B<Returns:>
 
@@ -403,83 +401,50 @@ C<undef>	on error.
 
 =cut
 
-sub db_open
+sub vm_open
 {
-	my ($self, $connection_type) = @_;
+	my ($self) = @_;
+	my $sock = $self->qp->connection->notes(VM_SOCK);
+	return $sock if $sock;
 
-	$connection_type = ($connection_type) ? $connection_type : DB_RO_DBH;
-
-	my $dbh	= $self->qp->connection->notes($connection_type);
-	return $dbh	if $dbh;
-
-	$dbh = $self->db_connect($connection_type);
-	$self->qp->connection->notes($connection_type, $dbh);
-
-	return $dbh;
+	$sock = $self->vm_connect(VM_SOCK);
+	$self->qp->connection->notes(VM_SOCK, $sock);
+	$self->qp->connection->notes(VM_CALL, 1);
+	return $sock;
 }
 
-=head2 db_connect
+=head2 vm_connect
 
-B<Call: $self-E<gt>db_connect ()>
+B<Call: $self-E<gt>vm_connect ()>
 
-Connects to the database described by the config of L<dbE<47>base|"db_base.shtml#CONFIGURATION">.
+Connects to the database described by the config of L<dbE<47>base|"vm_base.shtml#CONFIGURATION">.
 
 B<Returns:>
 
 the database handle	on success.
-C<undef>	on error, which is logged by L<"db_error">.
+C<undef>	on error, which is logged by L<"vm_error">.
 
 =for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
 
 =cut
 
-sub db_connect
+sub vm_connect
 {
-	my ($self, $connection_type) = @_;
-	$connection_type = ($connection_type) ? $connection_type : DB_RO_DBH;
+	my ($self) = @_;
+	my $config = $self->vm_config();
 
-	my $config = $self->db_config();
-	my $dbconfig;
-
-	if ($connection_type eq DB_RW_DBH) {
-		# There isn't a read-only connection uri specified so
-		# we will have an open read-write connection to return.
-		if (!$self->db_notes('ro_dbconfig')) {
-			return $self->qp->connection->notes (DB_RO_DBH);
-		}
-		$self->log(LOGINFO, "Attempting to open read-write connection");
-		$dbconfig = $self->db_notes('rw_dbconfig');
-	} else {
-		# We have a read-only connection so we should open that one
-		$dbconfig = ($self->db_notes('ro_dbconfig'))
-			? $self->db_notes('ro_dbconfig') : $self->db_notes('rw_dbconfig');
-	}
-
-	my $data_source	= 'DBI:' . $dbconfig->{driver} . ':' . $dbconfig->{database};
-
-	my $dbh	= DBI->connect ( $data_source, $dbconfig->{user}, $dbconfig->{passwd},
-										{
-											PrintError	=> 0,
-											RaiseError	=> 0,
-											AutoCommit	=> 1,
-										} );
-
-	unless ( $dbh )
-	{
-		$self->db_error ( $DBI::errstr );
-		return undef;
-	}
-
-	return $dbh;
+	my $sock = new IO::Socket::UNIX(Peer => $config->{sock},
+		Type => SOCK_STREAM) or $self->vm_die("Can't connect to socket: $!");
+	return $sock;
 }
 
-=head2 db_close
+=head2 vm_close
 
-B<Call: $self-E<gt>db_close ()>
+B<Call: $self-E<gt>vm_close ()>
 
 Closes an open database connection.
 
-Tries to get the handle from C<< qpsmtpd->connection->notes >> ( L<DB_DBH|"CONSTANTS"> ) to disconnect.
+Tries to get the handle from C<< qpsmtpd->connection->notes >> ( L<VM_DBH|"CONSTANTS"> ) to disconnect.
 
 B<Returns:>
 
@@ -490,121 +455,77 @@ B<Returns:>
 
 =cut
 
-sub db_close
+sub vm_close
 {
 	my ($self) = @_;
 
-	my $dbh	= $self->qp->connection->notes(DB_RO_DBH);
-	return 0 unless $dbh;
-	$dbh->disconnect;
-	$self->qp->connection->notes(DB_RO_DBH, undef);
-	$self->qp->connection->notes(DB_RW_DBH, undef);
+	my $sock = $self->qp->connection->notes(VM_SOCK);
+	return 0 unless $sock;
+	
+	$sock->shutdown(2);
+	$self->qp->connection->notes(VM_SOCK, undef);
 	return 1;
 }
 
-sub _db_sql
-{
-	my ($self, $dbh, $sql, %param) = @_;
-	return undef unless $dbh;
+=head2 vm_call
 
-	$self->db_debug($sql);
-	my $sth	= $dbh->prepare ($sql);
-
-	unless ($sth)
-	{
-		$self->db_error("ERROR SQL (prepare): $sql\n\t", $dbh->errstr);
-		return undef;
-	}
-
-	my $sth_result = $sth->execute();
-	unless ($sth_result)
-	{
-		$self->db_error ( "ERROR SQL (execute): $sql\n\t", $sth->errstr );
-		return undef;
-	}
-	return $sth_result if $param{no_fetch};
-
-	if ($param{all})
-	{
-		my $rows = [];
-
-		while (my $record = $sth->fetchrow_hashref)
-		{
-			push @$rows, $record;
-		}
-
-		if ($sth->errstr)
-		{
-			$self->db_error("ERROR SQL (fetch rows): $sql\n\t", $sth->errstr);
-			return undef;
-		}
-
-		return $rows;
-	}
-	else
-	{
-		my $record = $sth->fetchrow_hashref;
-		unless ($record)
-		{
-			if ($sth->errstr)
-			{
-				$self->db_error("ERROR SQL (fetch record): $sql\n\t", $sth->errstr);
-				return undef;
-			}
-			$record	= {};
-		}
-		return $record;
-	}
-}
-
-=head2 db_sql
-
-B<Call: $self-E<gt>db_sql ( $sql [, %param ] )>
+B<Call: $self-E<gt>vm_call ( $method [, @params ])>
 
 =over
 
-=item * C<$sql>
+=item * C<$method>
 
-String, SQL statement
+String, The method to call
 
-=item * C<%param>
+=item * C<@params>
+
+Array containing optional parameters
+
+=item * C<%kwargs>
 
 Hash containing optional parameters
 
 =back
 
-Executes the SQL statement given in C<$sql>.
-
-B<Returns:>
-
-C<undef>	if not connected to a database and on all SQL errors.
-the statement result	if C<$param{no_fetch}> is given.
-all rows as possibly empty reference to an array of references to hashes	if C<$param{all}> is given.
-first record as possibly emtpy reference to a hash	otherwise.
-
-Errors are logged by L<"db_error">.
+Executes the method given in C<$method>.
 
 =cut
 
-sub db_sql
+sub vm_call
 {
-	my ($self, $sql, %param) = @_;
-	my $dbh	= $self->db_open;
-	return $self->_db_sql($dbh, $sql, %param);
-}
+	my ($self, $method, @params, %kwargs) = @_;
 
-sub db_sql_rw
-{
-	my ($self, $sql, %param) = @_;
-	my $dbh	= $self->db_open(DB_RW_DBH);
-	return $self->_db_sql($dbh, $sql, %param);
+	# Open the socket to vmaild
+	my $sock = $self->vm_open;
+
+	# Build the request up
+	my $call_id = $self->qp->connection->notes(VM_CALL);
+	my %request = (
+		id     => $call_id,
+		method => $method,
+		args   => \@params,
+		kwargs => \%kwargs
+	);
+	$self->qp->connection->notes(VM_CALL + 1);
+
+	# Send the request to vmaild
+	$sock->send(to_json(\%request));
+
+	# Receive back the response
+	my $buf;
+	$sock->recv($buf, 1024);
+	my $result = from_json($buf);
+	$self->vm_die("Unable to parse result") if not $result;
+
+	# Return any result
+	return $result->{result};
 }
 
 =head1 ACCESSOR METHODS
 
-=head2 db_config
+=head2 vm_config
 
-B<Call: $self-E<gt>db_config ( [ $key [, $value ] ] )>
+B<Call: $self-E<gt>vm_config ( [ $key [, $value ] ] )>
 
 =over
 
@@ -631,23 +552,23 @@ the stored value	if C<$key> is given.
 
 =cut
 
-sub db_config
+sub vm_config
 {
 	my $self = shift;
 	my $key = shift;
 
-	$self->{_db_config}	||= {};
+	$self->{_vm_config}	||= {};
 
-	$key or return $self->{_db_config};
+	$key or return $self->{_vm_config};
 
-	@_ and $self->{_db_config}->{$key} = shift;
+	@_ and $self->{_vm_config}->{$key} = shift;
 
-	$self->{_db_config}->{$key};
+	$self->{_vm_config}->{$key};
 }
 
-=head2 db_rec
+=head2 vm_rec
 
-B<Call: $self-E<gt>db_rec ( [ $record ] )>
+B<Call: $self-E<gt>vm_rec ( [ $record ] )>
 
 =over
 
@@ -657,7 +578,7 @@ Reference to a hash
 
 =back
 
-Accessor for the current user hash stored in C<< qpsmtpd->connection->notes >> ( L<DB_REC|"CONSTANTS"> ).
+Accessor for the current user hash stored in C<< qpsmtpd->connection->notes >> ( L<VM_REC|"CONSTANTS"> ).
 
 Stores the new hash if C<$record> is given.
 
@@ -670,16 +591,16 @@ the new hash	if C<$record> is given.
 
 =cut
 
-sub db_rec
+sub vm_rec
 {
 	my $self = shift;
-	@_ and $self->qp->connection->notes(DB_REC, shift);
-	return $self->qp->connection->notes(DB_REC);
+	@_ and $self->qp->connection->notes(VM_REC, shift);
+	return $self->qp->connection->notes(VM_REC);
 }
 
-=head2 db_deferred
+=head2 vm_deferred
 
-B<Call: $self-E<gt>db_deferred ( [ $value ] )>
+B<Call: $self-E<gt>vm_deferred ( [ $value ] )>
 
 =over
 
@@ -690,35 +611,35 @@ Boolean value
 =back
 
 Accessor for the data stored in C<< qpsmtpd->connection->notes >>
-( L<DB_DEFERRED|"CONSTANTS"> ) separated by C<$self->plugin_name()>.
+( L<VM_DEFERRED|"CONSTANTS"> ) separated by C<$self->plugin_name()>.
 
-Calls L<"db_notes">.
+Calls L<"vm_notes">.
 
 =for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
 
 =cut
 
-sub db_deferred
+sub vm_deferred
 {
 	my $self = shift;
-	my $hash = $self->db_notes (DB_DEFERRED) || {};
+	my $hash = $self->vm_notes (VM_DEFERRED) || {};
 	my $plugin_name	= $self->plugin_name;
 
 	if ( @_ )
 	{
 		$hash->{$plugin_name} = shift;
-		$self->db_notes(DB_DEFERRED, $hash);
+		$self->vm_notes(VM_DEFERRED, $hash);
 	}
 	return $hash->{$plugin_name};
 }
 
-=head2 db_notify
+=head2 vm_notify
 
-=head2 db_last_error
+=head2 vm_last_error
 
-B<Call: $self-E<gt>db_notify ( [ $value ] )>
+B<Call: $self-E<gt>vm_notify ( [ $value ] )>
 
-B<Call: $self-E<gt>db_last_error ( [ $value ] )>
+B<Call: $self-E<gt>vm_last_error ( [ $value ] )>
 
 =over
 
@@ -729,20 +650,20 @@ Any value
 =back
 
 Accessors for the data stored in C<< qpsmtpd->connection->notes >>
-( L<DB_DEFERRED|"CONSTANTS"> | L<DB_NOTIFY|"CONSTANTS"> | L<DB_LAST_ERROR|"CONSTANTS"> ).
+( L<VM_DEFERRED|"CONSTANTS"> | L<VM_NOTIFY|"CONSTANTS"> | L<VM_LAST_ERROR|"CONSTANTS"> ).
 
-Calls L<"db_notes">.
+Calls L<"vm_notes">.
 
 =for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
 
 =cut
 
-sub db_notify			{ shift()->db_notes (DB_NOTIFY, @_) }
-sub db_last_error		{ shift()->db_notes (DB_LAST_ERROR, @_) }
+sub vm_notify			{ shift()->vm_notes (VM_NOTIFY, @_) }
+sub vm_last_error		{ shift()->vm_notes (VM_LAST_ERROR, @_) }
 
-=head2 db_notes
+=head2 vm_notes
 
-B<Call: $self-E<gt>db_notes ( $key [, $value ] )>
+B<Call: $self-E<gt>vm_notes ( $key [, $value ] )>
 
 =over
 
@@ -766,7 +687,7 @@ the value	if C<$key> is given.
 
 =cut
 
-sub db_notes
+sub vm_notes
 {
 	my $self	= shift;
 	my $key	= shift;
@@ -778,9 +699,9 @@ sub db_notes
 
 =head1 LOGGING METHODS
 
-=head2 db_debug
+=head2 vm_debug
 
-B<Call: $self-E<gt>db_debug ( [ @text ] )>
+B<Call: $self-E<gt>vm_debug ( [ @text ] )>
 
 =over
 
@@ -798,21 +719,18 @@ Calls C<Qpsmtpd::Plugin::log> with the line as C<LOGDEBUG>.
 
 =cut
 
-sub db_debug
+sub vm_debug
 {
-	my ( $self, @text )	= @_;
-
+	my ($self, @text) = @_;
 	my $msg	= @text ? ': ' . join ( ' ', @text ) : '';
-
 	my $sub	= (caller(1))[3];
-	$sub	=~ s/^Qpsmtpd::Plugin:://i;
-
+	$sub =~ s/^Qpsmtpd::Plugin:://i;
 	$self->log ( LOGDEBUG, '--- ' . $sub . $msg );
 }
 
-=head2 db_error
+=head2 vm_error
 
-B<Call: $self-E<gt>db_error ( [ @text ] )>
+B<Call: $self-E<gt>vm_error ( [ @text ] )>
 
 =over
 
@@ -823,32 +741,32 @@ Array of strings
 =back
 
 Creates a line like C<PLUGIN ERROR: >I<Qpsmtpd::Plugin::plugin_name>C<: @text>.
-Uses L<DB_ERROR|"CONSTANTS">, if C<@text> is empty.
+Uses L<VM_ERROR|"CONSTANTS">, if C<@text> is empty.
 
 Calls C<Qpsmtpd::Plugin::log> with the line as C<LOGCRIT>.
 
-Stores the line calling L<"db_last_error">.
+Stores the line calling L<"vm_last_error">.
 
 =for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
 
 =cut
 
-sub db_error
+sub vm_error
 {
 	my ( $self, @text )	= @_;
 
-	my $msg	= @text ? join ( ' ', @text ) : DB_ERROR;
+	my $msg	= @text ? join ( ' ', @text ) : VM_ERROR;
 
 	$msg	= 'PLUGIN ERROR: ' . $self->plugin_name() . ': ' . $msg;
 
-	$self->db_last_error ( $msg );
+	$self->vm_last_error ( $msg );
 
 	$self->log ( LOGCRIT, $msg );
 }
 
-=head2 db_log
+=head2 vm_log
 
-B<Call: $self-E<gt>db_log ( [ @text ] )>
+B<Call: $self-E<gt>vm_log ( [ @text ] )>
 
 =over
 
@@ -864,7 +782,7 @@ Calls C<Qpsmtpd::Plugin::log> with the line as C<LOGINFO>.
 
 =cut
 
-sub db_log
+sub vm_log
 {
 	my ( $self, @text )	= @_;
 
@@ -875,9 +793,9 @@ sub db_log
 
 =head1 RETURNING METHODS
 
-=head2 db_ok
+=head2 vm_ok
 
-B<Call: $self-E<gt>db_declined ( [ $msg ] )>
+B<Call: $self-E<gt>vm_declined ( [ $msg ] )>
 
 =over
 
@@ -893,15 +811,15 @@ B<Returns:> C<DECLINED> along with the optional C<$msg>.
 
 =cut
 
-sub db_ok
+sub vm_ok
 {
 	my ($self, $msg) = @_;
 	return OK
 }
 
-=head2 db_declined
+=head2 vm_declined
 
-B<Call: $self-E<gt>db_declined ( [ $msg ] )>
+B<Call: $self-E<gt>vm_declined ( [ $msg ] )>
 
 =over
 
@@ -917,15 +835,15 @@ B<Returns:> C<DECLINED> along with the optional C<$msg>.
 
 =cut
 
-sub db_declined
+sub vm_declined
 {
 	my ( $self, $msg )	= @_;
 	return $msg ? (DECLINED, $msg) : ( DECLINED );
 }
 
-=head2 db_deny
+=head2 vm_deny
 
-B<Call: $self-E<gt>db_deny ( [ $msg ] )>
+B<Call: $self-E<gt>vm_deny ( [ $msg ] )>
 
 =over
 
@@ -941,16 +859,16 @@ B<Returns:> C<DENY> along with the optional C<$msg>.
 
 =cut
 
-sub db_deny
+sub vm_deny
 {
 	my ( $self, $msg )	= @_;
 
 	return $msg ? ( DENY, $msg ) : ( DENY );
 }
 
-=head2 db_denysoft
+=head2 vm_denysoft
 
-B<Call: $self-E<gt>db_denysoft ( [ $msg ] )>
+B<Call: $self-E<gt>vm_denysoft ( [ $msg ] )>
 
 =over
 
@@ -961,22 +879,22 @@ String
 =back
 
 B<Returns:> C<DENYSOFT> along with the optional C<$msg>
-or L<DB_LATER|"CONSTANTS">.
+or L<VM_LATER|"CONSTANTS">.
 
 =for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
 
 =cut
 
-sub db_denysoft
+sub vm_denysoft
 {
 	my ( $self, $msg )	= @_;
 
-	return $msg ? ( DENYSOFT, $msg ) : ( DENYSOFT, DB_LATER );
+	return $msg ? ( DENYSOFT, $msg ) : ( DENYSOFT, VM_LATER );
 }
 
-=head2 db_denysoft_error
+=head2 vm_denysoft_error
 
-B<Call: $self-E<gt>db_denysoft_error ( [ $msg ] )>
+B<Call: $self-E<gt>vm_denysoft_error ( [ $msg ] )>
 
 =over
 
@@ -987,23 +905,23 @@ String
 =back
 
 B<Returns:> C<DENYSOFT> along with the optional C<$msg>
-or L<DB_LATER|"CONSTANTS">.
+or L<VM_LATER|"CONSTANTS">.
 
-If the call to L<"db_notify"> returns an entry for C<notify_email>,
+If the call to L<"vm_notify"> returns an entry for C<notify_email>,
 this B<notify address is sent an email> with the error message stored
-in L<"db_last_error"> using C<hook_queue>.
+in L<"vm_last_error"> using C<hook_queue>.
 
 =cut
 
-sub db_denysoft_error
+sub vm_denysoft_error
 {
 	my ( $self, $msg )	= @_;
 
-	my $notify	= $self->db_notify() || {};
+	my $notify	= $self->vm_notify() || {};
 
-	return $self->db_denysoft ( $msg )		unless $notify->{notify_email};
+	return $self->vm_denysoft ( $msg )		unless $notify->{notify_email};
 
-	$self->db_log ( "--- Notifying $notify->{notify_email}" );
+	$self->vm_log ( "--- Notifying $notify->{notify_email}" );
 
 	my $curr_transaction	= $self->qp->transaction;
 	my $temp_transaction	= Qpsmtpd::Transaction->new();
@@ -1029,7 +947,7 @@ sub db_denysoft_error
 	$text	.= "\n";
 	$text	.= "*SYSTEMERROR*\n";
 	$text	.= "\n";
-	$text	.= $self->db_last_error() . "\n";
+	$text	.= $self->vm_last_error() . "\n";
 	$text	.= "\n";
 	$text	.= 'log entry   : ' . scalar localtime() . ' ' . hostname() . '[' . $$ . ']' . "\n";
 
@@ -1045,7 +963,7 @@ sub db_denysoft_error
 	$text	.= "sender      : $o_sender\n";
 	$text	.= "recipient(s): $o_rcpt\n";
 	$text	.= "\n";
-	$text	.= "result      : DENYSOFT " . ( $msg || DB_LATER ) . "\n";
+	$text	.= "result      : DENYSOFT " . ( $msg || VM_LATER ) . "\n";
 	$text	.= "\n";
 
 	$temp_transaction->body_write ( $text );
@@ -1054,16 +972,16 @@ sub db_denysoft_error
 	$self->qp->run_hooks ( "queue" );
 	$self->qp->{_transaction}	= $curr_transaction;		#	private !?
 
-	$self->db_log ( "--- Finished notifying");
+	$self->vm_log ( "--- Finished notifying");
 
-	return $self->db_denysoft ( $msg );
+	return $self->vm_denysoft ( $msg );
 }
 
 =head1 HELPER METHODS
 
-=head2 db_die
+=head2 vm_die
 
-B<Call: $self-E<gt>db_die ( [ $msg ] )>
+B<Call: $self-E<gt>vm_die ( [ $msg ] )>
 
 =over
 
@@ -1073,24 +991,24 @@ String
 
 =back
 
-Calls L<"db_error"> and dies with the optional C<$msg>
-or L<DB_ERROR|"CONSTANTS">.
+Calls L<"vm_error"> and dies with the optional C<$msg>
+or L<VM_ERROR|"CONSTANTS">.
 
 =for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
 
 =cut
 
-sub db_die
+sub vm_die
 {
 	my ($self, $msg)	= @_;
-	$msg ||= DB_ERROR;
-	$self->db_error($msg);
+	$msg ||= VM_ERROR;
+	$self->vm_error($msg);
 	die $msg;
 }
 
-=head2 db_complete_field_names
+=head2 vm_complete_field_names
 
-B<Call: $self-E<gt>db_complete_field_names ( $record, $table )>
+B<Call: $self-E<gt>vm_complete_field_names ( $record, $table )>
 
 =over
 
@@ -1111,7 +1029,7 @@ B<Returns:> a reference to a new hash.
 E.g.:
 
 	my $record     = { 'field1' => 'value1', 'field2' => 2 };
-	my $new_record = $self->db_complete_field_names ( $record, 'mytable' );
+	my $new_record = $self->vm_complete_field_names ( $record, 'mytable' );
 
 	# $new_record now looks like { 'mytable.field1' => 'value1', 'mytable.field2' => 2 }
 
@@ -1119,7 +1037,7 @@ E.g.:
 
 =cut
 
-sub db_complete_field_names
+sub vm_complete_field_names
 {
 	my ( $self, $record, $table )	= @_;
 
@@ -1137,9 +1055,9 @@ sub db_complete_field_names
 	return $hash;
 }
 
-=head2 db_raw_field_names
+=head2 vm_raw_field_names
 
-B<Call: $self-E<gt>db_raw_field_names ( $record, $table )>
+B<Call: $self-E<gt>vm_raw_field_names ( $record, $table )>
 
 =over
 
@@ -1160,7 +1078,7 @@ B<Returns:> a reference to a new hash.
 E.g.:
 
 	my $record     = { 'mytable.field1' => 'value1', 'othertable.field2' => 2 }
-	my $new_record = $self->db_raw_field_names ( $record, 'mytable' );
+	my $new_record = $self->vm_raw_field_names ( $record, 'mytable' );
 
 	# $new_record now looks like { 'field1' => 'value1', 'othertable.field2' => 2 }
 
@@ -1168,7 +1086,7 @@ E.g.:
 
 =cut
 
-sub db_raw_field_names
+sub vm_raw_field_names
 {
 	my ( $self, $record, $table )	= @_;
 
@@ -1188,9 +1106,9 @@ sub db_raw_field_names
 	return $hash;
 }
 
-=head2 db_valid_email
+=head2 vm_valid_email
 
-B<Call: $self-E<gt>db_valid_email ( $email_adr )>
+B<Call: $self-E<gt>vm_valid_email ( $email_adr )>
 
 =over
 
@@ -1212,7 +1130,7 @@ B<Returns:> I<(three-state)>
 
 =cut
 
-sub db_valid_email
+sub vm_valid_email
 {
 	my ($self, $email_adr) = @_;
 
@@ -1225,9 +1143,9 @@ sub db_valid_email
 	return 1;																						#	ok
 }
 
-=head2 db_dump
+=head2 vm_dump
 
-B<Call: $self-E<gt>db_dump ( $values [, @names ] )>
+B<Call: $self-E<gt>vm_dump ( $values [, @names ] )>
 
 =over
 
@@ -1247,7 +1165,7 @@ It uses the symbol substitution provided by C<Data::Dumper>.
 
 Calling examples:
 
-	my $text = $self->db_dump ( $config, qw( *config ) );
+	my $text = $self->vm_dump ( $config, qw( *config ) );
 
 	# gives:
 	#
@@ -1262,7 +1180,7 @@ Calling examples:
 	#             'domain_table' => 'emailtable'
 	#           );
 
-	my $text = $self->db_dump
+	my $text = $self->vm_dump
 	            (
 	               [ $user, $host, $delivery, $config ],
 	               qw( user host delivery *config )
@@ -1277,7 +1195,7 @@ Calling examples:
 
 =cut
 
-sub db_dump ($$;@)
+sub vm_dump ($$;@)
 {
 	my ( $self, $values, @names )	= @_;
 
