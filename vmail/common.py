@@ -238,7 +238,7 @@ def maildrop(msg, deliver_to, sender):
     :param deliver_to: The address to deliver to
     :type deliver_to: str or vmail.common.Address
     :param sender: The sender of the message
-    :type sender:str or vmail.common.Address
+    :type sender: str or vmail.common.Address
     """
 
     if not isinstance(deliver_to, Address):
@@ -256,7 +256,28 @@ def maildrop(msg, deliver_to, sender):
     if p.wait() > 0:
         raise VmailError('Unable to deliver message')
 
-    return True
+def deliver(msg, deliver_to, sender):
+    """
+    Deliver the message to an address using dovecot deliver.
+
+    :param msg: A file-like object containing the message to deliver.
+    :type msg: file-like object
+    :param deliver_to: The address to deliver to
+    :type deliver_to: str of vmail.common.Address
+    :param sender: The sender of the message
+    :type sender: str or vmail.common.Address
+    """
+    if not isinstance(deliver_to, Address):
+        deliver_to = Address(deliver_to)
+
+    if isinstance(sender, Address):
+        sender = sender.address
+
+    p = subprocess.Popen(['/usr/lib/dovecot/deliver', '-f', sender, '-d',
+        deliver_to.address], stdin=msg)
+    
+    if p.wait() > 0:
+        raise VmailError('Unable to deliver message')
 
 def fsize(fsize_b):
     """
@@ -322,7 +343,7 @@ def get_mailfolder_size(path):
 
 def generate_maildirsize(domain, user, quota):
     """
-    Creates a brand new maildirsize file for the user.
+    Creates a new maildirsize file for the user.
 
     :param domain: The users domain
     :type domain: string
