@@ -6,6 +6,8 @@
 # Author:
 #   2010 Damien Churchill <damoxc@gmail.com>
 #
+# Based off rpcserver.py found in Deluge, written by Andrew Resch.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
@@ -79,6 +81,7 @@ class VmailProtocol(Protocol):
             kwargs)
 
     def sendData(self, data):
+        #log.debug('response: %r', data)
         self.transport.write(json.dumps(data))
 
     def sendResponse(self, request_id, result):
