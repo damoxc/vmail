@@ -38,6 +38,17 @@ class Core(object):
 
     @export
     def authenticate(self, user, pw_clear):
+        """
+        Authenticate a user where PLAIN or LOGIN has been used so we have
+        to check the actual password.
+
+        :param user: The username to authenticate
+        :type user: string
+        :param pw_clear: The password to check
+        :type pw_clear: string
+        :returns: True or False
+        :rtype: bool
+        """
         user = self._authenticate(user)
         if not user:
             return False
@@ -49,6 +60,19 @@ class Core(object):
     
     @export
     def authenticate_cram(self, user, pw_hash, ticket):
+        """
+        Authenticate a user where CRAM-MD5 has been used so we have a
+        password hash rather than the actual password.
+
+        :param user: The username to authenticate
+        :type user: string
+        :param pw_hash: The password hash to check
+        :type pw_hash: string
+        :param ticket: The msg used to generate the auth token
+        :type ticket: string
+        :returns: True or False
+        :rtype: bool
+        """
         user = self._authenticate(user)
         if not user:
             return False
@@ -75,9 +99,26 @@ class Core(object):
         return user
 
     @export
+    def block_host(self, remote_addr):
+        """
+        Add a block for the specified host.
+
+        :param remote_addr: The remote host to block
+        :type remote_addr: string
+        """
+        host = Host()
+        host.ip_address = remote_addr
+        host.action = 'DENY_DISCONNECT'
+        host.comment = 'Suspected spam source. Please go to\n'
+        host.comment += 'http://www.ukplc.net/abous?ip=%s ' % remote_addr
+        host.comment += 'for more information.'
+        rw_db.add(host)
+        rw_db.commit()
+
+    @export
     def check_host(self, remote_addr):
         """
-        CHeck whether the host is allowed to connect to the server.
+        Check whether the host is allowed to connect to the server.
 
         :param remote_addr: The remote address
         :type remote_addr: string
@@ -91,6 +132,18 @@ class Core(object):
             return (host.action, host.comment)
         else:
             return None
+
+    @export
+    def check_whitelist(self, address):
+        """
+        Check whether an address is listed in the whitelist.
+
+        :param address: The address to check
+        :type address: string
+        :returns: True or False
+        :rtype: boolean
+        """
+        return bool(db.query(Whitelist).get(address))
 
     @export
     def get_usage(self, domain, user=None):
@@ -161,6 +214,11 @@ class Core(object):
                 log.error('error checking email %s', email)
                 log.exception(e)
 
+        elif row[0] > 0:
+            # we have a return code greater than zero so we should return
+            # it.
+            return row[0]
+
         return 0
 
     @export
@@ -213,7 +271,7 @@ class Core(object):
         message = Message()
         message.date = datetime.datetime.now()
         message.sender = sender
-        message.user = user
+        message.user = user or None
         message.subject = subject
         message.local_addr = socket.getfqdn()
         message.remote_addr = remote_addr
