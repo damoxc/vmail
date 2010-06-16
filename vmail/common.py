@@ -34,6 +34,7 @@ import subprocess
 import email.utils
 
 MDS_RE = re.compile('\s*([\d\-\+]+)\s+([\d\-\+]+)')
+MSG_SIZE_RE = re.compile(',S=(\d+)(,|:)')
 ADDR_RE = re.compile('([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4})', re.I)
 CONFIG_DIR = '/etc/vmail'
 STATE_DIR = '/var/lib/vmail'
@@ -152,9 +153,11 @@ def save_state_file(filename, state):
 
 def read_maildirsize(maildir_path, with_quota=False):
     total_bytes = 0
+    total_count = 0
     path = os.path.join(maildir_path, 'maildirsize')
     if not os.path.isfile(path):
-        raise Exception('Cannot find maildirsize: %s', os.path.basename(maildir_path))
+        raise Exception('Cannot find maildirsize: %s',
+            os.path.basename(maildir_path))
     
     if with_quota:
         fp = open(path)
@@ -167,11 +170,13 @@ def read_maildirsize(maildir_path, with_quota=False):
         if not m:
             continue
         total_bytes += int(m.group(1))
+        total_count += int(m.group(2))
     fp.close()
 
     if with_quota:
-        return (total_bytes, quota)
-    return total_bytes
+        return (total_bytes, total_count, quota)
+    else:
+        return (total_bytes, total_count)
 
 def get_usage(domain, user=None):
     if not user:
@@ -188,12 +193,12 @@ def get_usage(domain, user=None):
                 continue
 
             try:
-                total_usage += read_maildirsize(path)
+                total_usage += read_maildirsize(path)[0]
             except:
                 log.warning('unable to read maildir for %s', user)
         return total_usage
     else:
-        return read_maildirsize(get_mail_dir(domain, user))
+        return read_maildirsize(get_mail_dir(domain, user))[0]
 
 def send_welcome_message(address, smtphost=None):
     """
@@ -226,7 +231,7 @@ def send_welcome_message(address, smtphost=None):
 
 def maildrop(msg, deliver_to, sender):
     """
-    Deliver the message to an address.
+    Deliver the message to an address using maildrop.
 
     :param msg: A file-like object containing the message to deliver
     :type msg: file-like object
@@ -241,9 +246,6 @@ def maildrop(msg, deliver_to, sender):
 
     if isinstance(sender, Address):
         sender = sender.address
-
-    print deliver_to.address
-    return
 
     p = subprocess.Popen(['maildrop', '-d', deliver_to.address,
                         '',
@@ -279,3 +281,59 @@ def fsize(fsize_b):
         return "%.1f MiB" % fsize_mb
     fsize_gb = fsize_mb / 1024.0
     return "%.1f GiB" % fsize_gb
+
+def get_mailfolder_size(path):
+    """
+    Returns the size of the messages in a mail folder and any subfolders.
+
+    :param path: The path to the mail folder
+    :type path: string
+    :returns: A tuple containing the message count and size
+    :rtype: tuple
+    """
+
+    count = 0
+    size  = 0
+
+    # Count the messages in cur and new
+    for store in ('cur', 'new'):
+        for msg in os.listdir(os.path.join(path, store)):
+            count += 1
+            # Try to use the filename to get the size, fall back to os.stat
+            # if not possible.
+            match = MSG_SIZE_RE.search(msg)
+            if match:
+                size += int(match.group(1))
+            else:
+                size += os.stat(os.path.join(path, store, msg)).st_size
+
+    # Check for any subfolders and count the messages in them
+    for folder in os.listdir(path):
+        if folder[0] != '.':
+            continue
+        folder_path = os.path.join(path, folder)
+        if not os.path.isfile(os.path.join(folder_path, 'maildirfolder')):
+            continue
+        (subcount, subsize) = get_mailfolder_size(folder_path)
+        count += subcount
+        size += subsize
+
+    return (count, size)
+
+def generate_maildirsize(domain, user, quota):
+    """
+    Creates a brand new maildirsize file for the user.
+
+    :param domain: The users domain
+    :type domain: string
+    :param user: The user
+    :type user: string
+    :param quota: The quota to give
+    :type quota: int
+    """
+    maildir = get_mail_dir(domain, user)
+    (count, size) = get_mailfolder_size(maildir)
+    fp = open(os.path.join(maildir, 'maildirsize'), 'w')
+    fp.write('%dS\n' % quota)
+    fp.write('%d %d\n' % (size, count))
+    fp.close()
