@@ -1,5 +1,6 @@
 usr/bin/*
 usr/lib/python*/*-packages/*.egg-info
 usr/lib/python*/*-packages/vmail/*.py
+usr/lib/python*/*-packages/vmail/daemon/*.py
 usr/lib/python*/*-packages/vmail/model/*.py
 usr/lib/python*/*-packages/vmail/scripts/*.py

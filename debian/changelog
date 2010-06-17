@@ -1,3 +1,16 @@
+vmail (0.3.0-2) lucid; urgency=low
+
+  * debian/control:
+      - add dependency on python-twisted-core to vmail
+      - add suggests python-pyinotify to vmail
+      - add dependency on libjson-perl to vmail-smtp
+  * debian/vmail.install:
+      - include the daemon code
+  * debian/vmail.upstart:
+      - change the socket directory to /var/run/vmail
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Thu, 17 Jun 2010 18:09:57 +0100
+
 vmail (0.3.0-1) lucid; urgency=low
 
   * New release bringing lots of new features.
