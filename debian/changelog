@@ -1,3 +1,9 @@
+vmail (0.3.0-1) lucid; urgency=low
+
+  * New release bringing lots of new features.
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Thu, 17 Jun 2010 17:41:46 +0100
+
 vmail (0.2.2-1) lucid; urgency=low
 
   * Emergency bugfix build, bug in roundcube plugin.
