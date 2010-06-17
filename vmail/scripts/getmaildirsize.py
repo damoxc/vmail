@@ -78,5 +78,9 @@ class GetMailDirSize(ScriptBase):
         else:
             (self.user, self.domain) = (None, self.args[0])
 
+        if not self.domain:
+            log.error('no argument provided')
+            return 1
+
         client.connect().addCallback(self.on_connect)
         reactor.run()
