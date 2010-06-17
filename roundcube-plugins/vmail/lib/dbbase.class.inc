@@ -15,7 +15,7 @@ class DBBase
 
 	public static function get_db()
 	{
-		$db = new rcube_mdb2(DBBase::$vmail->config['dburi'], '', FALSE);
+		$db = new rcube_mdb2(DBBase::$vmail->config['rwdburi'], '', FALSE);
 		$db->set_debug((bool)DBBase::$vmail->rcmail->config->get('sql_debug'));
 		$db->db_connect('w');
 		return $db;
