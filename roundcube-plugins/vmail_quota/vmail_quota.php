@@ -11,11 +11,11 @@ class vmail_quota extends rcube_plugin
 	function init()
 	{
 		$this->rcmail = &rcmail::get_instance();
-		$this->load_config();
-		$this->add_texts('localization/', array('vmail_quota'));
-
-		$cmd = 'sudo -u vmail /usr/bin/getmaildirsize -q "%d"';
 		$email = $this->rcmail->user->data['username'];
+		if (strlen($email) == 0) return;
+
+		$this->add_texts('localization/', array('vmail_quota'));
+		$cmd = 'sudo -u vmail /usr/bin/getmaildirsize -q "%d"';
 		$email = substr($email, strrpos($email, '@') + 1);
 		$cmd = str_replace('%d', $email, $cmd);
 		$output = explode('/', exec($cmd));
