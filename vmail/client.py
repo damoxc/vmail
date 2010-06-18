@@ -64,8 +64,7 @@ class VmailClientProtocol(Protocol):
         """
         This method is called whenever we receive data from the daemon.
 
-        :param data: a zlib compressed and rencoded string that should be either
-            a RPCResponse, RCPError or RPCSignal
+        :param data: a json-rpc encoded string
         """
         if self.__buffer:
             # We have some data from the last dataReceived() so lets
@@ -85,7 +84,11 @@ class VmailClientProtocol(Protocol):
 
         request_id = response.get('id')
         d = self.factory.daemon.pop_deferred(request_id)
-        d.callback(response.get('result'))
+        if 'error' in response and response['error'] is not None:
+            d.errback(response.get('error'))
+        else:
+            d.callback(response.get('result'))
+
         del self.__rpc_requests[request_id]
 
     def send_request(self, request):
