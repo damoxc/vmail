@@ -34,6 +34,9 @@ log = logging.getLogger(__name__)
 
 class VMailD(ScriptBase):
 
+    log_filename = '/var/log/vmail/vmaild.log'
+    log_format = 'full'
+
     def run(self):
         self.daemon = Daemon()
         try:
