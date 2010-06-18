@@ -48,9 +48,15 @@ class GetMailDirSize(ScriptBase):
 
     def on_connect(self, result):
         if self.options.quota:
-            client.core.get_quota(self.domain, self.user).addCallback(self.on_got_quota)
+            client.core.get_quota(self.domain, self.user).addCallbacks(
+                self.on_got_quota,
+                self.on_got_quota_err
+            )
         else:
-            client.core.get_usage(self.domain, self.user).addCallback(self.on_got_usage)
+            client.core.get_usage(self.domain, self.user).addCallbacks(
+                self.on_got_usage,
+                self.on_got_usage_err
+            )
 
     def on_connect_fail(self, reason):
         reactor.stop()
@@ -64,9 +70,20 @@ class GetMailDirSize(ScriptBase):
             self.options.quota else '%s' % usage)
         reactor.stop()
 
+    def on_got_usage_err(self, error):
+        log.error('error: %s', error.value['value'])
+        reactor.stop()
+
     def on_got_quota(self, quota):
         self.quota = quota
-        client.core.get_usage(self.domain, self.user).addCallback(self.on_got_usage)
+        client.core.get_usage(self.domain, self.user).addCallbacks(
+            self.on_got_usage,
+            self.on_got_usage_err
+        )
+
+    def on_got_quota_err(self, error):
+        log.error('error: %s', error.value['value'])
+        reactor.stop()
 
     def run(self):
         if not self.args:
