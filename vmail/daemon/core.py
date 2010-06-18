@@ -150,7 +150,11 @@ class Core(object):
         """
         Get the total quota usage for the specified domain or account.
         """
-        return get_usage(domain, user)
+        try:
+            return get_usage(domain, user)
+        except Exception, e:
+            log.warning('unable to check maildir for %s@%s', user, domain)
+            return 0
 
     @export
     def get_quota(self, domain, user=None):
