@@ -1,2 +1,3 @@
 /etc/init
 /etc/vmail
+/var/log/vmail
