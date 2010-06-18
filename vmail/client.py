@@ -176,7 +176,7 @@ class DaemonProxy(object):
         return self.__deferred.pop(request_id)
 
     def __rpc_error(self, error_data):
-        pass
+        return error_data
 
 class DottedObject(object):
     """
