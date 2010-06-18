@@ -1,0 +1,9 @@
+/var/log/vmail/*.log {
+	create 0640 vmail adm
+	missingok
+	daily
+	rotate 14
+	compress
+	delaycompress
+	notifempty
+}
