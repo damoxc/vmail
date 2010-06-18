@@ -1,3 +1,10 @@
+vmail (0.3.4-2) lucid; urgency=low
+
+  * debian/vmail.dirs:
+    - create /var/log/vmail
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Fri, 18 Jun 2010 08:02:04 +0100
+
 vmail (0.3.4-1) lucid; urgency=low
 
   * Fixes to vmaild.
