@@ -33,8 +33,12 @@ class VLastLogin(ScriptBase):
 
     def on_connect(self, result):
         client.core.last_login(self.args[0], self.method,
-            self.args[2] if len(self.args) == 3 else None).addCallback(
-                self.on_logged_login)
+            self.args[2] if len(self.args) == 3 else None).addCallbacks(
+                self.on_logged_login, self.on_logged_login
+            )
+
+    def on_connect_err(self, error):
+        reactor.stop()
 
     def on_logged_login(self, result):
         reactor.stop()
@@ -46,6 +50,6 @@ class VLastLogin(ScriptBase):
             log.error('incorrect method supplied')
             return 2
 
-        client.connect().addCallback(self.on_connect)
+        client.connect().addCallbacks(self.on_connect, self.on_connect_err)
         reactor.run()
         return 0
