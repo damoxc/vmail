@@ -28,12 +28,22 @@ from vmail.scripts.base import ScriptBase, argcount
 
 class IsValidRcptTo(ScriptBase):
 
-    def on_connected(self, result):
-        client.core.is_validrcptto(self.args[0]).addCallback(
-            self.on_got_result)
+    def on_connect(self, result):
+        client.core.is_validrcptto(self.args[0]).addCallbacks(
+            self.on_got_result,
+            self.on_got_result_err
+        )
+
+    def on_connect_err(self, error):
+        self.result = 1
+        reactor.stop()
 
     def on_got_result(self, result):
         self.result = result
+        reactor.stop()
+
+    def on_got_result_err(self, result):
+        self.result = 1
         reactor.stop()
 
     @argcount(1)
@@ -42,6 +52,9 @@ class IsValidRcptTo(ScriptBase):
             log.error('invalid argument')
             return 1
 
-        client.connect().addCallback(self.on_connected)
+        client.connect().addCallbacks(
+            self.on_connect,
+            self.on_connect_err
+        )
         reactor.run()
         return self.result
