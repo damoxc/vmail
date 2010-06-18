@@ -25,6 +25,7 @@
 
 import sys
 import logging
+import logging.handlers
 import optparse
 
 LEVELS = { 
@@ -55,7 +56,8 @@ def argcount(count):
 
 class ScriptBase(object):
 
-    filename = None
+    log_filename = None
+    log_format = 'short'
     usage = None
 
     def __init__(self, add_help_option=True):
@@ -64,6 +66,8 @@ class ScriptBase(object):
             add_help_option=add_help_option)
         self.parser.add_option('-L', '--loglevel', dest='loglevel',
             action='store', help='Set the log level', default='info')
+        self.parser.add_option('-l', '--log-file', dest='log_file',
+            action='store', help='Set the log file', default=None)
 
     def setup_logging(self, level='INFO'):
         level = LEVELS.get(level.upper(), logging.INFO)
@@ -73,15 +77,20 @@ class ScriptBase(object):
         logger.propagate = 1
         logger.disabled = 0
 
-        if self.filename:
-            handler = logging.FileHandler(filename)
+        if self.log_format == 'short':
+            formatter = logging.Formatter('%(message)s')
+        elif self.log_format == 'full':
             formatter = logging.Formatter(
-                '[%(levelname)-8s] %(asctime)s - %(message)s',
+                '[%(levelname)-8s] %(asctime)s %(name)-30s %(message)s',
                 '%a, %d %b %Y %H:%M:%S'
             )
         else:
+            formatter = logging.Formatter(self.log_format)
+
+        if self.log_filename and self.options.log_file != '-':
+            handler = logging.handlers.WatchedFileHandler(self.log_filename)
+        else:
             handler = logging.StreamHandler()
-            formatter = logging.Formatter('%(message)s')
 
         handler.setLevel(level)
         handler.setFormatter(formatter)
