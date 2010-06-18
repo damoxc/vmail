@@ -26,8 +26,10 @@
 #
 
 import os
+import sys
 import stat
 import logging
+import traceback
 
 from twisted.internet.protocol import Protocol, Factory
 from twisted.internet import reactor, defer
@@ -93,11 +95,34 @@ class VmailProtocol(Protocol):
         self.sendData(response)
 
     def _dispatch(self, request_id, method, args, kwargs):
+        """
+        This method is run when a RPC request is made. It will run the
+        local method and will send either a RPC response or RPC error
+        back to the client.
+        """
+
+        def send_error():
+            """
+            Sends an error response with the contents of the exception
+            that was raised.
+            """
+            exc_type, exc_value, exc_tb = sys.exc_info()
+
+            self.sendData({
+                'id': request_id,
+                'result': None,
+                'error': {
+                    'name': exc_type.__name__,
+                    'value': (exc_value.args[0] if exc_value.args else ''),
+                    'traceback': ''.join(traceback.format_tb(exc_tb))
+                }
+            })
 
         if method in self.factory.methods:
             try:
                 ret = self.factory.methods[method](*args, **kwargs)
             except Exception, e:
+                send_error()
                 if not isinstance(e, VmailError):
                     log.exception("Exception calling %s: %s", method, e)
             else:
