@@ -1,3 +1,9 @@
+vmail (0.3.3-3) lucid; urgency=low
+
+  * debian/vmail.logrotate: add a logrotate file to compress vmaild logs
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Fri, 18 Jun 2010 09:00:37 +0100
+
 vmail (0.3.3-2) lucid; urgency=low
 
   * debian/vmail.dirs:
