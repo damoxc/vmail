@@ -1,3 +1,9 @@
+vmail (0.3.4-1) lucid; urgency=low
+
+  * Fixes to vmaild.
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Fri, 18 Jun 2010 07:49:11 +0100
+
 vmail (0.3.2-1) lucid; urgency=low
 
   * Bugfix release.
