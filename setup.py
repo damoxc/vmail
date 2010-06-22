@@ -47,5 +47,6 @@ setup(
     vmailman       = vmail.scripts.vmailman:VMailMan.main
     vlastlogin     = vmail.scripts.vlastlogin:VLastLogin.main
     vlogmessage    = vmail.scripts.vlogmessage:VLogMessage.main
+    vchkpasswd     = vmail.scripts.vchkpasswd:VChkPasswd.main
     """
 )
