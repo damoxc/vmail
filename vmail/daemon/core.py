@@ -254,7 +254,7 @@ class Core(object):
         try:
             user = db.query(User).filter_by(email=email).one()
         except:
-            log.warning('unable to get user')
+            log.warning('[last_login] unable to get User(%s)', email)
             user = None
 
         login = Login()
@@ -302,3 +302,8 @@ class Core(object):
             recipient.recipient = rcpt
             rw_db.add(recipient)
         rw_db.commit()
+
+    def __after__(self):
+        # dispose of the database connections
+        rw_db.remove()
+        db.remove()
