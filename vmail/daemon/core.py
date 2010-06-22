@@ -177,6 +177,7 @@ class Core(object):
         :returns: An integer value representing the result
         :rtype: int
         """
+        log.debug('checking rcpt to for %s', email)
         try:
             result = db.execute('CALL is_validrcptto(:email)',
                 {'email': email})
@@ -196,6 +197,7 @@ class Core(object):
             if row[2] == 'forward':
                 email = row[1]
 
+            log.debug('checking quotas for %s', email)
             result = db.execute('CALL get_quotas(:email)', {'email': email})
             row = result.fetchone()
             if not row:
@@ -219,6 +221,7 @@ class Core(object):
                 log.exception(e)
 
         elif row[0] > 0:
+            log.debug('returning %d for %s', row[0], email)
             # we have a return code greater than zero so we should return
             # it.
             return row[0]
