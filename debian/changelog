@@ -1,3 +1,12 @@
+vmail (0.3.4-1) lucid; urgency=low
+
+  * vmaild:
+    - improve error handling and database connections.
+  * vchkpasswd:
+    - new script for checking authentication.
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Tue, 22 Jun 2010 15:13:59 +0100
+
 vmail (0.3.3-3) lucid; urgency=low
 
   * debian/vmail.logrotate: add a logrotate file to compress vmaild logs
