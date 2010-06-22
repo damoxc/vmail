@@ -205,19 +205,30 @@ class Core(object):
                 return 0
 
             try:
-                user_quota, domain_quota = row
+                (user_quota, domain_quota) = row
                 (user, domain) = email.split('@')
 
-                if get_usage(domain, user) >= user_quota:
+                # Check a users quota
+                try:
+                    user_usage = get_usage(domain, user)
+                except:
+                    log.warning('unable to check User(%s) quota', email)
+                else:
                     # user is over quota, stop it before deliver
-                    return 4
+                    if get_usage(domain, user) >= user_quota:
+                        return 4
 
-                if get_usage(domain) >= domain_quota:
+                try:
+                    domain_usage = get_usage(domain)
+                except:
+                    log.warning('unable to check Domain(%s) quota', domain)
+                else:
                     # domain is over quota
-                    return 5
+                    if get_usage(domain) >= domain_quota:
+                        return 5
 
             except Exception, e:
-                log.error('error checking email %s', email)
+                log.error('error checking User(%s)', email)
                 log.exception(e)
 
         elif row[0] > 0:
