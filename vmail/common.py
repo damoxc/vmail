@@ -188,7 +188,8 @@ def get_usage(domain, user=None):
         for user in os.listdir(maildir):
             path = get_mail_dir(domain, user)
 
-            # skip users that don't have this file, it's better to get an estimate
+            # Skip users that don't have this file, it's better to get
+            # an estimate.
             if not os.path.isfile(os.path.join(path, 'maildirsize')):
                 continue
 
@@ -198,7 +199,10 @@ def get_usage(domain, user=None):
                 log.warning('unable to read maildir for %s', user)
         return total_usage
     else:
-        return read_maildirsize(get_mail_dir(domain, user))[0]
+        maildir_path = get_mail_dir(domain, user)
+        if not os.path.isfile(os.path.join(maildir_path, 'maildirsize')):
+            return 0
+        return read_maildirsize(maildir_path)[0]
 
 def send_welcome_message(address, smtphost=None):
     """
