@@ -119,8 +119,17 @@ class VmailProtocol(Protocol):
             })
 
         if method in self.factory.methods:
+            func = self.factory.methods[method]
             try:
-                ret = self.factory.methods[method](*args, **kwargs)
+                before = getattr(func.im_self, '__before__', None)
+                if before:
+                    before()
+            except Exception, e:
+                log.error('running __before__() failed')
+                log.exception(e)
+
+            try:
+                ret = func(*args, **kwargs)
             except Exception, e:
                 send_error()
                 if not isinstance(e, VmailError):
@@ -130,6 +139,15 @@ class VmailProtocol(Protocol):
                     pass
                 else:
                     self.sendResponse(request_id, ret)
+
+            try:
+                after = getattr(func.im_self, '__after__', None)
+                if after:
+                    after()
+            except Exception, e:
+                log.error('running __after__() failed')
+                log.exception(e)
+
 
 class RpcServer(object):
     
