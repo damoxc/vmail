@@ -28,7 +28,7 @@ from setuptools import setup, find_packages
 
 setup(
     name         = 'vmail',
-    version      = '0.3.3',
+    version      = '0.3.4',
     author       = 'Damien Churchill',
     author_email = 'damoxc@gmail.com',
 
@@ -47,5 +47,6 @@ setup(
     vmailman       = vmail.scripts.vmailman:VMailMan.main
     vlastlogin     = vmail.scripts.vlastlogin:VLastLogin.main
     vlogmessage    = vmail.scripts.vlogmessage:VLogMessage.main
+    vchkpasswd     = vmail.scripts.vchkpasswd:VChkPasswd.main
     """
 )
