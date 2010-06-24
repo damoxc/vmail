@@ -83,19 +83,23 @@ def rw_connect():
     dburi = get_config().get('rwdburi')
     init_rw_model(create_engine(dburi))
 
+def create_session(engine):
+    if isinstance(engine, ObjectProxy):
+        engine = engine._wrapped
+    sm = sessionmaker(autoflush=False, autocommit=False, bind=engine)
+    return scoped_session(sm)
+
 def init_model(dbengine):
     global db, engine
     log.debug('Initialising the read-only database model')
     engine._set_wrapped(dbengine)
-    sm = sessionmaker(autoflush=False, autocommit=False, bind=dbengine)
-    db._set_wrapped(scoped_session(sm))
+    db._set_wrapped(create_session(dbengine))
 
 def init_rw_model(dbengine):
     global rw_db, rw_engine
     log.debug('Initialising the read-write database model')
     rw_engine._set_wrapped(dbengine)
-    sm = sessionmaker(autoflush=False, autocommit=False, bind=dbengine)
-    rw_db._set_wrapped(scoped_session(sm))
+    rw_db._set_wrapped(create_session(dbengine))
 
 engine = ObjectProxy()
 db = DBObjectProxy(connect, engine)
