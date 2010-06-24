@@ -1,3 +1,11 @@
+vmail (0.3.4.1-1) lucid; urgency=low
+
+  * Bugfix release.
+  * vmail/model:
+    - fix creating new domains
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Thu, 24 Jun 2010 11:01:51 +0100
+
 vmail (0.3.4-1) lucid; urgency=low
 
   * vmaild:
