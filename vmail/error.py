@@ -25,3 +25,6 @@
 
 class VmailError(Exception):
     pass
+
+class VmailException(Exception):
+    pass
