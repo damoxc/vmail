@@ -32,6 +32,7 @@ from twisted.internet import reactor
 from vmail.common import get_config
 from vmail.daemon.core import Core
 from vmail.daemon.rpcserver import RpcServer
+from vmail.model import connect, rw_connect
 
 class Daemon(object):
 
@@ -60,9 +61,15 @@ class Daemon(object):
         # Start the RPC server
         self.rpcserver.start()
 
-        # Start the monitor
+        # Start the monitor, if we need to
         if self.monitor:
             self.monitor.start()
+
+        # Setup database connections
+        connect()
+        rw_connect()
+
+        # Quaid, start the reactor
         reactor.run()
 
     def stop(self):
