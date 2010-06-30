@@ -93,6 +93,24 @@ class VmailProtocol(Protocol):
         }
         self.sendData(response)
 
+    def _on_err_response(self, failure, request_id):
+        """
+        Sends an error response with the contents of the exception
+        that was raised.
+        """
+        self.sendData({
+            'id':     request_id,
+            'result': None,
+            'error': {
+                'name': failure.type.__name__,
+                'value': (failure.value.args[0] if failure.value.args else ''),
+                'traceback': ''.join(traceback.format_tb(failure.tb))
+            }
+        })
+
+    def _on_got_response(self, result, request_id):
+        self.sendResponse(request_id, result)
+
     def _dispatch(self, request_id, method, args, kwargs):
         """
         This method is run when a RPC request is made. It will run the
@@ -100,37 +118,11 @@ class VmailProtocol(Protocol):
         back to the client.
         """
 
-        def send_error():
-            """
-            Sends an error response with the contents of the exception
-            that was raised.
-            """
-            exc_type, exc_value, exc_tb = sys.exc_info()
-
-            self.sendData({
-                'id': request_id,
-                'result': None,
-                'error': {
-                    'name': exc_type.__name__,
-                    'value': (exc_value.args[0] if exc_value.args else ''),
-                    'traceback': ''.join(traceback.format_tb(exc_tb))
-                }
-            })
-
         if method in self.factory.methods:
             meth = self.factory.methods[method]
-            try:
-                ret = self._callMethod(meth, args, kwargs)
-            except Exception, e:
-                send_error()
-                if not isinstance(e, VmailError):
-                    log.exception("Exception calling %s: %s", method, e)
-            else:
-                if isinstance(ret, defer.Deferred):
-                    pass
-                else:
-                    self.sendResponse(request_id, ret)
-            #d = threads.deferToThread(self._callMethod, meth)
+            d = threads.deferToThread(self._callMethod, meth, args, kwargs)
+            d.addCallback(self._on_got_response, request_id)
+            d.addErrback(self._on_err_response, request_id)
 
     def _callMethod(self, method, args, kwargs):
         """
