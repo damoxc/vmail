@@ -22,6 +22,8 @@ class vmail_quota extends rcube_plugin
 		$used = floatval($output[0]);
 		$quota = floatval($output[1]);
 		$usage = $used / $quota * 100.0;
+		if ($usage > 100)
+			$usage = 100;
 
 		$this->rcmail->output->set_env('dom_quota', array(
 			'usage' => intval($usage),
