@@ -32,7 +32,7 @@ import logging
 import traceback
 
 from twisted.internet.protocol import Protocol, Factory
-from twisted.internet import reactor, defer
+from twisted.internet import reactor, defer, threads
 
 import vmail.common
 from vmail.error import VmailError
@@ -83,7 +83,6 @@ class VmailProtocol(Protocol):
             kwargs)
 
     def sendData(self, data):
-        #log.debug('response: %r', data)
         self.transport.write(json.dumps(data))
 
     def sendResponse(self, request_id, result):
@@ -119,17 +118,9 @@ class VmailProtocol(Protocol):
             })
 
         if method in self.factory.methods:
-            func = self.factory.methods[method]
+            meth = self.factory.methods[method]
             try:
-                before = getattr(func.im_self, '__before__', None)
-                if before:
-                    before()
-            except Exception, e:
-                log.error('running __before__() failed')
-                log.exception(e)
-
-            try:
-                ret = func(*args, **kwargs)
+                ret = self._callMethod(meth, args, kwargs)
             except Exception, e:
                 send_error()
                 if not isinstance(e, VmailError):
@@ -139,15 +130,48 @@ class VmailProtocol(Protocol):
                     pass
                 else:
                     self.sendResponse(request_id, ret)
+            #d = threads.deferToThread(self._callMethod, meth)
 
+    def _callMethod(self, method, args, kwargs):
+        """
+        This method handles calling the method and any __before__
+        or __after__ methods within a thread to ensure further connections
+        aren't blocked.
+        """
+        if method.im_before:
             try:
-                after = getattr(func.im_self, '__after__', None)
-                if after:
-                    after()
+                method.im_before(method)
             except Exception, e:
-                log.error('running __after__() failed')
+                log.error('running __before__() failed')
                 log.exception(e)
 
+        try:
+            return method(*args, **kwargs)
+        finally:
+            if method.im_after:
+                try:
+                    method.im_after(method)
+                except Exception, e:
+                    log.error('running __after__() failed')
+                    log.exception(e)
+
+class RpcMethod(object):
+    """
+    This class acts as a wrapper around methods that checks for before and
+    after methods when its created to save having to do it for every
+    RPC request.
+    """
+
+    def __init__(self, method):
+        self.__method = method
+        self.im_before = getattr(method.im_self, '__before__', None)
+        self.im_after = getattr(method.im_self, '__after__', None)
+
+    def __getattr__(self, key):
+        return getattr(self.__method, key)
+
+    def __call__(self, *args, **kwargs):
+        return self.__method(*args, **kwargs)
 
 class RpcServer(object):
     
@@ -177,7 +201,7 @@ class RpcServer(object):
                 continue
             if getattr(getattr(obj, d), '_rpcserver_export', False):
                 log.debug("Registering method: %s.%s", name, d)
-                self.factory.methods[name + "." + d] = getattr(obj, d)
+                self.factory.methods[name + "." + d] = RpcMethod(getattr(obj, d))
 
     def start(self):
         sock_path = self.config['socket']

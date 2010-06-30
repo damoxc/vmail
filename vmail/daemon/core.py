@@ -303,7 +303,17 @@ class Core(object):
             rw_db.add(recipient)
         rw_db.commit()
 
-    def __after__(self):
+    def __before__(self, method):
+        func = method.im_func
+        func.func_globals['db'] = pool.checkout()
+        func.func_globals['rw_db'] = rw_pool.checkout()
+
+    def __after__(self, method):
+        func = method.im_func
+
         # dispose of the database connections
-        rw_db.remove()
-        db.remove()
+        func.func_globals['db'].remove()
+        pool.checkin()
+
+        func.func_globals['rw_db'].remove()
+        rw_pool.checkin()
