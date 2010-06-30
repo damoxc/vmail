@@ -45,6 +45,8 @@ DEFAULT_CONFIG = {
     'group': 'vmail',
     'monitor': True,
     'socket': '/var/run/vmail/vmaild.sock',
+    'max_overflow': 10,
+    'pool_size': 5,
     'mailstore': '/var/mail',
     'defaulthost': 'example.com',
     'filterhost': 'filter.example.com',

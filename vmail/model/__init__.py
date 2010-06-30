@@ -122,16 +122,23 @@ class DBObjectProxy(ObjectProxy):
             object.__getattribute__(self, '_connector')()
         return ObjectProxy.__getattribute__(self, key)
 
+def _create_engine(dburi):
+    config = get_config()
+    pool_size = config.get('pool_size')
+    max_overflow = config.get('max_overflow')
+    return create_engine(dburi, pool_size=pool_size,
+        max_overflow=max_overflow)
+
 def connect():
     config = get_config()
     dburi = config.get('rodburi', None)
     if not dburi:
         dburi = config.get('rwdburi')
-    init_model(create_engine(dburi))
+    init_model(_create_engine(dburi))
 
 def rw_connect():
     dburi = get_config().get('rwdburi')
-    init_rw_model(create_engine(dburi))
+    init_rw_model(_create_engine(dburi))
 
 def create_session(engine):
     if isinstance(engine, ObjectProxy):
