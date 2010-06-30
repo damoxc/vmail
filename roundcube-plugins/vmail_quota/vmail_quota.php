@@ -4,6 +4,8 @@
  * Vmail plugin that displays the domain quota in the mailview.
  */
 
+require_once dirname(dirname(__FILE__)) . '/vmail/lib/vclient.class.inc';
+
 class vmail_quota extends rcube_plugin
 {
 	public $task = 'mail';
@@ -15,12 +17,13 @@ class vmail_quota extends rcube_plugin
 		if (strlen($email) == 0) return;
 
 		$this->add_texts('localization/', array('vmail_quota'));
-		$cmd = 'sudo -u vmail /usr/bin/getmaildirsize -q "%d"';
-		$email = substr($email, strrpos($email, '@') + 1);
-		$cmd = str_replace('%d', $email, $cmd);
-		$output = explode('/', exec($cmd));
-		$used = floatval($output[0]);
-		$quota = floatval($output[1]);
+
+		$domain = substr($email, strrpos($email, '@') + 1);
+
+		$this->client = new VClient();
+		$used = $this->client->core->get_usage($domain);
+		$quota = $this->client->core->get_quota($domain);
+
 		$usage = $used / $quota * 100.0;
 		if ($usage > 100)
 			$usage = 100;
