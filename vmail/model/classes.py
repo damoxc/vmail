@@ -74,6 +74,18 @@ class Domain(object):
 
         return d
 
+    def __json__(self):
+        return {
+            'id': self.id,
+            'login_id': self.login_id,
+            'domain': self.domain,
+            'package': self._package,
+            'package_id': self.package_id,
+            'quota': self.quota,
+            'account_limit': self.account_limit,
+            'enabled': self.enabled
+        }
+
 class Forward(object):
     pass
 
@@ -81,10 +93,25 @@ class Greylist(object):
     pass
 
 class Host(object):
-    pass
+    
+    def __json__(self):
+        return {
+            'ip_address': self.ip_address,
+            'action': self.action,
+            'comment': self.comment
+        }   
 
 class Login(object):
-    pass
+    
+    def __json__(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'method': self.method,
+            'local_addr': self.local_addr,
+            'remote_addr': self.remote_addr,
+            'date': self.date
+        }
 
 class Message(object):
     pass
@@ -107,6 +134,19 @@ class User(object):
 
     password = property(__get_password, __set_password)
 
+    def __json__(self):
+        return {
+            'id': self.id,
+            'domain_id': self.domain_id,
+            'email': self.email,
+            'name': self.name,
+            'password': self.password,
+            'quota': self.quota,
+            'usage': self.usage,
+            'enabled': self.enabled,
+            'admin': self.admin
+        }
+
 class Vacation(object):
     pass
 
@@ -114,7 +154,11 @@ class VacationNotification(object):
     pass
 
 class Whitelist(object):
-    pass
+    
+    def __json__(self):
+        return {
+            'address': self.address
+        }
 
 mapper(Blacklist, blacklist)
 mapper(Package, packages)
