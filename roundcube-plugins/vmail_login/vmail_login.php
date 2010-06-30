@@ -13,6 +13,8 @@
  *
  */
 
+require_once dirname(dirname(__FILE__)) . '/vmail/lib/vclient.class.inc';
+
 class vmail_login extends rcube_plugin
 {
 	public $task = 'mail';
@@ -20,6 +22,7 @@ class vmail_login extends rcube_plugin
 	function init()
 	{
 		$this->rcmail = &rcmail::get_instance();
+		$this->client = new VClient();
 		$this->add_hook('login_after',
 			array($this, 'login_after_handler'));
 	}
@@ -28,7 +31,7 @@ class vmail_login extends rcube_plugin
 	{
 		$username = $this->rcmail->user->data['username'];
 		$remote_ip = $_SERVER['REMOTE_ADDR'];
-		exec("vlastlogin '$username' 'rcube' '$remote_ip'");
+		$this->client->core->last_login($username, 'rcube', $remote_ip);
 		return $args;
 	}
 }
