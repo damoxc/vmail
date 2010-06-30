@@ -48,6 +48,14 @@ def export(func, *args, **kwargs):
         func.__doc__ += doc
     return func
 
+def encode_object(obj):
+    if not isinstance(obj, object):
+        raise TypeError(repr(obj) + " is not JSON serializable")
+    __json__ = getattr(obj, '__json__', None)
+    if not __json__:
+        raise TypeError(repr(obj) + " is not JSON serializable")
+    return __json__()
+
 class VmailProtocol(Protocol):
 
     __buffer =  None
@@ -83,7 +91,7 @@ class VmailProtocol(Protocol):
             kwargs)
 
     def sendData(self, data):
-        self.transport.write(json.dumps(data))
+        self.transport.write(json.dumps(data, default=encode_object))
 
     def sendResponse(self, request_id, result):
         response = {
