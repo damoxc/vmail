@@ -23,14 +23,64 @@
 #   Boston, MA    02110-1301, USA.
 #
 
+import time
 import logging
+import threading
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 from vmail.common import get_config
+from vmail.error import VmailException
 from vmail.model.classes import *
 
 log = logging.getLogger(__name__)
+
+class VmailSessionException(VmailException):
+    pass
+
+class SessionPool(object):
+    """
+    This class is intended to allow for the model to be used in a threaded
+    environment.
+    """
+
+    def __init__(self, engine, min_sessions=10, max_sessions=25):
+        self.engine = engine
+        self.min_sessions = min_sessions
+        self.max_sessions = max_sessions
+        self.session_pool = []
+        self.available = []
+        self.checkouts = {}
+        self.lock = threading.Lock()
+
+    def checkin(self):
+        self.lock.acquire()
+        try:
+            cur_thread = threading.current_thread()
+            if cur_thread.ident not in self.checkouts:
+                raise VmailSessionException('No session checked out')
+            self.available.append(self.checkouts.pop(cur_thread.ident))
+        finally:
+            self.lock.release()
+
+    def checkout(self):
+        self.lock.acquire()
+        try:
+            while not self.available:
+                if len(self.session_pool) < self.max_sessions:
+                    session = create_session(self.engine)
+                    self.session_pool.append(session)
+                    self.available.append(session)
+                else:
+                    time.sleep(0.1)
+            
+            session = self.available.pop()
+            cur_thread = threading.current_thread()
+            self.checkouts[cur_thread.ident] = session
+            return session
+        finally:
+            self.lock.release()
 
 class ObjectProxy(object):
 
@@ -90,19 +140,23 @@ def create_session(engine):
     return scoped_session(sm)
 
 def init_model(dbengine):
-    global db, engine
+    global db, engine, pool
     log.debug('Initialising the read-only database model')
     engine._set_wrapped(dbengine)
-    db._set_wrapped(create_session(dbengine))
+    pool._set_wrapped(SessionPool(dbengine))
+    db._set_wrapped(pool.checkout())
 
 def init_rw_model(dbengine):
-    global rw_db, rw_engine
+    global rw_db, rw_engine, rw_pool
     log.debug('Initialising the read-write database model')
     rw_engine._set_wrapped(dbengine)
-    rw_db._set_wrapped(create_session(dbengine))
+    rw_pool._set_wrapped(SessionPool(dbengine))
+    rw_db._set_wrapped(rw_pool.checkout())
 
 engine = ObjectProxy()
 db = DBObjectProxy(connect, engine)
+pool = ObjectProxy()
 
 rw_engine = ObjectProxy()
 rw_db = DBObjectProxy(rw_connect, rw_engine)
+rw_pool = ObjectProxy()
