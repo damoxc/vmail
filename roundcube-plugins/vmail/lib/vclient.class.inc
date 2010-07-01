@@ -56,8 +56,8 @@ class VClient
 		if ($response->error) {
 			raise_error(array(
 				code => 1
-				type => vmail,
-				message => $response->error->type . ": " .$response->error->value
+				type => 'vmail',
+				message => $response->error->type . ': ' .$response->error->value
 			), true);
 		} else {
 			return $response->result;
