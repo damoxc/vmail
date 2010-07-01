@@ -123,6 +123,7 @@ users = Table('users', meta,
 )
 
 vacation = Table('vacation', meta,
+    Column('id', Integer),
     Column('email', String(255), ForeignKey('users.email'),
         primary_key=True),
     Column('subject', String(255)),
