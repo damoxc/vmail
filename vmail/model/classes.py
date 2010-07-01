@@ -148,7 +148,18 @@ class User(object):
         }
 
 class Vacation(object):
-    pass
+    
+    def __json__(self):
+        return {
+            'id': self.id,
+            'email': self.email,
+            'subject': self.subject,
+            'body': self.body,
+            'cache': self.cache,
+            'domain': self.domain,
+            'created': self.created,
+            'active': self.active
+        }
 
 class VacationNotification(object):
     pass
