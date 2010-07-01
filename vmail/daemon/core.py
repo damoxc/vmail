@@ -332,6 +332,9 @@ class Core(object):
         else:
             return db.query(User).filter_by(email=user).one()
 
+    @export
+    def get_vacation(self, email):
+        return db.query(Vacation).filter_by(email=email).one()
 
     def __before__(self, method):
         func = method.im_func
