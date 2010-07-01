@@ -45,16 +45,20 @@ class VClient
 	function _call($method, $arguments)
 	{
 		$request = json_encode(array(
-			id => $this->request_id,
+			id     => $this->request_id,
 			method => $method,
-			args => $arguments
+			args   => $arguments
 		));
 		$this->request_id++;
 		socket_write($this->sock, $request);
 		$response = json_decode(socket_read($this->sock, 4096));
 
 		if ($response->error) {
-			console("ERRRRROOOOORRRRRR!!!!");
+			raise_error(array(
+				code => 1
+				type => vmail,
+				message => $response->error->type . ": " .$response->error->value
+			), true);
 		} else {
 			return $response->result;
 		}
