@@ -29,6 +29,7 @@ import os
 import sys
 import stat
 import logging
+import datetime
 import traceback
 
 from twisted.internet.protocol import Protocol, Factory
@@ -49,6 +50,9 @@ def export(func, *args, **kwargs):
     return func
 
 def encode_object(obj):
+    if isinstance(obj, datetime.datetime):
+        tt = obj.timetuple()
+        return dict([(k[3:], getattr(tt, k)) for k in dir(tt) if k[0:2] == 'tm'])
     if not isinstance(obj, object):
         raise TypeError(repr(obj) + " is not JSON serializable")
     __json__ = getattr(obj, '__json__', None)
