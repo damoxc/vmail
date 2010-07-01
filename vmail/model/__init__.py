@@ -27,7 +27,7 @@ import time
 import logging
 import threading
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, func, text
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 from vmail.common import get_config

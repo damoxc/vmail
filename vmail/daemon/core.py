@@ -151,9 +151,13 @@ class Core(object):
         Get the total quota usage for the specified domain or account.
         """
         try:
-            return get_usage(domain, user)
+            if user:
+                return db.query(User).filter_by(email='%s@%s' % (user, domain)).one().usage
+            else:
+                domain = db.query(Domain).filter_by(domain=domain).one()
+                return db.query(func.sum(User.usage)).filter_by(domain_id=domain.id).scalar()
         except Exception, e:
-            log.warning('unable to check maildir for %s@%s', user, domain)
+            log.warning('unable to check usage for %s@%s', user, domain)
             return 0
 
     @export
@@ -315,11 +319,18 @@ class Core(object):
         return self.get_domain(domain).users
 
     @export
+    def get_user_count(self, domain):
+        if not isinstance(domain, (int, long)):
+            domain = db.query(Domain).filter_by(domain=domain).one().id
+        return db.query(User).filter_by(domain_id=domain).count()
+
+    @export
     def get_user(self, user):
         if isinstance(user, (int, long)):
             return db.query(User).get(user)
         else:
             return db.query(User).filter_by(email=user).one()
+
 
     def __before__(self, method):
         func = method.im_func
