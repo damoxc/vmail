@@ -303,6 +303,24 @@ class Core(object):
             rw_db.add(recipient)
         rw_db.commit()
 
+    @export
+    def get_domain(self, domain):
+        if isinstance(domain, (int, long)):
+            return db.query(Domain).get(domain)
+        else:
+            return db.query(Domain).filter_by(domain=domain).one()
+
+    @export
+    def get_users(self, domain):
+        return self.get_domain(domain).users
+
+    @export
+    def get_user(self, user):
+        if isinstance(user, (int, long)):
+            return db.query(User).get(user)
+        else:
+            return db.query(User).filter_by(email=user).one()
+
     def __before__(self, method):
         func = method.im_func
         func.func_globals['db'] = pool.checkout()
