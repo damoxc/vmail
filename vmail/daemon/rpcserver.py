@@ -34,6 +34,7 @@ import traceback
 
 from twisted.internet.protocol import Protocol, Factory
 from twisted.internet import reactor, defer, threads
+from twisted.python.failure import Failure
 
 import vmail.common
 from vmail.error import VmailError
@@ -135,6 +136,10 @@ class VmailProtocol(Protocol):
             d = threads.deferToThread(self._callMethod, meth, args, kwargs)
             d.addCallback(self._on_got_response, request_id)
             d.addErrback(self._on_err_response, request_id)
+        else:
+            error = VmailError('No method by that name')
+            failure = Failure(error, VmailError)
+            self._on_err_response(failure, request_id)
 
     def _callMethod(self, method, args, kwargs):
         """
