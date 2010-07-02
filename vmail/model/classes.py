@@ -87,7 +87,13 @@ class Domain(object):
         }
 
 class Forward(object):
-    pass
+    
+    def __json__(self):
+        return {
+            'id': self.id,
+            'source': self.source,
+            'destination': self.destination
+        }
 
 class Greylist(object):
     pass

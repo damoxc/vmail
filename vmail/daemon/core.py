@@ -308,12 +308,19 @@ class Core(object):
             rw_db.add(recipient)
         rw_db.commit()
 
+    ######################
+    # Management Methods #
+    ######################
     @export
     def get_domain(self, domain):
         if isinstance(domain, (int, long)):
             return db.query(Domain).get(domain)
         else:
             return db.query(Domain).filter_by(domain=domain).one()
+
+    @export
+    def get_forwards(self, domain):
+        return self.get_domain(domain).forwards
 
     @export
     def get_users(self, domain):
@@ -335,7 +342,8 @@ class Core(object):
     @export
     def get_vacation(self, email):
         return db.query(Vacation).filter_by(email=email).one()
-
+    
+    # Setup and tear down methods
     def __before__(self, method):
         func = method.im_func
         func.func_globals['db'] = pool.checkout()
