@@ -184,7 +184,8 @@ mapper(Domain, domains, properties = {
     '_package': domains.c.package
 })
 mapper(Forward, forwardings, properties = {
-    'domain': relation(Domain, backref='forwards')
+    'domain': relation(Domain,
+        backref=backref('forwards', order_by=forwardings.c.source))
 })
 mapper(Greylist, greylist)
 mapper(Host, hosts)
