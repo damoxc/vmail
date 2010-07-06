@@ -380,6 +380,8 @@ class Core(object):
 
     @export
     def save_forward(self, forward, params):
+        if not params:
+            return
         try:
             if forward:
                 params = dict([(getattr(Forward, k), params[k]) for k in params])
@@ -400,6 +402,8 @@ class Core(object):
 
     @export
     def save_user(self, user, params):
+        if not params:
+            return
         try:
             if user:
                 params = dict([(getattr(User, k), params[k]) for k in params])
@@ -420,6 +424,8 @@ class Core(object):
 
     @export
     def save_vacation(self, vacation, params):
+        if not params:
+            return
         try:
             params = dict([(getattr(Vacation, k), params[k]) for k in params])
             if isinstance(vacation, (int, long)):
