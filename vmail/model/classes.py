@@ -28,6 +28,8 @@ import hashlib
 
 from sqlalchemy import and_, join, desc, text
 from sqlalchemy.orm import mapper, backref, relation
+
+from vmail.common import get_mail_dir
 from vmail.model.tables import *
 
 class Blacklist(object):
@@ -129,6 +131,11 @@ class Transport(object):
     pass
 
 class User(object):
+
+    @property
+    def maildir(self):
+        (user, domain) = self.email.split('@')
+        return get_mail_dir(domain, user)
 
     def __get_password(self):
         return self._cleartext
