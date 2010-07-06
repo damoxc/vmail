@@ -24,6 +24,7 @@
 #
 
 import hmac
+import shutil
 import socket
 import logging
 import datetime
@@ -325,13 +326,18 @@ class Core(object):
     @export
     def delete_user(self, user):
         try:
+            
             if isinstance(user, (int, long)):
-                rw_db.query(User).filter_by(id=user).delete()
+                user = rw_db.query(User).get(user)
             else:
-                rw_db.query(User).filter_by(source=user).delete()
-            rw_db.commit()
+                user = rw_db.query(User).filter_by(source=user).one()
         except Exception, e:
             log.exception(e)
+        else:
+            try:
+                shutil.rmtree(user.maildir)
+            except Exception, e:
+                log.exception(e)
 
     @export
     def get_domain(self, domain):
