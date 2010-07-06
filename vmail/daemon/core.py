@@ -347,6 +347,13 @@ class Core(object):
             return db.query(Domain).filter_by(domain=domain).one()
 
     @export
+    def get_forward(self, forward):
+        if isinstance(forward, (int, long)):
+            return rw_db.query(Forward).get(forward).one()
+        else:
+            return rw_db.query(Forward).filter_by(source=forward).one()
+
+    @export
     def get_forwards(self, domain):
         return self.get_domain(domain).forwards
 
@@ -386,19 +393,28 @@ class Core(object):
                     setattr(forward, k, v)
                 rw_db.add(forward)
             rw_db.commit()
-            return forward.id
+            if isinstance(forward, Forward):
+                return forward.id
         except Exception, e:
             log.exception(e)
 
     @export
     def save_user(self, user, params):
         try:
-            params = dict([(getattr(User, k), params[k]) for k in params])
-            if isinstance(user, (int, long)):
-                rw_db.query(User).filter_by(id=user).update(params)
+            if user:
+                params = dict([(getattr(User, k), params[k]) for k in params])
+                if isinstance(user, (int, long)):
+                    rw_db.query(User).filter_by(id=user).update(params)
+                else:
+                    rw_db.query(User).filter_by(email=user).update(params)
             else:
-                rw_db.query(User).filter_by(email=user).update(params)
+                user = User()
+                for k, v in params.iteritems():
+                    setattr(user, k, v)
+                rw_db.add(user)
             rw_db.commit()
+            if isinstance(user, User):
+                return user.id
         except Exception, e:
             log.exception(e)
 
