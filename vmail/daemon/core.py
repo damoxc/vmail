@@ -312,6 +312,28 @@ class Core(object):
     # Management Methods #
     ######################
     @export
+    def delete_forward(self, forward):
+        try:
+            if isinstance(forward, (int, long)):
+                rw_db.query(Forward).filter_by(id=forward).delete()
+            else:
+                rw_db.query(Forward).filter_by(source=forward).delete()
+            rw_db.commit()
+        except Exception, e:
+            log.exception(e)
+
+    @export
+    def delete_user(self, user):
+        try:
+            if isinstance(user, (int, long)):
+                rw_db.query(User).filter_by(id=user).delete()
+            else:
+                rw_db.query(User).filter_by(source=user).delete()
+            rw_db.commit()
+        except Exception, e:
+            log.exception(e)
+
+    @export
     def get_domain(self, domain):
         if isinstance(domain, (int, long)):
             return db.query(Domain).get(domain)
@@ -342,6 +364,49 @@ class Core(object):
     @export
     def get_vacation(self, email):
         return db.query(Vacation).filter_by(email=email).one()
+
+    @export
+    def save_forward(self, forward, params):
+        try:
+            if forward:
+                params = dict([(getattr(Forward, k), params[k]) for k in params])
+                if isinstance(forward, (int, long)):
+                    rw_db.query(Forward).filter_by(id=forward).update(params)
+                else:
+                    rw_db.query(Forward).filter_by(source=forward).update(params)
+            else:
+                forward = Forward()
+                for k, v in params.iteritems():
+                    setattr(forward, k, v)
+                rw_db.add(forward)
+            rw_db.commit()
+            return forward.id
+        except Exception, e:
+            log.exception(e)
+
+    @export
+    def save_user(self, user, params):
+        try:
+            params = dict([(getattr(User, k), params[k]) for k in params])
+            if isinstance(user, (int, long)):
+                rw_db.query(User).filter_by(id=user).update(params)
+            else:
+                rw_db.query(User).filter_by(email=user).update(params)
+            rw_db.commit()
+        except Exception, e:
+            log.exception(e)
+
+    @export
+    def save_vacation(self, vacation, params):
+        try:
+            params = dict([(getattr(Vacation, k), params[k]) for k in params])
+            if isinstance(vacation, (int, long)):
+                rw_db.query(Vacation).filter_by(id=vacation).update(params)
+            else:
+                rw_db.query(Vacation).filter_by(email=vacation).update(params)
+            rw_db.commit()
+        except Exception, e:
+            log.exception(e)
     
     # Setup and tear down methods
     def __before__(self, method):
