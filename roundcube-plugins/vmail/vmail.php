@@ -13,10 +13,13 @@
  *
  */
 
-require 'lib/funcs.inc';
-require 'lib/accounts.class.inc';
-require 'lib/domains.class.inc';
-require 'lib/forwards.class.inc';
+require_once 'lib/funcs.inc';
+require_once 'lib/vclient.class.inc';
+require_once 'lib/base.class.inc';
+require_once 'lib/domain.class.inc';
+require_once 'lib/forward.class.inc';
+require_once 'lib/user.class.inc';
+require_once 'lib/vacation.class.inc';
 
 class vmail extends rcube_plugin
 {
@@ -25,18 +28,24 @@ class vmail extends rcube_plugin
 	function init()
 	{
 		$this->rcmail = &rcmail::get_instance();
+		$this->client = new VClient();
+
 		$this->add_texts('localization/', array('vmail'));
 		$this->config = array(
 			'dburi'    => getconfig('rwdburi'),
 			'autohost' => getconfig('autohost')
 		);
 
-		// Setup the database access
-		DBBase::$vmail = $this;
+		// Configure the base class
+		Base::$vmail = $this;
 
 		// Get the current user
-		$user = $this->rcmail->user;
-		$this->account = Account::get_by_username($user->data['username']);
+		$username = $this->rcmail->user->data['username'];
+
+		// This means we aren't logged in
+		if (!$username) return;
+
+		$this->user = User::get_user($username);
 
 		// Set up modifying the out of office message via the preferences
 		// tab in settings.
@@ -48,19 +57,21 @@ class vmail extends rcube_plugin
 			array($this, 'prefs_save_handler'));
 
 		// Get the domain information from the database.
-		$this->domain = $this->account->get_domain();
+		$this->domain = $this->user->domain;
+	
+		//$this->domain = $this->client->core->get_domain($this->user->domain_id);
 		$this->domain_id = $this->domain->id;
-		$this->domain_name = $this->domain->get('domain');
+		$this->domain_name = $this->domain->domain;
 
 		// If the user isn't an admin we can't continue.
-		if (!$this->account->is_admin) return;
+		if (!$this->user->admin) return;
 
 		// Set the id of the current account being editing to 0.
 		$this->aid = 0;
 
 		$pos = strrpos($user->data['username'], '@');
 		$this->username = substr($user->data['username'], 0, $pos);
-		$this->rcmail->output->set_env('user', $user->data['username']);
+		$this->rcmail->output->set_env('user', $this->user->email);
 
 		// Finish setting up the plugin
 		$this->include_script('vmail.js');
@@ -105,6 +116,8 @@ class vmail extends rcube_plugin
 			)
 		);
 
+		$vacation = $this->user->vacation;
+
 		$input = new html_checkbox(array(
 			'id'    => '_autoreply_enabled',
 			'name'  => '_autoreply_enabled',
@@ -113,7 +126,7 @@ class vmail extends rcube_plugin
 		));
 		$blocks['autoreply']['options']['autoreply_enabled'] = array(
 			'title'   => html::label('_autoreply_enabled', Q($this->gettext('autoreply_enabled'))),
-			'content' => $input->show($this->account->get('autoreply'))
+			'content' => $input->show($vacation->active)
 		);
 
 		$input = new html_inputfield(array(
@@ -123,7 +136,7 @@ class vmail extends rcube_plugin
 		));
 		$blocks['autoreply']['options']['autoreply_subject'] = array(
 			'title'   => html::label('_autoreply_subject', Q($this->gettext('autoreply_subject'))),
-			'content' => $input->show($this->account->get('autoreply_subject'))
+			'content' => $input->show($vacation->subject)
 		);
 
 		$input = new html_textarea(array(
@@ -137,7 +150,7 @@ class vmail extends rcube_plugin
 					'for' => '_autoreply_body',
 					'style' => 'vertical-align: text-top;'
 				), Q($this->gettext('autoreply_body'))),
-			'content' => $input->show($this->account->get('autoreply_body'))
+			'content' => $input->show($vacation->body)
 		);
 
 		$args['blocks'] = $blocks;
@@ -153,10 +166,12 @@ class vmail extends rcube_plugin
 		$subject = get_input_value('_autoreply_subject', RCUBE_INPUT_POST);
 		$body = get_input_value('_autoreply_body', RCUBE_INPUT_POST);
 
-		$this->account->set('autoreply', $autoreply);
-		$this->account->set('autoreply_subject', $subject);
-		$this->account->set('autoreply_body', $body);
-		$this->account->save();
+		// Update the vacation and save
+		$vacation = $this->user->vacation;
+		$vacation->active = $autoreply;
+		$vacation->subject = $subject;
+		$vacation->body = $body;
+		$vacation->save();
 
 		return $args;
 	}
@@ -204,8 +219,9 @@ class vmail extends rcube_plugin
 	function accountsave_handler()
 	{
 		$this->aid = (int)get_input_value('_aid', RCUBE_INPUT_POST);
+		$this->get_users();
 
-		if (!$this->domain->can_edit_account($this->aid)) {
+		if ($this->aid > 0 && !in_array($this->aid, array_keys($this->users))) {
 			// Show no permission error.
 			$this->rcmail->output->show_message('vmail.erracclimit','error');
 			return;
@@ -242,20 +258,18 @@ class vmail extends rcube_plugin
 		$subject = get_input_value('_autoreply_subject', RCUBE_INPUT_POST);
 		$body = get_input_value('_autoreply_body', RCUBE_INPUT_POST);
 
-		$account = new Account($this->aid, true);
-		$account->set('domain_id', $this->domain_id);
-		$account->set('email', $email);
-		$account->set('name', $name);
-		$account->set('quota', $quota);
-		$account->set('enabled', $enabled);
-		$account->set('admin', $admin);
-		$account->set('forwarding', $forwarding);
-		$account->set('forwardto', $forward_to);
-		$account->set('savecopy', $save_copy);
-		$account->set('autoreply', $autoreply);
-		$account->set('autoreply_subject', $subject);
-		$account->set('autoreply_body', $body);
-		$this->account = $account;
+		if ($this->aid > 0) {
+			$user = $this->users[$this->aid];
+		} else {
+			$user = new User();
+			$user->domain_id = $this->domain_id;
+			$user->email = $email;
+		}
+		$user->name = $name;
+		$user->quota = $quota;
+		$user->enabled = $enabled;
+		$user->admin = $admin;
+		$this->user = $user;
 
 		if (strpos($email, '@') !== false) {
 			$this->rcmail->output->show_message('vmail.errbademail', 'error');
@@ -265,7 +279,7 @@ class vmail extends rcube_plugin
 			return;
 		}
 
-		if ($quota > $this->domain->get('quota')) {
+		if ($quota > $this->domain->quota) {
 			$this->rcmail->output->show_message('vmail.errbadquota', 'error');
 			$this->rcmail->output->set_pagetitle('Edit Account');
 			$this->rcmail->output->set_env('focus_field', '_quota');
@@ -287,18 +301,55 @@ class vmail extends rcube_plugin
 			return;
 		}
 
-		if ($newpasswd) $this->account->set('password', $newpasswd);
-		$this->account->save();
+		if ($newpasswd) $this->user->password = $newpasswd;
+		$this->user->save();
 
 		if (!$this->aid) {
 			// Probably want to send the welcome email at this point.
-			createmaildir($this->account->get('email') . '@' . $this->domain_name);
+			createmaildir($this->user->email . '@' . $this->domain_name);
 
-			$this->aid = $this->account->id;
+			$this->aid = $this->user->id;
 			$this->rcmail->output->show_message('vmail.accountcreated', 'confirmation');
 		} else {
 			$this->rcmail->output->show_message('vmail.accountsaved', 'confirmation');
 		}
+
+		$vacation = $this->user->vacation;
+		$vacation->active = $autoreply;
+		$vacation->subject = $subject;
+		$vacation->body = $body;
+
+		// calculate the forward destination for the user, if any
+		$destinations = array();
+
+		// this means autoreply forwarding must be setup
+		if ($autoreply) {
+			$autoreply_email = str_replace('@', '#', $this->user->email);
+			$autoreply_email .= '@' . $this->config['autohost'];
+			array_push($destinations, $autoreply_email);
+		}
+		console("destinations: " . count($destinations));
+		
+		if ($forwarding == 'fwd') {
+			$forward_to = array_map("trim", explode(',', $forward_to));
+			if ($save_copy) {
+				array_insert($destinations, 0, $this->user->email);
+				$destinations = array_merge($destinations, $forward_to);
+			} else {
+				$destinations = array_merge($destinations, $forward_to);
+			}
+		} else if ($autoreply) {
+			array_insert($destinations, 0, $this->user->email);
+		}
+
+		console("forwarding: $forwarding");
+		console("destinations: " . count($destinations));
+
+		$vacation->save();
+
+		//$user->forwarding = $forwarding;
+		//$user->forwardto = $forward_to;
+		//$user->savecopy = $save_copy;
 
 		$this->template = 'accountedit';
 	}
@@ -331,12 +382,15 @@ class vmail extends rcube_plugin
 
 	function forwarddel_handler()
 	{
-		if (!$this->can_edit_forward($this->fid)) {
+		$this->get_forwards();
+
+		$forward = $this->forwards[$this->fid];
+		if (!$forward) {
 			return;
 		}
 
-		$forward = new Forward($this->fid, false);
 		$forward->delete();
+		unset($this->forwards[$forward->id]);
 
 		$this->rcmail->output->show_message('vmail.forwarddeleted', 'confirmation');
 	}
@@ -350,18 +404,10 @@ class vmail extends rcube_plugin
 		$destination = strtolower(get_input_value('_destination', RCUBE_INPUT_POST));
 
 		if ($catchall) $source = '';
-		$this->forward = new Forward($this->fid, false);
-		$this->forward->set('domain_id', $this->domain_id);
-		$this->forward->set('source', $source . '@' . $this->domain_name);
-		$this->forward->set('destination', $destination);
 
-		$account = Account::get_by_username($source . '@' . $this->domain_name);
-		if ($account->id) {
-			$this->rcmail->output->show_message('vmail.erraccexists', 'error');
-			$this->template = 'forwardedit';
-			return;
-		}
-
+		// We want to make sure there aren't any invalid characters
+		// in the forward source local-part.
+		// TODO: make this RFC compliant
 		if (strpos($source, '@') !== false) {
 			$this->rcmail->output->show_message('vmail.errbadsource', 'error');
 			$this->rcmail->output->set_env('focus_field', '_source');
@@ -369,19 +415,26 @@ class vmail extends rcube_plugin
 			return;
 		}
 
-		$res = $this->forward->save();
-		
-		// Check for errors
-		if ($res == 1) {
-			$this->rcmail->output->show_message('vmail.forwardexists', 'error');
-			return;
-		} else if ($res == 2) {
-			$this->rcmail->output->show_message('vmail.dberror', 'error');
+		$this->get_forwards();
+		$forward = ($this->fid > 0) ? $this->forwards[$this->fid] : new Forward();
+
+		$forward->domain_id = $this->domain_id;
+		$forward->source = $source . '@' . $this->domain_name;
+		$forward->destination = $destination;
+
+		// Check to see if the forward clashes with a user name or not
+		if (in_array($forward->source, $this->usernames)) {
+			$this->rcmail->output->show_message('vmail.erraccexists', 'error');
+			$this->template = 'forwardedit';
 			return;
 		}
 
+		// Save or create the forward.
+		$forward->save();
+
 		if (!$this->fid) {
 			$this->fid = $forward->id;
+			$this->forwards[$this->fid] = $forward;
 			$this->rcmail->output->show_message('vmail.forwardcreated', 'confirmation');
 		} else {
 			$this->rcmail->output->show_message('vmail.forwardsaved', 'confirmation');
@@ -394,34 +447,54 @@ class vmail extends rcube_plugin
 	 ******************************************************************/
 	function get_forwards($domain = null)
 	{
-		$db = DBBase::get_db();
-		if (!$domain) {
-			$sql  = "SELECT * FROM forwardings ";
-			$sql .= "WHERE domain_id = %d AND ";
-			$sql .= "source NOT IN (SELECT email FROM users) AND ";
-			$sql .= "destination NOT LIKE '%@lists.ukplc.net' ORDER BY source;";
-			$domain = $this->domain_id;
-		} else {
-			$sql  = "SELECT f.* FROM forwardings";
-			$sql .= " f INNER JOIN forwardings f ON f.domain_id = d.id";
-			$sql .= " WHERE d.domain = %d";
-			$sql .= " AND source NOT IN (SELECT email FROM users)";
-			$sql .= " AND destination NOT LIKE '%@lists.ukplc.net' ORDER BY source;";
-		}
-		$sql = str_replace('%d', $db->quote($domain), $sql);
-		$res = $db->query($sql);
-
-		while ($row = $db->fetch_assoc($res)) {
-			foreach ($row as $col => $val) {
-				$row['vmail.' . $col] = $val;
-				unset($row[$col]);
+		$_forwards = (!$this->forwards) ? $this->domain->forwards : array_values($this->forwards);
+		if (!$this->users) {
+			$this->users = $this->domain->users;
+			foreach ($this->users as $user) {
+				$this->usernames[] = $user->email;
 			}
-			if ($row['vmail.source'] == '@' . $this->domain_name) {
+		}
+
+		foreach ($_forwards as $forward) {
+			$this->forwards[$forward->id] = $forward;
+			// skip any mailing list forwards
+			if (strpos($forward->destination, '@lists.ukplc.net') !== false) continue;
+
+			// skip any user forwards
+			if (in_array($forward->source, $this->usernames)) continue;
+
+			// format the forward for display in the list
+			foreach ($forward->keys as $col) {
+				$row["vmail.$col"] = $forward->$col;
+			}
+			if ($forward->catchall) {
 				$row['vmail.source'] = $this->gettext('anyaddress');
 			}
-			$forwards[] = $row;
+			$row["vmail.id"] = $forward->id;
+			$forwards[] = $row;			
 		}
 		return $forwards;
+	}
+
+	function get_users($domain = null)
+	{
+		$_users = (!$this->users) ? $this->domain->users : array_values($this->users);
+		$store = !$this->users;
+
+		foreach ($_users as $user) {
+			if ($store) {
+				$this->usernames[] = $user->email;
+				$this->users[$user->id] = $user;
+			}
+
+			$row['vmail.id'] = $user->id;
+			foreach ($user->keys as $col) {
+				$row["vmail.$col"] = $user->fget($col);
+			}
+			$row['vmail.quota'] = $row['vmail.usage'] . ' / ' . $row['vmail.quota'];
+			$users[] = $row;
+		}
+		return $users;
 	}
 
 	function can_edit_account($aid)
@@ -457,10 +530,9 @@ class vmail extends rcube_plugin
 	 ******************************************************************/
 	function accountslist_html()
 	{
-		$accounts = $this->domain->get_accounts();
-		$accounts = format_accounts_with_usage($accounts);
+		$users = $this->get_users();
 
-		$limit = $this->domain->get('account_limit');
+		$limit = $this->domain->account_limit;
 		$limit = ($limit > 0) ? $limit : $this->gettext('unlimited');
 
 		// Set up the columns to display.
@@ -476,13 +548,13 @@ class vmail extends rcube_plugin
 			'cellspacing' => 0,
 			'class'       => 'records-table',
 			'id'          => 'accounts-table'),
-			$accounts, $cols, 'vmail.id');
+			$users, $cols, 'vmail.id');
 		$out .= '<div id="domain-quota">';
 		$out .= '<div id="domain-accounts">';
-		$out .= $this->gettext('accounts') . ': ' . count($accounts) . ' / ' . $limit;
+		$out .= $this->gettext('accounts') . ': ' . count($users) . ' / ' . $limit;
 		$out .= '</div>';
 		$out .= '<div id="domain-usage">';
-		$out .= $this->gettext('quota') . ': ' . show_bytes($this->domain->get_usage()) . ' / ' . show_bytes($this->domain->get('quota'));
+		$out .= $this->gettext('quota') . ': ' . show_bytes($this->domain->usage) . ' / ' . show_bytes($this->domain->quota);
 		$out .= '</div>';
 		$out .= '</div>';
 		$this->rcmail->output->include_script('list.js');
@@ -509,7 +581,7 @@ class vmail extends rcube_plugin
 		$out .= $hiddenfields->show();
 
 		$table = new html_table(array('cols' => 2));
-		$account = ($this->account->id == $this->aid) ? $this->account : new Account($this->aid);
+		$account = ($this->account->id == $this->aid) ? $this->account : $this->users[$this->aid];
 
 		if (!$this->aid) {
 			// account email input
@@ -519,7 +591,7 @@ class vmail extends rcube_plugin
 				'size' => 50
 			));
 			$table->add('title', $this->form_label('_email', 'email'));
-			$table->add(null, $input->show($account->get('email')) . '@' . $this->domain_name);
+			$table->add(null, $input->show($account->email) . '@' . $this->domain_name);
 			$this->rcmail->output->add_gui_object('email_input', '_email');
 		}
 
@@ -530,7 +602,7 @@ class vmail extends rcube_plugin
 			'size' => 50
 		));
 		$table->add('title', $this->form_label('_name', 'name'));
-		$table->add(null, $input->show($account->get('name')));
+		$table->add(null, $input->show($account->name));
 
 		// account new password input
 		$input = new html_passwordfield(array(
@@ -557,7 +629,7 @@ class vmail extends rcube_plugin
 		));
 
 		// calculate quota options
-		$domain_quota = $this->domain->get('quota');
+		$domain_quota = $this->domain->quota;
 		$values = array(
 			$domain_quota * 0.05,
 			$domain_quota * 0.1,
@@ -600,7 +672,7 @@ class vmail extends rcube_plugin
 			'value' => 1
 		));
 		$table->add('title', $this->form_label('_enabled', 'enabled'));
-		$table->add(null, $input->show($account->get('enabled')));
+		$table->add(null, $input->show($account->enabled));
 		
 		// account admin input
 		$attr = array(
@@ -608,7 +680,7 @@ class vmail extends rcube_plugin
 			'name'  => '_admin',
 			'value' => 1
 		);
-		if (($this->admin_count == 1 && $account->get('admin')) || get_user_part($account->get('email')) == 'postmaster') {
+		if (($this->admin_count == 1 && $account->admin) || get_user_part($account->email) == 'postmaster') {
 			$attr['disabled'] = 'yes';
 			$hiddenfields = new html_hiddenfield(array(
 				'name'  => '_admin',
@@ -618,7 +690,7 @@ class vmail extends rcube_plugin
 		}
 		$input = new html_checkbox($attr);
 		$table->add('title', $this->form_label('_admin', 'admin'));
-		$table->add(null, $input->show($account->get('admin')));
+		$table->add(null, $input->show($account->admin));
 
 		$table->add(null, '&nbsp;');
 		$table->add(null, '&nbsp;');
@@ -632,7 +704,7 @@ class vmail extends rcube_plugin
 			'name'  => '_forwarding',
 			'value' => 'std'
 		));
-		$tmp .= $input->show($account->get('forwarding'));
+		$tmp .= $input->show($account->forwarding);
 		$tmp .= $this->gettext('stdforward');
 		$tmp .= '</label>';
 		$table->add(array('colspan' => 2), $tmp);
@@ -645,14 +717,14 @@ class vmail extends rcube_plugin
 			'name'  => '_forwarding',
 			'value' => 'fwd'
 		));
-		$tmp .= $input->show($account->get('forwarding'));
+		$tmp .= $input->show($account->forwarding);
 		$tmp .= $this->gettext('fwdforward');
 		$input = new html_inputfield(array(
 			'id'   => '_forwardto',
 			'name' => '_forwardto',
 			'size' => 50
 		));
-		$tmp .= $input->show($account->get('forwardto'));
+		$tmp .= $input->show($account->forwardto);
 		$tmp .= '</label>';
 		$table->add(array('colspan' => 2), $tmp);
 		$table->add_row();
@@ -664,7 +736,7 @@ class vmail extends rcube_plugin
 			'name' => '_savecopy',
 			'value' => '1'
 		));
-		$tmp .= $input->show($account->get('savecopy'));
+		$tmp .= $input->show($account->savecopy);
 		$tmp .= $this->gettext('savecopy');
 		$tmp .= '</label>';
 		$this->rcmail->output->add_gui_object('savecopy_input', '_savecopy');
@@ -675,36 +747,43 @@ class vmail extends rcube_plugin
 		$table->add(null, '&nbsp;');
 		$table->add(null, '&nbsp;');
 
-		$table->add('title', sprintf("<b><u>%s</u></b>", $this->gettext('outofoffice')));
-		$table->add_row();
+		if (get_user_part($account->email) != 'postmaster') {
 
-		// autoreply enabled input
-		$input = new html_checkbox(array(
-			'id'    => '_autoreply_enabled',
-			'name'  => '_autoreply_enabled',
-			'value' => 1
-		));
-		$table->add('title', $this->form_label('_autoreply_enabled', 'enabled'));
-		$table->add(null, $input->show($account->get('autoreply')));
+			$vacation = $account->vacation;
 
-		// autoreply subject input
-		$input = new html_inputfield(array(
-			'id'   => '_autoreply_subject',
-			'name' => '_autoreply_subject',
-			'size' => 50
-		));
-		$table->add('title', $this->form_label('_autoreply_subject', 'subject'));
-		$table->add(null, $input->show($account->fget('autoreply_subject')));
+			$table->add('title', sprintf("<b><u>%s</u></b>", $this->gettext('outofoffice')));
+			$table->add_row();
 
-		// autoreply subject input
-		$input = new html_textarea(array(
-			'id'   => '_autoreply_body',
-			'name' => '_autoreply_body',
-			'cols' => 50,
-			'rows' => 10
-		));
-		$table->add('title', $this->form_label('_autoreply_body', 'autoreply_body'));
-		$table->add(null, $input->show($account->fget('autoreply_body')));
+
+			// autoreply enabled input
+			$input = new html_checkbox(array(
+				'id'    => '_autoreply_enabled',
+				'name'  => '_autoreply_enabled',
+				'value' => 1
+			));
+			$table->add('title', $this->form_label('_autoreply_enabled', 'enabled'));
+			$table->add(null, $input->show($vacation->active));
+
+			// autoreply subject input
+			$input = new html_inputfield(array(
+				'id'   => '_autoreply_subject',
+				'name' => '_autoreply_subject',
+				'size' => 50
+			));
+			$table->add('title', $this->form_label('_autoreply_subject', 'subject'));
+			$table->add(null, $input->show($vacation->subject));
+
+			// autoreply subject input
+			$input = new html_textarea(array(
+				'id'   => '_autoreply_body',
+				'name' => '_autoreply_body',
+				'cols' => 50,
+				'rows' => 10
+			));
+			$table->add('title', $this->form_label('_autoreply_body', 'autoreply_body'));
+			$table->add(null, $input->show($vacation->body));
+
+		}
 
 		$out .= $table->show();
 		$out .= '</form>';
@@ -719,7 +798,7 @@ class vmail extends rcube_plugin
 			'type'  => 'button',
 			'value' => Q(rcube_label('delete'))
 		);
-		if (!$this->aid || get_user_part($account->get('email')) == 'postmaster') {
+		if (!$this->aid || get_user_part($account->email) == 'postmaster') {
 			$attr['disabled'] = true;
 			$attr['style'] .= '; color: gray;';
 		}
@@ -791,8 +870,8 @@ class vmail extends rcube_plugin
 
 		$table = new html_table(array('cols' => 2));
 
-		$forward = ($this->forward) ? $this->forward : new Forward($this->fid);
-		$source = get_user_part($forward->get('source'));
+		$forward = ($this->forward) ? $this->forward : $this->forwards[$this->fid];
+		$source = get_user_part($forward->source);
 
 		// forward source input
 		$input = new html_inputfield(array(
@@ -811,7 +890,7 @@ class vmail extends rcube_plugin
 			'value' => 1
 		));
 		$table->add('title', $this->form_label('_catchall', 'catchall'));
-		$table->add(null, $input->show($forward->get('catchall')));
+		$table->add(null, $input->show($forward->catchall));
 		$this->rcmail->output->add_gui_object('catchall_input', '_catchall');
 		
 		// forward destination input
@@ -821,7 +900,7 @@ class vmail extends rcube_plugin
 			'size' => 50
 		));
 		$table->add('title', $this->form_label('_destination', 'destination'));
-		$table->add(null, $input->show($forward->get('destination')));
+		$table->add(null, $input->show($forward->destination));
 
 		$out .= $table->show();
 		$out .= '</form>';

@@ -1,5 +1,9 @@
 <?php
 
+function array_insert($array, $index, $value) {
+	array_splice($array, $index, count($array), array_merge(array($value), array_slice($array, $index)));
+}
+
 function get_domain_part($email) {
 	$pos = strrpos($email, '@');
 	return substr($email, $pos + 1);
