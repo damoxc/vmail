@@ -49,6 +49,7 @@ $labels['forwarddeleted'] = 'Forward successfully deleted';
 $labels['passwdnomatch'] = "The passwords you have entered don't match";
 $labels['nopasswd'] = "You haven't entered a password";
 $labels['noperms'] = 'You do not have permission to modify this account';
+$labels['passwdchanged'] = "Password successfully changed";
 
 $labels['forwarding'] = 'Forwarding';
 $labels['stdforward'] = 'Standard (No forwarding)';

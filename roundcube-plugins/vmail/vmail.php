@@ -240,6 +240,8 @@ class vmail extends rcube_plugin
 
 			$this->user->password = $newpasswd;
 			$this->user->save();
+
+			$this->rcmail->output->show_message('vmail.passwdchanged', 'confirmation');
 		}
 
 		return $args;
