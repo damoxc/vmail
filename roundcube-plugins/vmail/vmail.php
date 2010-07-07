@@ -48,13 +48,12 @@ class vmail extends rcube_plugin
 		$this->user = User::get_user($username);
 
 		// Set up modifying the out of office message via the preferences
-		// tab in settings.
-		$this->add_hook('list_prefs_sections',
-			array($this, 'listprefs_handler'));
-		$this->add_hook('user_preferences',
-			array($this, 'prefs_handler'));
-		$this->add_hook('save_preferences',
-			array($this, 'prefs_save_handler'));
+		// tab in settings and changing passwords.
+		$this->add_hook('list_prefs_sections', array($this, 'listprefs_handler'));
+		$this->add_hook('user_preferences', array($this, 'prefs_handler'));
+		$this->add_hook('save_preferences', array($this, 'prefs_save_handler'));
+
+		$this->include_script('vmail_passwd.js');
 
 		// Get the domain information from the database.
 		$this->domain = $this->user->domain;
@@ -96,6 +95,11 @@ class vmail extends rcube_plugin
 
 	function listprefs_handler($args)
 	{
+		// Add Password to the preferences sections list
+		$args['list']['password'] = array(
+			'id'      => 'password',
+			'section' => Q($this->gettext('password'))
+		);
 		// Add Out of Office to the preferences sections list
 		$args['list']['outofoffice'] = array(
 			'id' => 'outofoffice',
@@ -107,71 +111,136 @@ class vmail extends rcube_plugin
 	function prefs_handler($args)
 	{
 		// We don't care about anything other than our own section
-		if ($args['section'] != 'outofoffice') return $args;
+		if ($args['section'] == 'outofoffice') {
+			$blocks = array(
+				'autoreply' => array(
+					'name' => Q($this->gettext('autoreply_settings'))
+				)
+			);
 
+			$vacation = $this->user->vacation;
 
-		$blocks = array(
-			'autoreply' => array(
-				'name' => Q($this->gettext('autoreply_settings'))
-			)
-		);
+			$input = new html_checkbox(array(
+				'id'    => '_autoreply_enabled',
+				'name'  => '_autoreply_enabled',
+				'size'  => 50,
+				'value' => 1
+			));
+			$blocks['autoreply']['options']['autoreply_enabled'] = array(
+				'title'   => html::label('_autoreply_enabled', Q($this->gettext('autoreply_enabled'))),
+				'content' => $input->show($vacation->active)
+			);
 
-		$vacation = $this->user->vacation;
+			$input = new html_inputfield(array(
+				'id'   => '_autoreply_subject',
+				'name' => '_autoreply_subject',
+				'size' => 50
+			));
+			$blocks['autoreply']['options']['autoreply_subject'] = array(
+				'title'   => html::label('_autoreply_subject', Q($this->gettext('autoreply_subject'))),
+				'content' => $input->show($vacation->subject)
+			);
 
-		$input = new html_checkbox(array(
-			'id'    => '_autoreply_enabled',
-			'name'  => '_autoreply_enabled',
-			'size'  => 50,
-			'value' => 1
-		));
-		$blocks['autoreply']['options']['autoreply_enabled'] = array(
-			'title'   => html::label('_autoreply_enabled', Q($this->gettext('autoreply_enabled'))),
-			'content' => $input->show($vacation->active)
-		);
+			$input = new html_textarea(array(
+				'id'   => '_autoreply_body',
+				'name' => '_autoreply_body',
+				'cols' => 50,
+				'rows' => 15
+			));
+			$blocks['autoreply']['options']['autoreply_body'] = array(
+				'title'   => html::label(array(
+						'for' => '_autoreply_body',
+						'style' => 'vertical-align: text-top;'
+					), Q($this->gettext('autoreply_body'))),
+				'content' => $input->show($vacation->body)
+			);
 
-		$input = new html_inputfield(array(
-			'id'   => '_autoreply_subject',
-			'name' => '_autoreply_subject',
-			'size' => 50
-		));
-		$blocks['autoreply']['options']['autoreply_subject'] = array(
-			'title'   => html::label('_autoreply_subject', Q($this->gettext('autoreply_subject'))),
-			'content' => $input->show($vacation->subject)
-		);
+			$args['blocks'] = $blocks;
+		} else if ($args['section'] == 'password') {
+			$blocks = array(
+				'passwd' => array(
+					'name' => Q($this->gettext('autoreply_settings'))
+				)
+			);
 
-		$input = new html_textarea(array(
-			'id'   => '_autoreply_body',
-			'name' => '_autoreply_body',
-			'cols' => 50,
-			'rows' => 15
-		));
-		$blocks['autoreply']['options']['autoreply_body'] = array(
-			'title'   => html::label(array(
-					'for' => '_autoreply_body',
-					'style' => 'vertical-align: text-top;'
-				), Q($this->gettext('autoreply_body'))),
-			'content' => $input->show($vacation->body)
-		);
+			// account new password input
+			$input = new html_passwordfield(array(
+				'id'   => '_curpasswd',
+				'name' => '_curpasswd',
+				'size' => 50
+			));
+			$blocks['passwd']['options']['curpasswd'] = array(
+				'title'   => html::label('_curpasswd', Q($this->gettext('curpasswd'))),
+				'content' => $input->show()
+			);
 
-		$args['blocks'] = $blocks;
+			// account new password input
+			$input = new html_passwordfield(array(
+				'id'   => '_newpasswd',
+				'name' => '_newpasswd',
+				'size' => 50
+			));
+			$blocks['passwd']['options']['newpasswd'] = array(
+				'title'   => html::label('_newpasswd', Q($this->gettext('newpasswd'))),
+				'content' => $input->show()
+			);
+
+			$input = new html_passwordfield(array(
+				'id'   => '_confpasswd',
+				'name' => '_confpasswd',
+				'size' => 50
+			));
+			$blocks['passwd']['options']['confpasswd'] = array(
+				'title'   => html::label('_confpasswd', Q($this->gettext('confpasswd'))),
+				'content' => $input->show()
+			);
+			$args['blocks'] = $blocks;
+
+			$this->rcmail->output->add_gui_object('newpasswd_input', '_newpasswd');
+		}
 		return $args;
 	}
 
 	function prefs_save_handler($args)
 	{
 		// Again, don't care about other sections.
-		if ($args['section'] != 'outofoffice') return;
+		if ($args['section'] == 'outofoffice') {
 
-		$autoreply = isset($_POST['_autoreply_enabled']) ? true : false;
-		$subject = get_input_value('_autoreply_subject', RCUBE_INPUT_POST);
-		$body = get_input_value('_autoreply_body', RCUBE_INPUT_POST);
+			$autoreply = isset($_POST['_autoreply_enabled']) ? true : false;
+			$subject = get_input_value('_autoreply_subject', RCUBE_INPUT_POST);
+			$body = get_input_value('_autoreply_body', RCUBE_INPUT_POST);
 
-		// Update the vacation and save
-		$vacation = $this->user->vacation;
-		$vacation->active = $autoreply;
-		$vacation->subject = $subject;
-		$vacation->body = $body;
-		$vacation->save();
+			// Update the vacation and save
+			$vacation = $this->user->vacation;
+			$vacation->active = $autoreply;
+			$vacation->subject = $subject;
+			$vacation->body = $body;
+			$vacation->save();
+
+		} else if ($args['section'] == 'password') {
+			
+			$curpasswd = get_input_value('_curpasswd', RCUBE_INPUT_POST);
+			$newpasswd = get_input_value('_newpasswd', RCUBE_INPUT_POST);
+			$confpasswd = get_input_value('_confpasswd', RCUBE_INPUT_POST);
+
+			if ($this->user->password != $curpasswd) {
+				$this->rcmail->output->show_message('vmail.errbadpasswd','error');
+				return $args;
+			}
+			
+			if (!$newpasswd) {
+				$this->rcmail->output->show_message('vmail.nopasswd','error');
+				return $args;
+			}
+
+			if ($newpasswd != $confpasswd) {
+				$this->rcmail->output->show_message('vmail.passwdnomatch','error');
+				return $args;
+			}
+
+			$this->user->password = $newpasswd;
+			$this->user->save();
+		}
 
 		return $args;
 	}

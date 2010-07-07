@@ -21,6 +21,7 @@ $labels['erraccnoedit'] = 'Cannot edit account';
 $labels['errbadquota'] = 'The quota you have chosen is larger than your domain quota';
 $labels['errbademail'] = 'The email address you have chosen is invalid';
 $labels['errbadsource'] = 'The forward source address is invalid';
+$labels['errbadpasswd'] = 'The current password does not match';
 
 $labels['email'] = 'Email';
 $labels['quota'] = 'Quota';
