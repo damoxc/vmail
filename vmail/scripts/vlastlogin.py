@@ -47,7 +47,7 @@ class VLastLogin(ScriptBase):
     def run(self):
         self.method = self.args[1].lower()
         if self.method not in ('imap', 'pop3', 'rcube', 'smtp'):
-            log.error('incorrect method supplied')
+            self.log.error('incorrect method supplied')
             return 2
 
         client.connect().addCallbacks(self.on_connect, self.on_connect_err)
