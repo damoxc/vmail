@@ -5,6 +5,7 @@ class Base
 	public static $vmail;
 	public $table = null;
 	public $client = null;
+	public $config = null;
 	public $data = null;
 	public $_modified = null;
 	public $cache = null;

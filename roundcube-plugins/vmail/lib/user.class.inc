@@ -20,6 +20,50 @@ class User extends Base
 					$this->cache['forward'] = Forward::get_forward($this->email);
 					break;
 
+				case 'forwarding':
+					$forward = $this->forward;
+					if ($forward->id == 0) {
+						$this->cache['forwarding'] = 'std';
+						$this->cache['forwardto'] = '';
+						$this->cache['savecopy'] = false;
+						break;
+					}
+					
+					$destinations = array_map("trim", explode(',', $forward->destination));
+
+					// Check autoreply
+					$autoreply_email = str_replace('@', '#', $this->email);
+					$autoreply_email .= '@' . $this->config['autohost'];
+
+					if (in_array($autoreply_email, $destinations)) {
+						if (count($destinations) == 2 && in_array($this->data['email'], $destinations)) {
+							$this->cache['forwarding'] = 'std';
+							$this->cache['forwardto'] = '';
+							$this->cache['savecopy'] = false;
+							break;
+						}
+
+						// There are more addresses so we want to remove the vacation address
+						$i = array_search($autoreply_email, $destinations);
+						unset($destinations[$i]);
+						$destinations = array_merge($destinations);
+					}
+
+					$this->cache['savecopy'] = in_array($this->data['email'], $destinations);
+					if ($this->cache['savecopy']) {
+						$i = array_search($this->data['email'], $destinations);
+						unset($destinations[$i]);
+						$destinations = array_merge($destinations);
+					}
+
+					if (count($destinations) == 1) {
+						$this->cache['forwardto'] = $destinations[0];
+					} else {
+						$this->cache['forwardto'] = implode(', ', $destinations);
+					}
+					$this->data['forwarding'] = 'fwd';
+					break;
+
 				case 'vacation':
 					$this->cache['vacation'] = Vacation::get_vacation($this->email);
 					break;

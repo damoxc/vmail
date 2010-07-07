@@ -328,28 +328,31 @@ class vmail extends rcube_plugin
 			$autoreply_email .= '@' . $this->config['autohost'];
 			array_push($destinations, $autoreply_email);
 		}
-		console("destinations: " . count($destinations));
 		
 		if ($forwarding == 'fwd') {
 			$forward_to = array_map("trim", explode(',', $forward_to));
 			if ($save_copy) {
-				array_insert($destinations, 0, $this->user->email);
+				$destinations = array_merge(array($this->user->email), $destinations);
 				$destinations = array_merge($destinations, $forward_to);
 			} else {
 				$destinations = array_merge($destinations, $forward_to);
 			}
 		} else if ($autoreply) {
-			array_insert($destinations, 0, $this->user->email);
+			$destinations = array_merge(array($this->user->email), $destinations);
 		}
-
-		console("forwarding: $forwarding");
-		console("destinations: " . count($destinations));
-
 		$vacation->save();
 
-		//$user->forwarding = $forwarding;
-		//$user->forwardto = $forward_to;
-		//$user->savecopy = $save_copy;
+		// Update the forward for the user
+		$forward = $this->user->forward;
+
+		if (count($destinations) == 0) {
+			$forward->delete();
+		} else {
+			$forward->domain_id = $this->domain_id;
+			$forward->source = $this->user->email;
+			$forward->destination = implode(',', $destinations);
+			$forward->save();
+		}
 
 		$this->template = 'accountedit';
 	}
