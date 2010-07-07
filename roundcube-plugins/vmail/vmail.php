@@ -215,7 +215,48 @@ class vmail extends rcube_plugin
 			$vacation->active = $autoreply;
 			$vacation->subject = $subject;
 			$vacation->body = $body;
+
+			if ($vacation->modified('active')) {
+
+				$destinations = array();
+				$forwarding = $this->user->forwarding;
+				$forward_to = $this->user->forward_to;
+				$save_copy = $this->user->savecopy;
+				
+				// this means autoreply forwarding must be setup
+				if ($autoreply) {
+					$autoreply_email = str_replace('@', '#', $this->user->email);
+					$autoreply_email .= '@' . $this->config['autohost'];
+					array_push($destinations, $autoreply_email);
+				}
+				
+				if ($forwarding == 'fwd') {
+					$forward_to = array_map("trim", explode(',', $forward_to));
+					if ($save_copy) {
+						$destinations = array_merge(array($this->user->email), $destinations);
+						$destinations = array_merge($destinations, $forward_to);
+					} else {
+						$destinations = array_merge($destinations, $forward_to);
+					}
+				} else if ($autoreply) {
+					$destinations = array_merge(array($this->user->email), $destinations);
+				}
+
+				// Update the forward for the user
+				$forward = $this->user->forward;
+
+				if (count($destinations) == 0) {
+					$forward->delete();
+				} else {
+					$forward->domain_id = $this->domain_id;
+					$forward->source = $this->user->email;
+					$forward->destination = implode(',', $destinations);
+					$forward->save();
+				}
+			}
+
 			$vacation->save();
+
 
 		} else if ($args['section'] == 'password') {
 			
