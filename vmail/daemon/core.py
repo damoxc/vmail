@@ -410,6 +410,10 @@ class Core(object):
             return
         try:
             if user:
+                if 'password' in params:
+                    params['_cleartext'] = params['password']
+                    del params['password']
+
                 params = dict([(getattr(User, k), params[k]) for k in params])
                 if isinstance(user, (int, long)):
                     rw_db.query(User).filter_by(id=user).update(params)
