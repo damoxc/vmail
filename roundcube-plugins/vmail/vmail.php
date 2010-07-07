@@ -184,11 +184,17 @@ class vmail extends rcube_plugin
 			$this->aid = (int) get_input_value('_aid', RCUBE_INPUT_GET);
 
 			if ($action == 'del') {
-				if ($this->can_edit_account($this->aid)) {
-					$account = new Account($this->aid, false);
-					$account->delete();
-					$this->rcmail->output->show_message('vmail.accountdeleted', 'confirmation');
+				$this->get_users();
+
+				if ($this->aid > 0 && !in_array($this->aid, array_keys($this->users))) {
+					// Show no permission error.
+					$this->rcmail->output->show_message('vmail.erracclimit','error');
+					return;
 				}
+
+				$this->users[$this->aid]->delete();
+				unset($this->users[$this->aid]);
+				$this->rcmail->output->show_message('vmail.accountdeleted', 'confirmation');
 
 			} else if ($action == 'edit') {
 				if ($this->aid >= 1) {
@@ -263,7 +269,7 @@ class vmail extends rcube_plugin
 		} else {
 			$user = new User();
 			$user->domain_id = $this->domain_id;
-			$user->email = $email;
+			$user->email = $email . '@' . $this->domain_name;
 		}
 		$user->name = $name;
 		$user->quota = $quota;
@@ -305,10 +311,8 @@ class vmail extends rcube_plugin
 		$this->user->save();
 
 		if (!$this->aid) {
-			// Probably want to send the welcome email at this point.
-			createmaildir($this->user->email . '@' . $this->domain_name);
-
 			$this->aid = $this->user->id;
+			$this->users[$this->aid] = $this->user;
 			$this->rcmail->output->show_message('vmail.accountcreated', 'confirmation');
 		} else {
 			$this->rcmail->output->show_message('vmail.accountsaved', 'confirmation');
@@ -500,34 +504,6 @@ class vmail extends rcube_plugin
 		return $users;
 	}
 
-	function can_edit_account($aid)
-	{
-		return Account::can_edit($this->domain_id, $aid);
-	}
-
-	function can_edit_forward($fid)
-	{
-		if ($aid == -1 || $aid == 0) return true;
-		$db = DBBase::get_db();
-		$sql = "SELECT domain_id FROM forwardings WHERE id = %i";
-		$sql = str_replace('%i', $db->quote($fid), $sql);
-		$res = $db->query($sql);
-		if ($row = $db->fetch_array($res))
-			return $row[0] == $this->domain_id;
-		return false;
-	}
-
-	function get_domain_id($domain)
-	{
-		$db = DBBase::get_db();
-		$sql = "SELECT id FROM domains WHERE domain = %d";
-		$sql = str_replace('%d', $db->quote($domain), $sql);
-		$res = $db->query($sql);
-		if ($row = $db->fetch_array($res))
-			return intval($row[0]);
-		return 0;
-	}
-
 	/******************************************************************
 	 * HTML Handlers                                                  *
 	 ******************************************************************/
@@ -584,9 +560,9 @@ class vmail extends rcube_plugin
 		$out .= $hiddenfields->show();
 
 		$table = new html_table(array('cols' => 2));
-		$account = ($this->account->id == $this->aid) ? $this->account : $this->users[$this->aid];
 
 		if (!$this->aid) {
+			$account = new User();
 			// account email input
 			$input = new html_inputfield(array(
 				'id'   => '_email',
@@ -596,6 +572,8 @@ class vmail extends rcube_plugin
 			$table->add('title', $this->form_label('_email', 'email'));
 			$table->add(null, $input->show($account->email) . '@' . $this->domain_name);
 			$this->rcmail->output->add_gui_object('email_input', '_email');
+		} else {
+			$account = ($this->user->id == $this->aid) ? $this->user : $this->users[$this->aid];
 		}
 
 		// account name input

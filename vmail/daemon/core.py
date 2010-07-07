@@ -335,7 +335,11 @@ class Core(object):
             log.exception(e)
         else:
             try:
-                shutil.rmtree(user.maildir)
+                if os.path.isdir(user.maildir):
+                    shutil.rmtree(user.maildir)
+
+                rw_db.delete(user)
+                rw_db.commit()
             except Exception, e:
                 log.exception(e)
 
@@ -411,13 +415,14 @@ class Core(object):
                     rw_db.query(User).filter_by(id=user).update(params)
                 else:
                     rw_db.query(User).filter_by(email=user).update(params)
+                rw_db.commit()
             else:
                 user = User()
                 for k, v in params.iteritems():
                     setattr(user, k, v)
                 rw_db.add(user)
-            rw_db.commit()
-            if isinstance(user, User):
+                rw_db.commit()
+                send_welcome_message(user.email)
                 return user.id
         except Exception, e:
             log.exception(e)
