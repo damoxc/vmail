@@ -47,6 +47,9 @@ class vmail extends rcube_plugin
 
 		$this->user = User::get_user($username);
 
+		// This means that there is some issue with vmaild
+		if (!$this->user->id) return;
+
 		// Set up modifying the out of office message via the preferences
 		// tab in settings and changing passwords.
 		$this->add_hook('list_prefs_sections', array($this, 'listprefs_handler'));
