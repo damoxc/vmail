@@ -24,15 +24,22 @@ class vmail_quota extends rcube_plugin
 		$used = $this->client->core->get_usage($domain);
 		$quota = $this->client->core->get_quota($domain);
 
-		$usage = $used / $quota * 100.0;
-		if ($usage > 100)
-			$usage = 100;
+		if (!$used && !$quota) {
+			$this->rcmail->output->set_env('dom_quota', array(
+				'error' => true
+			));
+		} else {
+			$usage = $used / $quota * 100.0;
+			if ($usage > 100)
+				$usage = 100;
 
-		$this->rcmail->output->set_env('dom_quota', array(
-			'usage' => intval($usage),
-			'used'  => show_bytes($used),
-			'total' => show_bytes($quota)
-		));
+			$this->rcmail->output->set_env('dom_quota', array(
+				'usage' => intval($usage),
+				'used'  => show_bytes($used),
+				'total' => show_bytes($quota)
+			));
+		}
+
 		$this->include_script('jquery.create.js');
 		$this->include_script('vmail_quota.js');
 	}

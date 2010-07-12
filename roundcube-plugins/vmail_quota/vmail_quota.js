@@ -18,12 +18,26 @@ if (window.rcmail) {
 		}));
 
 		var q = rcmail.env.dom_quota;
-		if (q.usage >= 80) {
-			var cls = 'quota_high', txtcls = 'quota_text_high';
+		if (q.error) {
+			var cls = 'quota_low',
+			    txtcls = 'quota_text_normal',
+				title = 'unknown'
+				text = ['unknown'];
+		} else if (q.usage >= 80) {
+			var cls = 'quota_high',
+			    txtcls = 'quota_text_high',
+				title = q.used + ' / ' + q.total + ' (' + q.usage + '%)',
+				text = [q.usage + '%'];
 		} else if (q.usage >= 55) {
-			var cls = 'quota_mid', txtcls = 'quota_text_mid';
+			var cls = 'quota_mid',
+			    txtcls = 'quota_text_mid',
+				title = q.used + ' / ' + q.total + ' (' + q.usage + '%)',
+				text = [q.usage + '%'];
 		} else {
-			var cls = 'quota_low', txtcls = 'quota_text_normal';
+			var cls = 'quota_low',
+			    txtcls = 'quota_text_normal',
+				title = q.used + ' / ' + q.total + ' (' + q.usage + '%)',
+				text = [q.usage + '%'];
 		}
 		elm = $('#domainquota');
 		elm.append($.create('div', {
@@ -37,7 +51,7 @@ if (window.rcmail) {
 		elm.append($.create('div', {
 			style: 'position: absolute; top: 0px; left: 0px; width: 100px; height: 14px; z-index:100;',
 			'class': 'quota_text ' + txtcls,
-			title: q.used + ' / ' + q.total + ' (' + q.usage + '%)'
-		}, [q.usage + '%']));
+			title: title
+		}, text));
 	});
 }
