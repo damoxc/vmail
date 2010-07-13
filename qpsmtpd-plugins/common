@@ -61,9 +61,9 @@ class.
 
 Stores the database connection handle. See L<"vm_open"> and L<"vmail_close">.
 
-=item * VM_REC
+=item * VM_RESULT
 
-Stores the local user record, if found. See L<"vm_rec">.
+Stores the result from a RPC call. See L<"vm_result">.
 
 =item * VM_DEFERRED
 
@@ -100,7 +100,7 @@ Provides the text I<Unknown Error>. See L<"vm_error"> and L<"vm_die">.
 
 use constant VM_RO_DBH		=> 'vm_ro_dbh';
 use constant VM_RW_DBH		=> 'vm_rw_dbh';
-use constant VM_REC			=> 'vm_rec';
+use constant VM_RESULT		=> 'vm_result';
 
 use constant VM_SOCK        => 'vm_sock';
 use constant VM_CALL        => 'vm_call';
@@ -434,7 +434,7 @@ sub vm_connect
 	my $config = $self->vm_config();
 
 	my $sock = new IO::Socket::UNIX(Peer => $config->{sock},
-		Type => SOCK_STREAM) or $self->vm_die("Can't connect to socket: $!");
+		Type => SOCK_STREAM) or $self->vm_error("Can't connect to socket: $!");
 	return $sock;
 }
 
@@ -467,6 +467,69 @@ sub vm_close
 	return 1;
 }
 
+=head2 vm_exec
+
+B>Call: $self-E<gt>vm_exec ( $method [, @params ])>
+
+=over
+
+=item * C<$method>
+
+String, The method to call
+
+=item * C<@params>
+
+Array containing optional parameters
+
+=item * C<%kwargs>
+
+Hash containing optional parameters
+
+=back
+
+Executes the method given in C<$method>
+
+=cut
+
+
+sub vm_exec
+{
+	my ($self, $method, @params, %kwargs) = @_;
+
+	# Wipe the results from any previous call
+	$self->vm_result(undef);
+	$self->vm_last_error(undef);
+
+	# Open the socket to vmaild
+	my $sock = $self->vm_open or return;
+
+	# Build the request up
+	my $call_id = $self->qp->connection->notes(VM_CALL);
+	my %request = (
+		id     => $call_id,
+		method => $method,
+		args   => \@params,
+		kwargs => \%kwargs
+	);
+	$self->qp->connection->notes(VM_CALL + 1);
+
+	# Send the request to vmaild
+	$sock->send(to_json(\%request));
+
+	# Receive back the response
+	my $buf;
+	$sock->recv($buf, 1024);
+	my $result = from_json($buf);
+
+	if (not $result) {
+		$self->vm_error("Unable to parse result");
+	} elsif ($result->{error}) {
+		$self->vm_error($result->{error});
+	} else {
+		$self->vm_result($result->{result});
+	}
+}
+
 =head2 vm_call
 
 B<Call: $self-E<gt>vm_call ( $method [, @params ])>
@@ -495,30 +558,12 @@ sub vm_call
 {
 	my ($self, $method, @params, %kwargs) = @_;
 
-	# Open the socket to vmaild
-	my $sock = $self->vm_open;
+	$self->vm_exec($method, @params, %kwargs);
 
-	# Build the request up
-	my $call_id = $self->qp->connection->notes(VM_CALL);
-	my %request = (
-		id     => $call_id,
-		method => $method,
-		args   => \@params,
-		kwargs => \%kwargs
-	);
-	$self->qp->connection->notes(VM_CALL + 1);
+	# Check for an error
+	$self->vm_last_error and return undef;
 
-	# Send the request to vmaild
-	$sock->send(to_json(\%request));
-
-	# Receive back the response
-	my $buf;
-	$sock->recv($buf, 1024);
-	my $result = from_json($buf);
-	$self->vm_die("Unable to parse result") if not $result;
-
-	# Return any result
-	return $result->{result};
+	return $self->vm_result;
 }
 
 =head1 ACCESSOR METHODS
@@ -566,36 +611,36 @@ sub vm_config
 	$self->{_vm_config}->{$key};
 }
 
-=head2 vm_rec
+=head2 vm_result
 
-B<Call: $self-E<gt>vm_rec ( [ $record ] )>
+B<Call: $self-E<gt>vm_result ( [ $result ] )>
 
 =over
 
-=item * C<$record>
+=item * C<$result>
 
 Reference to a hash
 
 =back
 
-Accessor for the current user hash stored in C<< qpsmtpd->connection->notes >> ( L<VM_REC|"CONSTANTS"> ).
+Accessor for the current user hash stored in C<< qpsmtpd->connection->notes >> ( L<VM_RESULT|"CONSTANTS"> ).
 
-Stores the new hash if C<$record> is given.
+Stores the new hash if C<$result> is given.
 
 B<Returns:>
 
-a reference to the old hash	if no C<$record> is given.
-the new hash	if C<$record> is given.
+a reference to the old hash	if no C<$result> is given.
+the new hash	if C<$result> is given.
 
 =for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
 
 =cut
 
-sub vm_rec
+sub vm_result
 {
 	my $self = shift;
-	@_ and $self->qp->connection->notes(VM_REC, shift);
-	return $self->qp->connection->notes(VM_REC);
+	@_ and $self->qp->connection->notes(VM_RESULT, shift);
+	return $self->qp->connection->notes(VM_RESULT);
 }
 
 =head2 vm_deferred
@@ -753,15 +798,11 @@ Stores the line calling L<"vm_last_error">.
 
 sub vm_error
 {
-	my ( $self, @text )	= @_;
-
+	my ($self, @text) = @_;
 	my $msg	= @text ? join ( ' ', @text ) : VM_ERROR;
-
-	$msg	= 'PLUGIN ERROR: ' . $self->plugin_name() . ': ' . $msg;
-
-	$self->vm_last_error ( $msg );
-
-	$self->log ( LOGCRIT, $msg );
+	$msg = 'PLUGIN ERROR: ' . $self->plugin_name() . ': ' . $msg;
+	$self->vm_last_error($msg);
+	$self->log(LOGCRIT, $msg);
 }
 
 =head2 vm_log
@@ -784,11 +825,9 @@ Calls C<Qpsmtpd::Plugin::log> with the line as C<LOGINFO>.
 
 sub vm_log
 {
-	my ( $self, @text )	= @_;
-
+	my ($self, @text) = @_;
 	my $msg	= @text ? join ( ' ', @text ) : '';
-
-	$self->log ( LOGINFO, 'Plugin ' . $self->plugin_name() . ': ' . $msg );
+	$self->log(LOGINFO, 'Plugin ' . $self->plugin_name() . ': ' . $msg);
 }
 
 =head1 RETURNING METHODS
@@ -887,9 +926,8 @@ or L<VM_LATER|"CONSTANTS">.
 
 sub vm_denysoft
 {
-	my ( $self, $msg )	= @_;
-
-	return $msg ? ( DENYSOFT, $msg ) : ( DENYSOFT, VM_LATER );
+	my ($self, $msg) = @_;
+	return $msg ? (DENYSOFT, $msg) : (DENYSOFT, VM_LATER);
 }
 
 =head2 vm_denysoft_error
@@ -915,27 +953,27 @@ in L<"vm_last_error"> using C<hook_queue>.
 
 sub vm_denysoft_error
 {
-	my ( $self, $msg )	= @_;
+	my ($self, $msg) = @_;
 
-	my $notify	= $self->vm_notify() || {};
+	my $notify = $self->vm_notify() || {};
 
-	return $self->vm_denysoft ( $msg )		unless $notify->{notify_email};
+	return $self->vm_denysoft($msg) unless $notify->{notify_email};
 
-	$self->vm_log ( "--- Notifying $notify->{notify_email}" );
+	$self->vm_log( "--- Notifying $notify->{notify_email}" );
 
-	my $curr_transaction	= $self->qp->transaction;
-	my $temp_transaction	= Qpsmtpd::Transaction->new();
+	my $curr_transaction    = $self->qp->transaction;
+	my $temp_transaction    = Qpsmtpd::Transaction->new();
 
-	my $from			= $notify->{notify_from};
-	my $from_name	= $notify->{notify_from_name} . " <$from>";
+	my $from        = $notify->{notify_from};
+	my $from_name   = $notify->{notify_from_name} . " <$from>";
 
-	my $sender		= Qpsmtpd::Address->new ( $from );
-	my $recipient	= Qpsmtpd::Address->new ( $notify->{notify_email} );
+	my $sender      = Qpsmtpd::Address->new($from);
+	my $recipient   = Qpsmtpd::Address->new($notify->{notify_email});
 
-	$temp_transaction->sender			( $sender );
-	$temp_transaction->add_recipient	( $recipient );
+	$temp_transaction->sender           ($sender);
+	$temp_transaction->add_recipient    ($recipient);
 
-	$temp_transaction->header ( Mail::Header->new ( Modify => 1, MailFrom => "COERCE" ) );
+	$temp_transaction->header(Mail::Header->new( Modify => 1, MailFrom => "COERCE"));
 
 	$temp_transaction->header->add ( "Subject", "QPSMTPD Error in " . $self->plugin_name() );
 	$temp_transaction->header->add ( "From", $from_name );
@@ -974,7 +1012,7 @@ sub vm_denysoft_error
 
 	$self->vm_log ( "--- Finished notifying");
 
-	return $self->vm_denysoft ( $msg );
+	return $self->vm_denysoft($msg);
 }
 
 =head1 HELPER METHODS
@@ -1004,106 +1042,6 @@ sub vm_die
 	$msg ||= VM_ERROR;
 	$self->vm_error($msg);
 	die $msg;
-}
-
-=head2 vm_complete_field_names
-
-B<Call: $self-E<gt>vm_complete_field_names ( $record, $table )>
-
-=over
-
-=item * C<$record>
-
-Reference to a hash
-
-=item * C<$table>
-
-String
-
-=back
-
-Prefixes all keys of C<$record> with the C<$table.>.
-
-B<Returns:> a reference to a new hash.
-
-E.g.:
-
-	my $record     = { 'field1' => 'value1', 'field2' => 2 };
-	my $new_record = $self->vm_complete_field_names ( $record, 'mytable' );
-
-	# $new_record now looks like { 'mytable.field1' => 'value1', 'mytable.field2' => 2 }
-
-=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
-
-=cut
-
-sub vm_complete_field_names
-{
-	my ( $self, $record, $table )	= @_;
-
-	my $hash	= {};
-
-	my $new_key;
-
-	while ( my ( $key, $val ) = each %$record )
-	{
-		$new_key	= ( $key	=~ /\./ ) ? $key : "$table\.$key";				#	is there a tablename ?
-
-		$hash->{$new_key} = $val;
-	}
-
-	return $hash;
-}
-
-=head2 vm_raw_field_names
-
-B<Call: $self-E<gt>vm_raw_field_names ( $record, $table )>
-
-=over
-
-=item * C<$record>
-
-Reference to a hash
-
-=item * C<$table>
-
-String
-
-=back
-
-Removes the prefix C<$table.> from all keys of C<$record>.
-
-B<Returns:> a reference to a new hash.
-
-E.g.:
-
-	my $record     = { 'mytable.field1' => 'value1', 'othertable.field2' => 2 }
-	my $new_record = $self->vm_raw_field_names ( $record, 'mytable' );
-
-	# $new_record now looks like { 'field1' => 'value1', 'othertable.field2' => 2 }
-
-=for html <A HREF="#__index__"><SMALL>go top</SMALL></A>
-
-=cut
-
-sub vm_raw_field_names
-{
-	my ( $self, $record, $table )	= @_;
-
-	my $hash	= {};
-
-	my $new_key;
-
-	while ( my ( $key, $val ) = each %$record )
-	{
-		$new_key	= $key;
-
-		$new_key	=~ s/^$table\.//;							#	only this table...
-
-		$hash->{$key} = $val;
-	}
-
-	return $hash;
 }
 
 =head2 vm_valid_email
