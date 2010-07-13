@@ -24,8 +24,8 @@
 --
 
 CREATE TABLE IF NOT EXISTS `expires` (
-  `username`     varchar(80)  COLLATE utf8_unicode_ci NOT NULL,
-  `mailbox`      varchar(255) COLLATE utf8_unicode_ci NOT NULL,
-  `expire_stamp` int(11) NOT NULL,
+  `username`     varchar(80)  NOT NULL,
+  `mailbox`      varchar(255) NOT NULL,
+  `expire_stamp` int(11)      NOT NULL,
   PRIMARY KEY (`username`, `mailbox`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

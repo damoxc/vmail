@@ -23,11 +23,10 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-DROP TABLE IF EXISTS `packages`;
-CREATE TABLE  `packages` (
-  `id`            int(11)      NOT NULL auto_increment,
+CREATE TABLE IF NOT EXISTS `packages` (
+  `id`            int(11)      NOT NULL AUTO_INCREMENT,
   `name`          varchar(100) NOT NULL,
   `quota`         bigint(20)   NOT NULL,
   `account_limit` int(11)      NOT NULL,
   PRIMARY KEY  (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

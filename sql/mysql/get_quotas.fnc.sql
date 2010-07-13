@@ -1,5 +1,5 @@
 --
--- sql/mysql/whitelist.tbl.sql
+-- sql/mysql/get_quotas.fnc.sql
 --
 -- Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 --
@@ -23,7 +23,23 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-CREATE TABLE IF NOT EXISTS `whitelist` (
-	`address` varchar(50) NOT NULL default '',
-	PRIMARY KEY  (`address`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS `get_quotas`$$
+CREATE PROCEDURE `get_quotas` (
+	_email VARCHAR(255)
+)
+BEGIN
+
+SELECT
+	u.quota,
+	d.quota
+FROM
+	users u INNER JOIN
+	domains d ON u.domain_id = d.id
+WHERE 
+	u.email = _email;
+
+END$$
+
+DELIMITER ;

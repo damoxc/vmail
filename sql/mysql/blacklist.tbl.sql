@@ -23,8 +23,7 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-DROP TABLE IF EXISTS `blacklist`;
-CREATE TABLE `blacklist` (
-	`address` varchar(50) NOT NULL default '', 
+CREATE TABLE IF NOT EXISTS `blacklist` (
+	`address` varchar(50) NOT NULL DEFAULT '', 
 	PRIMARY KEY  (`address`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

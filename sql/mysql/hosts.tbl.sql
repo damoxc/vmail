@@ -23,11 +23,9 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-
-DROP TABLE IF EXISTS `hosts`;
-CREATE TABLE `hosts` (
+CREATE TABLE IF NOT EXISTS `hosts` (
 	`ip_address` varchar(15)  NOT NULL,
 	`action`     varchar(20)  NOT NULL,
 	`comment`    varchar(100) NOT NULL,
 	UNIQUE KEY `ip_address` (`ip_address`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

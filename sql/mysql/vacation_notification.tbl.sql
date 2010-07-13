@@ -23,12 +23,10 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-
-DROP TABLE IF EXISTS `vacation_notification`;
-CREATE TABLE `vacation_notification` (
-	`on_vacation` varchar(255) character set latin1 NOT NULL,
-	`notified` varchar(255) character set latin1 NOT NULL,
-	`notified_at` timestamp NOT NULL default CURRENT_TIMESTAMP,
+CREATE TABLE IF NOT EXISTS `vacation_notification` (
+	`on_vacation` varchar(255) NOT NULL,
+	`notified`    varchar(255) NOT NULL,
+	`notified_at` timestamp    NOT NULL default CURRENT_TIMESTAMP,
 	PRIMARY KEY  (`on_vacation`,`notified`),
 	CONSTRAINT `vacation_notification_pkey` FOREIGN KEY (`on_vacation`) REFERENCES `vacation` (`email`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

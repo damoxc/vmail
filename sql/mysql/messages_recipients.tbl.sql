@@ -1,5 +1,5 @@
 --
--- sql/mysql/whitelist.tbl.sql
+-- sql/mysql/messages_recipients.tbl.sql
 --
 -- Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 --
@@ -23,7 +23,8 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-CREATE TABLE IF NOT EXISTS `whitelist` (
-	`address` varchar(50) NOT NULL default '',
-	PRIMARY KEY  (`address`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `message_recipients` (
+  `message_id` int(11)      NOT NULL,
+  `recipient`  varchar(255) NOT NULL,
+  PRIMARY KEY (`message_id`,`recipient`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci

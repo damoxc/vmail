@@ -23,16 +23,15 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-
-DROP TABLE IF EXISTS `vacation`;
-CREATE TABLE `vacation` (
+CREATE TABLE `IF NOT EXISTS vacation` (
+	`id`      int(11)      NOT NULL AUTO_INCREMENT,
 	`email`   varchar(255) NOT NULL,
-	`subject` varchar(255) character set utf8 NOT NULL,
-	`body`    text character set utf8 NOT NULL,
-	`cache`   text NOT NULL,
+	`subject` varchar(255) NOT NULL,
+	`body`    text         NOT NULL,
+	`cache`   text         NOT NULL,
 	`domain`  varchar(255) NOT NULL,
-	`created` datetime NOT NULL default '0000-00-00 00:00:00',
-	`active`  tinyint(1) NOT NULL default '1',
-	PRIMARY KEY  (`email`),
+	`created` datetime     NOT NULL DEFAULT '0000-00-00 00:00:00',
+	`active`  tinyint(1)   NOT NULL DEFAULT 1,
+	PRIMARY KEY  (`id`),
 	KEY `email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

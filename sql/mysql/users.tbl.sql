@@ -23,17 +23,16 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-
-DROP TABLE IF EXISTS `users`;
-CREATE TABLE `users` (
+CREATE TABLE IF NOT EXISTS `users` (
 	`id`        int(11)      NOT NULL auto_increment,
 	`domain_id` int(11)      NOT NULL,
 	`email`     varchar(80)  NOT NULL,
 	`name`      varchar(255) NOT NULL,
 	`password`  varchar(20)  NOT NULL,
 	`cleartext` varchar(20)  NOT NULL,
-	`quota`     int(10)      default '10485760',
-	`enabled`   tinyint(1)   NOT NULL default '1',
-	`admin`     tinyint(1)   NOT NULL default '0',
+	`quota`     bigint(20)   NOT NULL DEFAULT 10485760,
+	`usage`     bigint(20)   NOT NULL DEFAULT 0,
+	`enabled`   tinyint(1)   NOT NULL DEFAULT 1,
+	`admin`     tinyint(1)   NOT NULL DEFAULT 0,
 	PRIMARY KEY  (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

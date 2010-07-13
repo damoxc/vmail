@@ -23,16 +23,15 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-
-DROP TABLE IF EXISTS `domains`;
-CREATE TABLE `domains` (
-	`id`            int(11)     NOT NULL auto_increment,
+CREATE TABLE IF NOT EXISTS `domains` (
+	`id`            int(11)     NOT NULL AUTO_INCREMENT,
 	`login_id`      int(11)     NOT NULL,
 	`domain`        varchar(50) NOT NULL,
-	`package`       varchar(10) NOT NULL,
+	`package`       varchar(15) NOT NULL,
 	`package_id`    int(11)     NOT NULL,
-	`quota`         int(11)     NOT NULL,
+	`quota`         bitint(20)  NOT NULL,
 	`account_limit` int(11)     NOT NULL,
+	`enabled`       tinyint(1)  NOT NULL DEFAULT 1,
 	PRIMARY KEY	(`id`),
 	UNIQUE KEY `domain` (`domain`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

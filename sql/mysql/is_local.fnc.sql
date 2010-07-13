@@ -1,5 +1,5 @@
 --
--- sql/mysql/whitelist.tbl.sql
+-- sql/mysql/is_local.fnc.sql
 --
 -- Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 --
@@ -23,7 +23,35 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-CREATE TABLE IF NOT EXISTS `whitelist` (
-	`address` varchar(50) NOT NULL default '',
-	PRIMARY KEY  (`address`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+DELIMITER $$
+
+DROP FUNCTION `is_local`
+CREATE `is_local`(
+	_email VARCHAR(255)
+) RETURNS int(11)
+BEGIN
+
+DECLARE domain VARCHAR(50);
+DECLARE does_exist INT;
+DECLARE user_enabled INT;
+DECLARE match_id INT;
+
+SET does_exist = 0;
+SET domain = SUBSTRING(_email, LOCATE('@', _email) + 1);
+
+SELECT COUNT(id) INTO does_exist FROM users WHERE email = _email;
+IF does_exist > 0 THEN
+	SELECT id, enabled INTO match_id, user_enabled FROM users WHERE email = _email;
+END IF;
+
+IF match_id > 0 AND user_enabled > 0 THEN
+	RETURN 1;
+ELSEIF match_id > 0 AND user_enabled = 0 THEN
+	RETURN 0; 
+END IF;
+
+RETURN 0;
+
+END$$
+
+DELIMITER ;

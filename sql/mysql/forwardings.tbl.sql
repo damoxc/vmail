@@ -23,14 +23,12 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-
-DROP TABLE IF EXISTS `forwardings`;
-CREATE TABLE `forwardings` (
-	`id`          int(11)     NOT NULL auto_increment,
+CREATE TABLE IF NOT EXISTS `forwardings` (
+	`id`          int(11)     NOT NULL AUTO_INCREMENT,
 	`domain_id`   int(11)     NOT NULL,
 	`source`      varchar(80) NOT NULL,
 	`destination` text        NOT NULL,
-	`visible`     tinyint(1)  NOT NULL default '1',
+	`visible`     tinyint(1)  NOT NULL DEFAULT '1',
 	PRIMARY KEY  (`id`),
 	UNIQUE KEY `source` (`source`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

@@ -23,12 +23,10 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-
-DROP TABLE IF EXISTS `transport`;
-CREATE TABLE `transport` (
-	`id`        int(11)      NOT NULL auto_increment,
+CREATE TABLE IF NOT EXISTS `transport` (
+	`id`        int(11)      NOT NULL AUTO_INCREMENT,
 	`domain_id` int(11)      NOT NULL,
-	`domain`    varchar(128) NOT NULL default '',
-	`transport` varchar(128) NOT NULL default '',
+	`domain`    varchar(128) NOT NULL DEFAULT '',
+	`transport` varchar(128) NOT NULL DEFAULT '',
 	PRIMARY KEY  (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
