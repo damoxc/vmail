@@ -27,7 +27,10 @@ sub hook_rcpt {
 		return (OK);
 	}
 
-	my $exit_code = $self->vm_call("core.is_validrcptto", $delivery);
+	$self->vm_exec("core.is_validrcptto", $delivery);
+	$self->vm_last_error and return $self->vm_denysoft_error();
+
+	my $exit_code = $self->vm_result();
 
 	$self->log(LOGINFO, "Got response: $exit_code");
 
