@@ -97,9 +97,6 @@ class Forward(object):
             'destination': self.destination
         }
 
-class Greylist(object):
-    pass
-
 class Host(object):
     
     def __json__(self):
@@ -194,7 +191,6 @@ mapper(Forward, forwardings, properties = {
     'domain': relation(Domain,
         backref=backref('forwards', order_by=forwardings.c.source))
 })
-mapper(Greylist, greylist)
 mapper(Host, hosts)
 mapper(Login, logins)
 mapper(Message, messages)

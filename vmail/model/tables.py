@@ -50,20 +50,6 @@ forwardings = Table('forwardings', meta,
     Column('destination', Text)
 )
 
-greylist = Table('greylist', meta,
-    Column('remote_ip', String(15), primary_key=True),
-    Column('mail_from', String(255), primary_key=True),
-    Column('rcpt_to', String(255), primary_key=True),
-    Column('block_expires', DateTime),
-    Column('record_expires', DateTime),
-    Column('blocked_count', Integer(20)),
-    Column('passed_count', Integer(20)),
-    Column('aborted_count', Integer(20)),
-    Column('origin_type', String),
-    Column('create_time', DateTime),
-    Column('last_update', Time)
-)
-
 hosts = Table('hosts', meta,
     Column('ip_address', String(15), primary_key=True),
     Column('action', String(20)),
@@ -113,6 +99,7 @@ users = Table('users', meta,
     Column('id', Integer, primary_key=True),
     Column('domain_id', Integer, ForeignKey('domains.id')),
     Column('email', String(80)),
+    Column('secondary_email', String(80)),
     Column('name', String(255)),
     Column('password', String(20)),
     Column('cleartext', String(20)),
