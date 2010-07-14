@@ -26,8 +26,11 @@
 import hmac
 import shutil
 import socket
+import imaplib
 import logging
 import datetime
+
+from twisted.internet import reactor, threads
 
 from vmail.common import *
 from vmail.daemon.rpcserver import export
@@ -414,12 +417,22 @@ class Core(object):
                     params['_cleartext'] = params['password']
                     del params['password']
 
+                update_quota = 'quota' in params
+
                 params = dict([(getattr(User, k), params[k]) for k in params])
                 if isinstance(user, (int, long)):
                     rw_db.query(User).filter_by(id=user).update(params)
                 else:
                     rw_db.query(User).filter_by(email=user).update(params)
                 rw_db.commit()
+
+                if update_quota:
+                    if isinstance(user, (int, long)):
+                        u = rw_db.query(User).get(user)
+                    else:
+                        u = rw_db.query(User).filter_by(email=user).one()
+                    threads.deferToThread(self.update_quotafile, u.maildir,
+                        u.email, u.password)
             else:
                 user = User()
                 for k, v in params.iteritems():
@@ -443,6 +456,22 @@ class Core(object):
                 rw_db.query(Vacation).filter_by(email=vacation).update(params)
             rw_db.commit()
         except Exception, e:
+            log.exception(e)
+
+    @export
+    def update_quotafile(self, maildir, username, password):
+        log.info('Updating quota file for %s', username)
+        maildirsize = os.path.join(maildir, 'maildirsize')
+        if os.path.exists(maildirsize):
+            os.remove(maildirsize)
+        try:
+            imap = imaplib.IMAP4('localhost')
+            imap.login(username, password)
+            imap.getquotaroot('INBOX')
+            imap.logout()
+            del imap
+        except Exception, e:
+            log.error('Unable to update quota file for %s', username)
             log.exception(e)
     
     # Setup and tear down methods
