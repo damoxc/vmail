@@ -24,12 +24,9 @@
 #
 
 import rfc822
-import logging
 
 from vmail.common import Address, get_msg_path, get_config, maildrop
 from vmail.scripts.base import ScriptBase
-
-log = logging.getLogger(__name__)
 
 class Learn(ScriptBase):
 
@@ -37,7 +34,7 @@ class Learn(ScriptBase):
 
     def run(self):
         if len(self.args) < 3:
-            log.error('incorrect arguments provided')
+            self.log.error('incorrect arguments provided')
             return 1
 
         (user, folder, uid) = self.args[0:3]
@@ -46,7 +43,7 @@ class Learn(ScriptBase):
         try:
             path = get_msg_path(host, user, folder, uid)
         except:
-            log.error('message does not exist')
+            self.log.error('message does not exist')
             return 1
 
         fp = open(path)
@@ -54,19 +51,19 @@ class Learn(ScriptBase):
 
         if self.mode == 'ham':
             if not msg.getheader('X-Spam-Flag'):
-                log.error('message is already ham')
+                self.log.error('message is already ham')
                 return 1
 
         elif self.mode == 'spam':
             if msg.getheader('X-Spam-Flag'):
-                log.error('message is already spam')
+                self.log.error('message is already spam')
                 return 1
 
         try:
             return_path = Address.parse(msg.getheader('Return-Path'))
             sender = return_path.address
         except:
-            log.warning('message has no return path')
+            self.log.warning('message has no return path')
             sender = ''
 
         # rewind the file pointer to the beginning

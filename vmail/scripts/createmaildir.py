@@ -23,17 +23,13 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-import logging
-
 from vmail.common import send_welcome_message
 from vmail.scripts.base import ScriptBase
-
-log = logging.getLogger(__name__)
 
 class CreateMailDir(ScriptBase):
 
     def run(self):
         if not self.args:
-            log.error('no argument provided')
+            self.log.error('no argument provided')
             return 1
         send_welcome_message(self.args[0])

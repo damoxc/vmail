@@ -24,22 +24,19 @@
 #
 
 import shutil
-import logging
 
 from vmail.common import get_mail_dir
 from vmail.scripts.base import ScriptBase
-
-log = logging.getLogger(__name__)
 
 class DelMailDir(ScriptBase):
 
     def run(self):
         if not self.args:
-            log.error('no argument provided')
+            self.log.error('no argument provided')
             return 1
 
         if '@' not in self.args[0]:
-            log.error('invalid argument')
+            self.log.error('invalid argument')
             return 1
 
         (user, domain) = args[0].split('@')

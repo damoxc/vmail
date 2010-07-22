@@ -25,12 +25,9 @@
 
 import os
 import re
-import logging
 
 from vmail.daemon.daemon import Daemon
 from vmail.scripts.base import ScriptBase
-
-log = logging.getLogger(__name__)
 
 class VMailD(ScriptBase):
 
@@ -45,6 +42,6 @@ class VMailD(ScriptBase):
             self.daemon.stop()
             return 0
         except Exception, e:
-            log.exception(e)
+            self.log.exception(e)
             self.daemon.stop()
             return 1

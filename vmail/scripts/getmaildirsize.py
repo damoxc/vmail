@@ -23,13 +23,9 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-import logging
-
 from vmail.common import fsize
 from vmail.client import client, reactor
 from vmail.scripts.base import ScriptBase
-
-log = logging.getLogger(__name__)
 
 class GetMailDirSize(ScriptBase):
 
@@ -71,7 +67,7 @@ class GetMailDirSize(ScriptBase):
         reactor.stop()
 
     def on_got_usage_err(self, error):
-        log.error('error: %s', error.value['value'])
+        self.log.error('error: %s', error.value['value'])
         reactor.stop()
 
     def on_got_quota(self, quota):
@@ -82,12 +78,12 @@ class GetMailDirSize(ScriptBase):
         )
 
     def on_got_quota_err(self, error):
-        log.error('error: %s', error.value['value'])
+        self.log.error('error: %s', error.value['value'])
         reactor.stop()
 
     def run(self):
         if not self.args:
-            log.error('no argument provided')
+            self.log.error('no argument provided')
             return 1
 
         if '@' in self.args[0]:
@@ -96,7 +92,7 @@ class GetMailDirSize(ScriptBase):
             (self.user, self.domain) = (None, self.args[0])
 
         if not self.domain:
-            log.error('no argument provided')
+            self.log.error('no argument provided')
             return 1
 
         client.connect().addCallback(self.on_connect)

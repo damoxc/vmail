@@ -25,7 +25,6 @@
 
 import sys
 import rfc822
-import logging
 import smtplib
 from email.utils import formatdate
 
@@ -33,11 +32,11 @@ from vmail.common import Address
 from vmail.model import User, Vacation, connect, db
 from vmail.scripts.base import ScriptBase
 
-log = logging.getLogger(__name__)
+self.log = self.logging.getLogger(__name__)
 
 class Autoreply(ScriptBase):
 
-    #filename = '/var/log/vmail/vacation.log'
+    #filename = '/var/self.log/vmail/vacation.self.log'
 
     def __init__(self):
         super(Autoreply, self).__init__()
@@ -45,26 +44,26 @@ class Autoreply(ScriptBase):
 
     def run(self):
         if not self.args:
-            log.error('no argument provided')
+            self.log.error('no argument provided')
             return 1
 
         message = rfc822.Message(sys.stdin)
 
         # Check for the presence of headers that indicate we shouldn't respond to this
         if message.getheader('x-spam-flag').lower() == 'yes':
-            log.debug('x-spam-flag: yes found; exiting')
+            self.log.debug('x-spam-flag: yes found; exiting')
             return 0
 
         if message.getheader('x-facebook-notify'):
-            log.debug('mail from facebook, ignoring')
+            self.log.debug('mail from facebook, ignoring')
             return 0
 
         if message.getheader('precendence').lower() in ('bulk', 'list', 'junk'):
-            log.debug('precedence is %s, exiting', message.getheader('precendence'))
+            self.log.debug('precedence is %s, exiting', message.getheader('precendence'))
             return 0
 
         if message.getheader('auto-submitted') and message.getheader('auto-submitted') != 'no':
-            log.debug('Auto-Submitted found, exiting')
+            self.log.debug('Auto-Submitted found, exiting')
 
         # Check the from header for an address, else use the passed in address
         recipient = Address.parse(message.getheader('from') or self.args[0])
@@ -74,7 +73,7 @@ class Autoreply(ScriptBase):
 
         sender = db.query(User).filter_by(email=self.options.sender).first()
         if not sender.vacation:
-            log.error('no vacation message stored')
+            self.log.error('no vacation message stored')
             return 1
 
         vacation = sender.vacation

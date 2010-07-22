@@ -25,13 +25,10 @@
 
 import os
 import re
-import logging
 
 from vmail.common import get_mail_dir
 from vmail.model import *
 from vmail.scripts.base import ScriptBase
-
-log = logging.getLogger(__name__)
 
 home = '/var/mailman'
 owner = 'postmaster@example.com'
@@ -46,14 +43,14 @@ class VMailMan(ScriptBase):
         try:
             (domain, local) = self.args[0:2]
         except:
-            log.error('invalid arguments supplied')
+            self.log.error('invalid arguments supplied')
             return 1
         
         # get the domain from the database
         try:
             domain = db.query(Domain).filter_by(domain=domain).one()
         except:
-            log.error('unable to find domain')
+            self.log.error('unable to find domain')
             return 1
 
         # change to the mailing lists home
