@@ -24,11 +24,14 @@
 #
 
 import os
+import logging
 import pyinotify
 
-from twisted.internet.task import LoopingCall
+from twisted.internet import threads, task
 from vmail.common import get_config, get_usage
 from vmail.model import User, rw_db
+
+log = logging.getLogger(__name__)
 
 class MDSEventHandler(pyinotify.ProcessEvent):
     """
@@ -65,10 +68,11 @@ class Monitor(object):
         self.handler = MDSEventHandler()
         self.notifier = pyinotify.Notifier(self.manager, self.handler)
 
-    def start(self):
+    def get_maildirs(self):
         """
-        Start the maildir monitor running
+        Scan the mail store for all the maildirs to watch
         """
+        log.debug('Scanning for maildirs')
         dirs = []
         mailstore = get_config('mailstore')
         for domain in os.listdir(mailstore):
@@ -79,9 +83,23 @@ class Monitor(object):
             domain = os.path.join(mailstore, domain)
             for user in os.listdir(domain):
                 dirs.append(os.path.join(domain, user))
-        
+        return dirs
+
+    def start(self):
+        """
+        Start the maildir monitor running
+        """
+        log.info('Starting maildirsize monitor')
+        threads.deferToThread(self._start).addCallback(self.on_started)
+
+    def _start(self):
+        dirs = self.get_maildirs()
+        log.debug('Adding watches')
         self.watches = [self.manager.add_watch(d, self.mask) for d in dirs]
-        self.loop = LoopingCall(self.process_events)
+
+    def on_started(self, result):
+        log.debug('Starting processing')
+        self.loop = task.LoopingCall(self.process_events)
         self.loop.start(0.1)
 
     def stop(self):
@@ -90,5 +108,5 @@ class Monitor(object):
 
     def process_events(self):
         self.notifier.process_events()
-        if self.notifier.check_events():
+        if self.notifier.check_events(0.1):
             self.notifier.read_events()
