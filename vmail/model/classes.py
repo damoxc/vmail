@@ -149,6 +149,7 @@ class User(object):
             'id': self.id,
             'domain_id': self.domain_id,
             'email': self.email,
+            'secondary_email': self.secondary_email,
             'name': self.name,
             'password': self.password,
             'quota': self.quota,
