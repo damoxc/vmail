@@ -48,5 +48,6 @@ setup(
     vlastlogin     = vmail.scripts.vlastlogin:VLastLogin.main
     vlogmessage    = vmail.scripts.vlogmessage:VLogMessage.main
     vchkpasswd     = vmail.scripts.vchkpasswd:VChkPasswd.main
+    vquotawarning  = vmail.scripts.vquotawarning:VQuotaWarning.main
     """
 )
