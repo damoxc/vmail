@@ -329,7 +329,6 @@ class Core(object):
     @export
     def delete_user(self, user):
         try:
-            
             if isinstance(user, (int, long)):
                 user = rw_db.query(User).get(user)
             else:
