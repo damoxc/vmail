@@ -349,6 +349,7 @@ class vmail extends rcube_plugin
 		}
 
 		$email = strtolower(get_input_value('_email', RCUBE_INPUT_POST));
+		$secondmail = strtolower(get_input_value('_secondmail', RCUBE_INPUT_POST));
 		$name = get_input_value('_name', RCUBE_INPUT_POST);
 		$newpasswd = get_input_value('_newpasswd', RCUBE_INPUT_POST);
 		$confpasswd = get_input_value('_confpasswd', RCUBE_INPUT_POST);
@@ -387,6 +388,7 @@ class vmail extends rcube_plugin
 			$user->email = $email . '@' . $this->domain_name;
 		}
 		$user->name = $name;
+		$user->secondary_email = $secondmail;
 		$user->quota = $quota;
 		$user->enabled = $enabled;
 		$user->admin = $admin;
@@ -699,6 +701,15 @@ class vmail extends rcube_plugin
 		));
 		$table->add('title', $this->form_label('_name', 'name'));
 		$table->add(null, $input->show($account->name));
+
+		// account secondary email input
+		$input = new html_inputfield(array(
+			'id'   => '_secondmail',
+			'name' => '_secondmail',
+			'size' => 50
+		));
+		$table->add('title', $this->form_label('_secondmail', 'secondmail'));
+		$table->add(null, $input->show($account->secondary_email));
 
 		// account new password input
 		$input = new html_passwordfield(array(

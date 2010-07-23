@@ -6,6 +6,7 @@ $labels['accountcreated'] = 'Account successfully created';
 $labels['accountdeleted'] = 'Account successfully deleted';
 $labels['accountsaved'] = 'Account successfully saved';
 $labels['accountsettings'] = 'Account Settings';
+$labels['secondmail'] = 'Secondary Email';
 $labels['curpasswd'] = 'Current Password';
 $labels['newpasswd'] = 'New Password';
 $labels['confpasswd'] = 'Confirm Password';

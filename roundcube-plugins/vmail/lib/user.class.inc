@@ -5,8 +5,8 @@ require_once 'base.class.inc';
 class User extends Base
 {
 	public $keys = array(
-		'domain_id', 'email', 'name', 'password', 'cleartext',
-		'quota', 'usage', 'enabled', 'admin');
+		'domain_id', 'email', 'secondary_email', 'name', 'password',
+		'cleartext', 'quota', 'usage', 'enabled', 'admin');
 	
 	public function __get($key)
 	{
