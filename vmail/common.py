@@ -218,7 +218,7 @@ def send_welcome_message(address, smtphost=None):
     if not os.path.isfile(get_config_dir('welcome.msg')):
         raise VmailError('Missing welcome message')
 
-    # Build up the subsitutable parameters
+    # Build up the substitutable parameters
     params = {
         'to': address,
         'date': email.utils.formatdate()
@@ -279,9 +279,12 @@ def deliver(msg, deliver_to, sender):
     if isinstance(sender, Address):
         sender = sender.address
 
-    p = subprocess.Popen(['/usr/lib/dovecot/deliver', '-f', sender, '-d',
-        deliver_to.address], stdin=msg)
-    
+    args = ['/usr/lib/dovecot/deliver', '-f', sender, '-d',
+        deliver_to.address]
+
+    p = subprocess.Popen(args, stdin=subprocess.PIPE)
+    p.communicate(msg)
+
     if p.wait() > 0:
         raise VmailError('Unable to deliver message')
 
