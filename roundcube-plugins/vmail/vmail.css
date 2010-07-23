@@ -39,6 +39,7 @@
 
 #accounts-table, #forwards-table {
 	width: 100%;
+	cursor: default;
 }
 
 #accounts-table .accounts.quota {
