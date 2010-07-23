@@ -430,6 +430,19 @@ class vmail extends rcube_plugin
 		if (!$this->aid) {
 			$this->aid = $this->user->id;
 			$this->users[$this->aid] = $this->user;
+
+			// Build uid => email mapping
+			foreach ($this->users as $uid => $usr) {
+				$uids[$uid] = $usr->email;
+			}
+			asort($uids);
+
+			// Build new sorted version of the list
+			foreach ($uids as $uid => $email) {
+				$users[$uid] = $this->users[$uid];
+			}
+			$this->users = $users;
+
 			$this->rcmail->output->show_message('vmail.accountcreated', 'confirmation');
 		} else {
 			$this->rcmail->output->show_message('vmail.accountsaved', 'confirmation');
@@ -559,6 +572,19 @@ class vmail extends rcube_plugin
 		if (!$this->fid) {
 			$this->fid = $forward->id;
 			$this->forwards[$this->fid] = $forward;
+
+			// Build fid => source mapping
+			foreach ($this->forwards as $fid => $fwd) {
+				$fids[$fid] = $fwd->source;
+			}
+			asort($fids);
+
+			// Build new sorted version of the list
+			foreach ($fids as $fid => $source) {
+				$forwards[$fid] = $this->forwards[$fid];
+			}
+			$this->forwards = $forwards;
+
 			$this->rcmail->output->show_message('vmail.forwardcreated', 'confirmation');
 		} else {
 			$this->rcmail->output->show_message('vmail.forwardsaved', 'confirmation');
