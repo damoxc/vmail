@@ -765,10 +765,10 @@ class vmail extends rcube_plugin
 		$domain_quota = $this->domain->quota;
 		$values = array(
 			$domain_quota * 0.05,
-			$domain_quota * 0.1,
-			$domain_quota * 0.2,
-			$domain_quota * 0.4,
-			$domain_quota * 0.7,
+			$domain_quota * 0.10,
+			$domain_quota * 0.25,
+			$domain_quota * 0.5,
+			$domain_quota * 0.75,
 			$domain_quota,
 			'other'
 		);
@@ -780,7 +780,7 @@ class vmail extends rcube_plugin
 		$input->add($options, $values);
 		$table->add('title', $this->form_label('_quota', 'quota'));
 
-		$quota = $account->fget('quota');
+		$quota = ($account->id) ? $account->fget('quota') : show_bytes($values[count($values) -2]);
 		if (!in_array($quota, $options)) {
 			$quotaother = $quota;
 			$quota = $this->gettext('other');
@@ -805,7 +805,7 @@ class vmail extends rcube_plugin
 			'value' => 1
 		));
 		$table->add('title', $this->form_label('_enabled', 'enabled'));
-		$table->add(null, $input->show($account->enabled));
+		$table->add(null, $input->show(($account->id) ? $account->enabled : true));
 		
 		// account admin input
 		$attr = array(
