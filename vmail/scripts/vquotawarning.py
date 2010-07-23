@@ -75,7 +75,10 @@ class VQuotaWarning(ScriptBase):
             # Build the admin message
             for key, value in params.iteritems():
                 msg = msg.replace(':' + key, value)
-            smtp.sendmail(postmaster, addr, msg)
+            try:
+                smtp.sendmail(postmaster, addr, msg)
+            except:
+                log.warning('Failed sending to %s', addr)
 
         reactor.stop()
 
