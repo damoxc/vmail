@@ -51,7 +51,11 @@ class VClient
 		));
 		$this->request_id++;
 		socket_write($this->sock, $request);
-		$response = json_decode(socket_read($this->sock, 4096));
+		
+		$buffer = socket_read($this->sock, 4096);
+		while (($response = json_decode($buffer)) == NULL) {
+			$buffer .= socket_read($this->sock, 4096);
+		}
 
 		if ($response->error) {
 			raise_error(array(
