@@ -23,6 +23,8 @@
 #   Boston, MA    02110-1301, USA.
 #
 
+import datetime
+
 from sqlalchemy import MetaData, Table, Column, ForeignKey
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, Time
 
@@ -86,6 +88,17 @@ packages = Table('packages', meta,
     Column('name', String(100)),
     Column('quota', Integer(20)),
     Column('account_limit', Integer)
+)
+
+qpsmtpd_log = Table('qpsmtpd_log', meta,
+    Column('id', Integer, primary_key=True),
+    Column('transaction_id', String(40)),
+    Column('host', String(80)),
+    Column('hook', String(20)),
+    Column('plugin', String(40)),
+    Column('level', Integer),
+    Column('message', String(255)),
+    Column('date', DateTime, default=datetime.datetime.now())
 )
 
 transport = Table('transport', meta,

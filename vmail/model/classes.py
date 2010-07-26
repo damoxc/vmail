@@ -124,6 +124,9 @@ class Message(object):
 class MessageRecipient(object):
     pass
 
+class QpsmtpdLog(object):
+    pass
+
 class Transport(object):
     pass
 
@@ -197,7 +200,8 @@ mapper(Login, logins)
 mapper(Message, messages)
 mapper(MessageRecipient, message_recipients, properties = {
     'message': relation(Message, backref='recipients', uselist=False)
-});
+})
+mapper(QpsmtpdLog, qpsmtpd_log)
 mapper(Transport, transport, properties = {
     'domain': relation(Domain, backref='transports')
 })
