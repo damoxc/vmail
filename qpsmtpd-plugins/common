@@ -413,6 +413,22 @@ sub vm_open
 	return $sock;
 }
 
+=head2 vm_connected
+
+B<Call: $self-E<gt>vm_connected()>
+
+Returns true if connected to vmaild else false
+
+=cut
+
+sub vm_connected
+{
+	my ($self) = @_;
+	my $sock = $self->qp->connection->notes(VM_SOCK);
+	return 1 if $sock;
+	return 0;
+}
+
 =head2 vm_connect
 
 B<Call: $self-E<gt>vm_connect ()>
@@ -435,6 +451,8 @@ sub vm_connect
 
 	my $sock = new IO::Socket::UNIX(Peer => $config->{sock},
 		Type => SOCK_STREAM) or $self->vm_error("Can't connect to socket: $!");
+	
+
 	return $sock;
 }
 
