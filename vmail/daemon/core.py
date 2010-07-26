@@ -277,41 +277,6 @@ class Core(object):
         rw_db.commit()
         return True
 
-    @export
-    def log_message(self, sender, user, subject, remote_addr=None,
-            recipients=()):
-        """
-        Log a message passing through the email system.
-
-        :param sender: The person sending the message
-        :type sender: string
-        :param user: The user sending the message
-        :type user: string
-        :param subject: The message subject
-        :type subject: string
-        :param remote_addr: The remote address of the message
-        :type remote_addr: string
-        :param recipients: The recipients of the message
-        :type recipients: sequence of strings
-        """
-
-        message = Message()
-        message.date = datetime.datetime.now()
-        message.sender = sender
-        message.user = user or None
-        message.subject = subject
-        message.local_addr = socket.getfqdn()
-        message.remote_addr = remote_addr
-        rw_db.add(message)
-        rw_db.commit()
-
-        for rcpt in recipients:
-            recipient = MessageRecipient()
-            recipient.message_id = message.id
-            recipient.recipient = rcpt
-            rw_db.add(recipient)
-        rw_db.commit()
-
     ######################
     # Management Methods #
     ######################

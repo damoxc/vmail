@@ -35,6 +35,9 @@ sub hook_logging {
 	# Don't log your own log enries! 
 	return DECLINED if defined $plugin and $plugin eq $self->plugin_name;
 
+	# Return if we haven't initialised yet
+	return DECLINED if not $self->{_level};
+
 	# Return if the level is above our log level
 	return DECLINED if ($trace > $self->{_level});
 
@@ -51,6 +54,34 @@ sub hook_logging {
 	# Store the transaction_id for future use
 	$self->vm_notes('transaction_id', $transaction_id);
 	
+	return DECLINED;
+}
+
+sub hook_queue_pre {
+	my ($self, $transaction) = @_;
+
+	my $transaction_id = $self->vm_notes('transaction_id');
+	my $sender         = lc $transaction->sender->address;
+	my $user           = lc $self->qp->connection->notes("authuser");
+	my $client_ip      = lc $self->qp->connection->remote_ip;
+	my $subject        = $transaction->header->get('Subject');
+	my $size           = $transaction->data_size;
+
+	# Remove the trailing newline and sanitize.
+	$subject =~ s/\n$//g;
+	$subject =~ m/(.*)/;
+	$subject = $1;
+
+	# Build the recipients option
+	my @recipients = ();
+	foreach my $rcpt ($transaction->recipients) {
+		my $addr = lc $rcpt->address;
+		push(@recipients, $addr);
+	}
+
+	$self->vm_call("qpsmtpd.log_transaction", $transaction_id, $sender,
+		$user, $subject, $size, $client_ip, \@recipients);
+
 	return DECLINED;
 }
 

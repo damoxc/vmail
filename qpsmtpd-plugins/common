@@ -536,7 +536,7 @@ sub vm_exec
 
 	# Receive back the response
 	my $buf;
-	$sock->recv($buf, 1024);
+	$sock->recv($buf, 4096);
 	my $result = from_json($buf);
 
 	if (not $result) {

@@ -82,6 +82,50 @@ class Qpsmtpd(object):
             # Return the transaction id
             return transaction_id
 
+    @export
+    def log_transaction(self, transaction_id, sender, user, subject,
+            size, remote_addr=None, recipients=()):
+        """
+        Log a transaction passing through the email system.
+
+        :param transaction_id: The transaction id to link to the log
+        :type transaction_id: str
+        :param sender: The person sending the message
+        :type sender: string
+        :param user: The user sending the message
+        :type user: string
+        :param subject: The message subject
+        :type subject: string
+        :param size: The size of the message
+        :type size: int
+        :param remote_addr: The remote address of the message
+        :type remote_addr: string
+        :param recipients: The recipients of the message
+        :type recipients: sequence of strings
+        """
+
+        try:
+            transaction = QpsmtpdTransaction()
+            transaction.transaction_id = transaction_id
+            transaction.date = datetime.datetime.now()
+            transaction.sender = sender
+            transaction.user = user or None
+            transaction.subject = subject
+            transaction.size = size
+            transaction.local_addr = socket.getfqdn()
+            transaction.remote_addr = remote_addr
+            rw_db.add(transaction)
+            rw_db.commit()
+
+            for rcpt in recipients:
+                recipient = QpsmtpdTransactionRecipient()
+                recipient.transaction_id = transaction.id
+                recipient.recipient = rcpt
+                rw_db.add(recipient)
+            rw_db.commit()
+        except Exception, e:
+            log.exception(e)
+
     # Setup and tear down methods
     def __before__(self, method):
         func = method.im_func

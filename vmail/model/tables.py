@@ -101,6 +101,24 @@ qpsmtpd_log = Table('qpsmtpd_log', meta,
     Column('date', DateTime, default=datetime.datetime.now())
 )
 
+qpsmtpd_transactions = Table('qpsmtpd_transactions', meta,
+    Column('id', Integer, primary_key=True),
+    Column('transaction_id', String(40)),
+    Column('date', DateTime),
+    Column('user', String(100)),
+    Column('sender', String(100)),
+    Column('size', Integer),
+    Column('subject', String(255)),
+    Column('local_addr', String(50)),
+    Column('remote_addr', String(50))
+)
+
+qpsmtpd_transaction_rcpts = Table('qpsmtpd_transaction_rcpts', meta,
+    Column('transaction_id', Integer,
+        ForeignKey('qpsmtpd_transactions.id'), primary_key=True),
+    Column('recipient', String(100), primary_key=True)
+)
+
 transport = Table('transport', meta,
     Column('id', Integer, primary_key=True),
     Column('domain_id', Integer, ForeignKey('domains.id')),
