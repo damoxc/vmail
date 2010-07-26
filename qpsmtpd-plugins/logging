@@ -1,0 +1,57 @@
+sub init {
+	my ($self, $qp) = @_;
+	$self->isa_plugin("vmail/common");
+	$self->vm_debug;
+	$self->SUPER::init($qp);
+}
+
+sub register {
+	my ($self, $qp, %args) = @_;
+
+	my $loglevel = $args{loglevel};
+
+	$self->{_level} = LOGWARN;
+	if (defined($loglevel)) {
+		if ($loglevel =~ /^\d+$/) {
+			$self->{_level} = $loglevel;
+		} else {
+			$self->{_level} = log_level($loglevel);
+		}
+	}
+
+	$self->SUPER::init($qp, $loglevel);
+}
+
+sub vm_init_config {
+	my ($self, $config_fields, $config_fields_empty, $config_fields_default)  = @_;
+	%$config_fields         = ();
+	%$config_fields_empty   = ();
+	%$config_fields_default = ();
+}
+
+sub hook_logging {
+	my ($self, $transaction, $trace, $hook, $plugin, @log) = @_;
+
+	# Don't log your own log enries! 
+	return DECLINED if defined $plugin and $plugin eq $self->plugin_name;
+
+	# Return if the level is above our log level
+	return DECLINED if ($trace > $self->{_level});
+
+	# If we haven't connected yet we can't do anything.
+	return DECLINED if not $self->vm_connected;
+
+	# Get the transaction_id
+	my $transaction_id = $self->vm_notes('transaction_id') || undef;
+
+	# Log the message
+	$transaction_id = $self->vm_call("qpsmtpd.log", $transaction_id, $hook,
+		$plugin, $trace, join(" ", @log));
+	
+	# Store the transaction_id for future use
+	$self->vm_notes('transaction_id', $transaction_id);
+	
+	return DECLINED;
+}
+
+# vim: ft=perl
