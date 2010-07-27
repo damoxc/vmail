@@ -201,8 +201,14 @@ class Core(object):
             log.critical('is_validrcptto() call failed with no result')
             return 1
 
+        elif row[0] > 0:
+            log.debug('returning %d for %s', row[0], email)
+            # we have a return code greater than zero so we should return
+            # it.
+            return row[0]
+
         # see if we want to do some quota checking now
-        if row[2] == 'local' or (row[2] == 'forward' and row[3]):
+        elif row[2] == 'local' or (row[2] == 'forward' and row[3]):
             if row[2] == 'forward':
                 email = row[1]
 
@@ -239,12 +245,6 @@ class Core(object):
             except Exception, e:
                 log.error('error checking User(%s)', email)
                 log.exception(e)
-
-        elif row[0] > 0:
-            log.debug('returning %d for %s', row[0], email)
-            # we have a return code greater than zero so we should return
-            # it.
-            return row[0]
 
         return 0
 
