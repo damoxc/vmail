@@ -52,3 +52,5 @@ sub hook_data_post {
 
 	return (DECLINED);
 }
+
+# vim: ft=perl
