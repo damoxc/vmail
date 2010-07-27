@@ -150,9 +150,8 @@ users = Table('users', meta,
 )
 
 vacation = Table('vacation', meta,
-    Column('id', Integer),
-    Column('email', String(255), ForeignKey('users.email'),
-        primary_key=True),
+    Column('id', Integer, primary_key=True),
+    Column('email', String(255), ForeignKey('users.email')),
     Column('subject', String(255)),
     Column('body', Text),
     Column('cache', Text),
