@@ -124,13 +124,16 @@ class Message(object):
 class MessageRecipient(object):
     pass
 
+class QpsmtpdConnection(object):
+    pass
+
 class QpsmtpdLog(object):
     pass
 
 class QpsmtpdTransaction(object):
     pass
 
-class QpsmtpdTransactionRecipient(object):
+class QpsmtpdRecipient(object):
     pass
 
 class Transport(object):
@@ -207,9 +210,17 @@ mapper(Message, messages)
 mapper(MessageRecipient, message_recipients, properties = {
     'message': relation(Message, backref='recipients', uselist=False)
 })
-mapper(QpsmtpdLog, qpsmtpd_log)
-mapper(QpsmtpdTransaction, qpsmtpd_transactions)
-mapper(QpsmtpdTransactionRecipient, qpsmtpd_transaction_rcpts)
+mapper(QpsmtpdConnection, qpsmtpd_connections)
+mapper(QpsmtpdTransaction, qpsmtpd_transactions, properties = {
+    'connection': relation(QpsmtpdConnection, backref='transactions')
+})
+mapper(QpsmtpdRecipient, qpsmtpd_rcpts, properties = {
+    'transaction': relation(QpsmtpdTransaction, backref='recipients')
+})
+mapper(QpsmtpdLog, qpsmtpd_log, properties = {
+    'connection': relation(QpsmtpdConnection, backref='log'),
+    'transaction': relation(QpsmtpdTransaction, backref='log')
+})
 
 mapper(Transport, transport, properties = {
     'domain': relation(Domain, backref='transports')

@@ -1,5 +1,5 @@
 --
--- sql/mysql/qpsmtpd_transaction_rcpts.tbl.sql
+-- sql/mysql/qpsmtpd_rcpts.tbl.sql
 --
 -- Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 --
@@ -23,8 +23,10 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-CREATE TABLE IF NOT EXISTS `qpsmtpd_transaction_rcpts` (
+CREATE TABLE IF NOT EXISTS `qpsmtpd_rcpts` (
   `transaction_id` int(11)      NOT NULL,
-  `recipient`      varchar(255) NOT NULL,
-  PRIMARY KEY (`transaction_id`,`recipient`)
+  `email_addr`     varchar(255) NOT NULL,
+  `success`        tinyint(1)   NOT NULL,
+  `message`        varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`transaction_id`,`email_addr`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci

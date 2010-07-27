@@ -3,6 +3,7 @@ sub init {
 	$self->isa_plugin("vmail/common");
 	$self->vm_debug;
 	$self->SUPER::init($qp);
+	$self->{_connection_id} = undef;
 }
 
 sub register {
@@ -29,6 +30,8 @@ sub vm_init_config {
 	%$config_fields_default = ();
 }
 
+# We use hook_logging to create the connection entry as well as adding the
+# log entries to the database.
 sub hook_logging {
 	my ($self, $transaction, $trace, $hook, $plugin, @log) = @_;
 
@@ -44,33 +47,129 @@ sub hook_logging {
 	# If we haven't connected yet we can't do anything.
 	return DECLINED if not $self->vm_connected;
 
-	# Get the transaction_id
-	my $transaction_id = $self->vm_notes('transaction_id') || undef;
+	my $connection_id = $self->qp->connection->notes('id') || undef;
+	my $transaction_id = $transaction->notes('id') || undef;
+
+	# Create a new connection entry if we don't have an id yet
+	if (not $connection_id) {
+		my $client_ip  = lc $self->qp->connection->remote_ip;
+		$connection_id = $self->vm_call('qpsmtpd.log_connect', $client_ip);
+		$self->qp->connection->notes('id', $connection_id);
+	}
+
+	# Create a new transaction entry if we don't have an id yet
+	if ($transaction && not $transaction_id) {
+		$transaction_id = $self->vm_call('qpsmtpd.log_transaction',
+			$connection_id);
+		$transaction->notes('id', $transaction_id);
+	}
 
 	# Log the message
-	$transaction_id = $self->vm_call("qpsmtpd.log", $transaction_id, $hook,
+	$self->vm_call('qpsmtpd.log', $connection_id, $transaction_id, $hook,
 		$plugin, $trace, join(" ", @log));
-	
-	# Store the transaction_id for future use
-	$self->vm_notes('transaction_id', $transaction_id);
 	
 	return DECLINED;
 }
 
-sub hook_queue_pre {
+sub hook_rcpt {
+	my ($self, $transaction, $recipient, %args) = @_;
+	$transaction->notes('hook', 'rcpt');
+	$transaction->notes('rcpt_to', $recipient);
+	return DECLINED;
+}
+
+sub hook_deny {
+	my ($self, $transaction, $prev_hook, $return, $return_text) = @_;
+
+	if ($transaction->notes('hook') == 'rcpt') {
+		my $bad_rcpts = $transaction->notes('bad_rcpts') || ();
+		my $bad_rcpts_txt = $transaction->notes('bad_rcpts_txt') || ();
+		my $recipient = $transaction->notes('rcpt_to');
+		my $user     = lc $recipient->user;
+		my $host     = lc $recipient->host;
+		my $delivery = "$user\@$host";
+		push(@$bad_rcpts, $delivery);
+		push(@$bad_rcpts_txt, $return_text);
+		$transaction->notes('bad_rcpts', $bad_rcpts);
+		$transaction->notes('bad_rcpts_txt', $bad_rcpts_txt);
+		$transaction->notes('rcpt_to', undef);
+	}
+
+	return DECLINED;
+}
+
+sub hook_ok {
+	my ($self, $transaction, $prev_hook, $return, $return_text) = @_;
+
+	return DECLINED if $return == DECLINED;
+	return DECLINED if ($transaction->notes('hook') != 'rcpt');
+
+	# Unset the stored address as it is now valid.
+	$transaction->notes('rcpt_to', undef);
+
+	return DECLINED;
+}
+
+# We use hook_reset_transaction to update the transaction entry with any
+# additional information
+sub hook_reset_transaction {
 	my ($self, $transaction) = @_;
 
-	my $transaction_id = $self->vm_notes('transaction_id');
-	my $sender         = lc $transaction->sender->address;
-	my $user           = lc $self->qp->connection->notes("authuser");
-	my $client_ip      = lc $self->qp->connection->remote_ip;
-	my $subject        = $transaction->header->get('Subject');
-	my $size           = $transaction->data_size;
+	my $rcpt_count     = length($transaction->recipients);
+	my $bad_rcpt_count = length($transaction->notes('bad_rcpts'));
+	my $sender         = ($transaction->sender) ? lc $transaction->sender->address : undef;
+	my $subject        = ($transaction->header) ? $transaction->header->get('Subject') : undef;
+	my $size           = $transaction->data_size || undef;
+	my $transaction_id = $transaction->notes('id');
 
-	# Remove the trailing newline and sanitize.
-	$subject =~ s/\n$//g;
-	$subject =~ m/(.*)/;
-	$subject = $1;
+	if (not $size) {
+		$subject = undef;
+		$sender = undef;
+	} else {
+		$subject =~ s/\n$//g;
+		$subject = $1;
+	}
+
+	$self->vm_call("qpsmtpd.log_post_transaction", $transaction_id, $sender,
+		$size, $subject);
+
+	return DECLINED if ($rcpt_count == 0 && $bad_rcpt_count == 0);
+
+	foreach my $rcpt ($transaction->recipients) {
+		my $addr = lc $rcpt->address;
+		$self->vm_call("qpsmtpd.log_recipient", $transaction_id, $addr, 1);
+	}
+
+	my $bad_rcpts = $transaction->notes('bad_rcpts');
+	my $bad_rcpts_txt = $transaction->notes('bad_rcpts_txt');
+
+	while (scalar(@$bad_rcpts) > 0) {
+		my $addr = shift(@$bad_rcpts);
+		my $message = shift(@$bad_rcpts_txt);
+		$self->vm_call("qpsmtpd.log_recipient", $transaction_id, $addr, 0,
+			$message);
+	}
+
+	return DECLINED;
+}
+
+# We use hook_post_connection to update the connection entry with some
+# additional information.
+sub hook_post_connection {
+	my $self = shift;
+	my $connection_id = $self->qp->connection->notes('id');
+	my $relay_client  = $self->qp->connection->relay_client || 0;
+	my $tls           = $self->qp->connection->notes('tls_enabled') || 0;
+	my $user          = $self->qp->connection->notes('authuser');
+
+	$self->vm_call('qpsmtpd.log_post_connect', $connection_id, $user,
+		$relay_client, $tls);
+	return DECLINED;
+}
+
+sub log_transaction {
+	my ($self, $transaction) = @_;
+	$self->log(LOGINFO, "[vmail::logging] logging transaction");
 
 	# Build the recipients option
 	my @recipients = ();
@@ -78,11 +177,6 @@ sub hook_queue_pre {
 		my $addr = lc $rcpt->address;
 		push(@recipients, $addr);
 	}
-
-	$self->vm_call("qpsmtpd.log_transaction", $transaction_id, $sender,
-		$user, $subject, $size, $client_ip, \@recipients);
-
-	return DECLINED;
 }
 
 # vim: ft=perl

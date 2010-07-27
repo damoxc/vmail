@@ -1,5 +1,5 @@
 --
--- sql/mysql/qpsmtpd_log.tbl.sql
+-- sql/mysql/qpsmtpd_connections.tbl.sql
 --
 -- Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 --
@@ -23,14 +23,13 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-CREATE TABLE IF NOT EXISTS `qpsmtpd_log` (
-	`id`             int(11)      NOT NULL auto_increment,
-	`connection_id`  int(11)      NOT NULL,
-	`transaction_id` int(11)      DEFAULT NULL,
-	`hook`           varchar(20)  DEFAULT NULL,
-	`plugin`         varchar(40)  DEFAULT NULL,
-	`level`          int(1)       NOT NULL,
-	`message`        varchar(255) NOT NULL,
-	`date`           datetime     NOT NULL,
-	PRIMARY KEY  (`id`)
+CREATE TABLE IF NOT EXISTS `qpsmtpd_connections` (
+  `id`             int(11)      NOT NULL AUTO_INCREMENT,
+  `local_addr`     varchar(80)  NOT NULL,
+  `remote_addr`    varchar(80)  DEFAULT NULL,
+  `user`           varchar(100) DEFAULT NULL,
+  `relay_client`   tinyint(1)   DEFAULT 0,
+  `tls`            tinyint(1)   DEFAULT 0,
+  `date`           datetime     NOT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

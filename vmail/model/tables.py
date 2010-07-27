@@ -90,10 +90,20 @@ packages = Table('packages', meta,
     Column('account_limit', Integer)
 )
 
+qpsmtpd_connections = Table('qpsmtpd_connections', meta,
+    Column('id', Integer, primary_key=True),
+    Column('local_addr', String(80)),
+    Column('remote_addr', String(80)),
+    Column('user', String(100)),
+    Column('relay_client', Boolean, default=False),
+    Column('tls', Boolean, default=False),
+    Column('date', DateTime, default=datetime.datetime.now())
+)
+
 qpsmtpd_log = Table('qpsmtpd_log', meta,
     Column('id', Integer, primary_key=True),
-    Column('transaction_id', String(40)),
-    Column('host', String(80)),
+    Column('connection_id', Integer, ForeignKey('qpsmtpd_connections.id')),
+    Column('transaction_id', Integer, ForeignKey('qpsmtpd_transactions.id')),
     Column('hook', String(20)),
     Column('plugin', String(40)),
     Column('level', Integer),
@@ -103,20 +113,19 @@ qpsmtpd_log = Table('qpsmtpd_log', meta,
 
 qpsmtpd_transactions = Table('qpsmtpd_transactions', meta,
     Column('id', Integer, primary_key=True),
-    Column('transaction_id', String(40)),
-    Column('date', DateTime),
-    Column('user', String(100)),
+    Column('connection_id', Integer, ForeignKey('qpsmtpd_connections.id')),
+    Column('date', DateTime, default=datetime.datetime.now()),
     Column('sender', String(100)),
     Column('size', Integer),
-    Column('subject', String(255)),
-    Column('local_addr', String(50)),
-    Column('remote_addr', String(50))
+    Column('subject', String(255))
 )
 
-qpsmtpd_transaction_rcpts = Table('qpsmtpd_transaction_rcpts', meta,
+qpsmtpd_rcpts = Table('qpsmtpd_rcpts', meta,
     Column('transaction_id', Integer,
         ForeignKey('qpsmtpd_transactions.id'), primary_key=True),
-    Column('recipient', String(100), primary_key=True)
+    Column('email_addr', String(100), primary_key=True),
+    Column('success', Boolean),
+    Column('message', String(255))
 )
 
 transport = Table('transport', meta,
