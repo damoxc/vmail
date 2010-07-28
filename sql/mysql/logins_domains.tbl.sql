@@ -24,7 +24,7 @@
 --
 
 CREATE TABLE IF NOT EXISTS `logins_domains` (
-	`date`        datetime     NOT NULL,
+	`date`        date         NOT NULL,
 	`hour`        int          NOT NULL,
 	`method`      varchar(10)  NOT NULL,
 	`domain`      varchar(80)  NOT NULL,

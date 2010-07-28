@@ -24,7 +24,7 @@
 --
 
 CREATE TABLE IF NOT EXISTS `logins_hourly` (
-	`date`        datetime     NOT NULL,
+	`date`        date         NOT NULL,
 	`hour`        int          NOT NULL,
 	`method`      varchar(10)  NOT NULL,
 	`count`       int          NOT NULL,
