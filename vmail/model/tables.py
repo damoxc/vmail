@@ -68,6 +68,21 @@ logins = Table('logins', meta,
     Column('date', DateTime)
 )
 
+logins_domains = Table('logins_domains', meta,
+    Column('date', DateTime, primary_key=True),
+    Column('hour', Integer, primary_key=True),
+    Column('method', String(10), primary_key=True),
+    Column('domain', String(80), primary_key=True),
+    Column('count', Integer)
+)
+
+logins_hourly = Table('logins_hourly', meta,
+    Column('date', DateTime, primary_key=True),
+    Column('hour', Integer, primary_key=True),
+    Column('method', String(10), primary_key=True),
+    Column('count', Integer)
+)
+
 messages = Table('messages', meta,
     Column('id', Integer, primary_key=True),
     Column('date', DateTime),

@@ -118,6 +118,12 @@ class Login(object):
             'date': self.date
         }
 
+class LoginDomain(object):
+    pass
+
+class LoginHourly(object):
+    pass
+
 class Message(object):
     pass
 
@@ -206,6 +212,8 @@ mapper(Forward, forwardings, properties = {
 })
 mapper(Host, hosts)
 mapper(Login, logins)
+mapper(LoginDomain, logins_domains)
+mapper(LoginHourly, logins_hourly)
 mapper(Message, messages)
 mapper(MessageRecipient, message_recipients, properties = {
     'message': relation(Message, backref='recipients', uselist=False)
