@@ -29,4 +29,4 @@ CREATE TABLE IF NOT EXISTS `qpsmtpd_rcpts` (
   `success`        tinyint(1)   NOT NULL,
   `message`        varchar(255) DEFAULT NULL,
   PRIMARY KEY (`transaction_id`,`email_addr`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
