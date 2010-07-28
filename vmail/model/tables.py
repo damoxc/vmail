@@ -117,7 +117,9 @@ qpsmtpd_transactions = Table('qpsmtpd_transactions', meta,
     Column('date', DateTime, default=datetime.datetime.now()),
     Column('sender', String(100)),
     Column('size', Integer),
-    Column('subject', String(255))
+    Column('subject', String(255)),
+    Column('success', Boolean, default=False),
+    Column('message', String(255))
 )
 
 qpsmtpd_rcpts = Table('qpsmtpd_rcpts', meta,

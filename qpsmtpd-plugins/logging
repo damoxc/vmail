@@ -71,6 +71,7 @@ sub hook_logging {
 	return DECLINED;
 }
 
+# Used to track any DENYs sent to recipients
 sub hook_rcpt {
 	my ($self, $transaction, $recipient, %args) = @_;
 	$transaction->notes('hook', 'rcpt');
@@ -78,26 +79,34 @@ sub hook_rcpt {
 	return DECLINED;
 }
 
-sub hook_deny {
-	my ($self, $transaction, $prev_hook, $return, $return_text) = @_;
-
-	if ($transaction->notes('hook') == 'rcpt') {
-		my $bad_rcpts = $transaction->notes('bad_rcpts') || ();
-		my $bad_rcpts_txt = $transaction->notes('bad_rcpts_txt') || ();
-		my $recipient = $transaction->notes('rcpt_to');
-		my $user     = lc $recipient->user;
-		my $host     = lc $recipient->host;
-		my $delivery = "$user\@$host";
-		push(@$bad_rcpts, $delivery);
-		push(@$bad_rcpts_txt, $return_text);
-		$transaction->notes('bad_rcpts', $bad_rcpts);
-		$transaction->notes('bad_rcpts_txt', $bad_rcpts_txt);
-		$transaction->notes('rcpt_to', undef);
-	}
-
+# Used to track any DENYs sent by spam/virus scanners
+sub hook_data_post {
+	my ($self, $transaction) = @_;
+	$transaction->notes('hook', 'data_post');
 	return DECLINED;
 }
 
+# Check to see if the message or recipient is bad
+sub hook_deny {
+	my ($self, $transaction, $prev_hook, $return, $return_text) = @_;
+
+	if ($transaction->notes('hook') eq 'rcpt') {
+		my $bad_rcpts = $transaction->notes('bad_rcpts') || ();
+		my $recipient = $transaction->notes('rcpt_to');
+		push(@$bad_rcpts, [lc $recipient->address, $return_text]);
+		$transaction->notes('bad_rcpts', $bad_rcpts);
+		$transaction->notes('rcpt_to', undef);
+	} elsif ($transaction->notes('hook') eq 'data_post') {
+		$transaction->notes('denied', $return_text);
+	}
+
+	# reset the current hook to avoid any mistaken handling
+	$transaction->notes('hook', undef);
+	
+	return DECLINED;
+}
+
+# Clear any good recipients
 sub hook_ok {
 	my ($self, $transaction, $prev_hook, $return, $return_text) = @_;
 
@@ -118,8 +127,11 @@ sub hook_reset_transaction {
 	my $rcpt_count     = length($transaction->recipients);
 	my $bad_rcpt_count = length($transaction->notes('bad_rcpts'));
 	my $sender         = ($transaction->sender) ? lc $transaction->sender->address : undef;
-	my $subject        = ($transaction->header) ? $transaction->header->get('Subject') : undef;
+
+	my $subject = ($transaction->header) ? $transaction->header->get('Subject') : undef;
 	my $size           = $transaction->data_size || undef;
+	my $message        = $transaction->notes('denied');
+	my $success        = ($message) ? 0 : 1;
 	my $transaction_id = $transaction->notes('id');
 
 	if (not $size) {
@@ -127,11 +139,10 @@ sub hook_reset_transaction {
 		$sender = undef;
 	} else {
 		$subject =~ s/\n$//g;
-		$subject = $1;
 	}
 
 	$self->vm_call("qpsmtpd.log_post_transaction", $transaction_id, $sender,
-		$size, $subject);
+		$size, $subject, $success, $message);
 
 	return DECLINED if ($rcpt_count == 0 && $bad_rcpt_count == 0);
 
@@ -141,13 +152,12 @@ sub hook_reset_transaction {
 	}
 
 	my $bad_rcpts = $transaction->notes('bad_rcpts');
-	my $bad_rcpts_txt = $transaction->notes('bad_rcpts_txt');
+	return DECLINED if not $bad_rcpts;
 
 	while (scalar(@$bad_rcpts) > 0) {
-		my $addr = shift(@$bad_rcpts);
-		my $message = shift(@$bad_rcpts_txt);
-		$self->vm_call("qpsmtpd.log_recipient", $transaction_id, $addr, 0,
-			$message);
+		my $bad_rcpt = shift(@$bad_rcpts);
+		$self->vm_call("qpsmtpd.log_recipient", $transaction_id,
+			$bad_rcpt->[0], 0, $bad_rcpt->[1]);
 	}
 
 	return DECLINED;
@@ -165,18 +175,6 @@ sub hook_post_connection {
 	$self->vm_call('qpsmtpd.log_post_connect', $connection_id, $user,
 		$relay_client, $tls);
 	return DECLINED;
-}
-
-sub log_transaction {
-	my ($self, $transaction) = @_;
-	$self->log(LOGINFO, "[vmail::logging] logging transaction");
-
-	# Build the recipients option
-	my @recipients = ();
-	foreach my $rcpt ($transaction->recipients) {
-		my $addr = lc $rcpt->address;
-		push(@recipients, $addr);
-	}
 }
 
 # vim: ft=perl

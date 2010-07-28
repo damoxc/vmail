@@ -158,7 +158,8 @@ class Qpsmtpd(object):
             return transaction.id
     
     @export
-    def log_post_transaction(self, transaction_id, sender, size, subject):
+    def log_post_transaction(self, transaction_id, sender, size, subject,
+            success, message=None):
         """
         Updates the information on the qpsmtpd transaction.
 
@@ -175,8 +176,9 @@ class Qpsmtpd(object):
         rw_db.query(QpsmtpdTransaction).filter_by(id=transaction_id).update({
             QpsmtpdTransaction.sender:  sender,
             QpsmtpdTransaction.size:    size,
-            QpsmtpdTransaction.subject: subject
-
+            QpsmtpdTransaction.subject: subject,
+            QpsmtpdTransaction.success: success,
+            QpsmtpdTransaction.message: message
         })
         rw_db.commit()
 
