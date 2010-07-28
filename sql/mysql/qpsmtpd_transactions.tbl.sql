@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS `qpsmtpd_transactions` (
   `sender`         varchar(100) NOT NULL,
   `size`           int(11)      NOT NULL,
   `subject`        varchar(255) DEFAULT NULL,
+  `success`        tinyint(1)   DEFAULT 0,
+  `message`        varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `sender` (`sender`,`local_addr`,`remote_addr`)
+  KEY `sender` (`sender`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
