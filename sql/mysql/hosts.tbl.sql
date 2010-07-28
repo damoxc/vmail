@@ -28,4 +28,4 @@ CREATE TABLE IF NOT EXISTS `hosts` (
 	`action`     varchar(20)  NOT NULL,
 	`comment`    varchar(100) NOT NULL,
 	UNIQUE KEY `ip_address` (`ip_address`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
