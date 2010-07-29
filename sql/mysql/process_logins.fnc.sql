@@ -26,7 +26,7 @@
 DELIMITER $$
 
 DROP PROCEDURE IF EXISTS `mail`.`process_logins`$$
-CREATE DEFINER=`root`@`localhost` PROCEDURE `process_logins`()
+CREATE PROCEDURE `process_logins`()
 BEGIN
 
 DECLARE _date date;
@@ -35,10 +35,10 @@ DECLARE _limit, _start, _end datetime;
 
 WHILE _run > 0 DO
 	SET _limit = DATE_ADD(CURDATE(), INTERVAL HOUR(NOW()) HOUR);
-	SELECT DATE_ADD(DATE(date), INTERVAL HOUR(date) HOUR) INTO _start FROM logins LIMIT 0, 1;
+	SELECT DATE_ADD(DATE(date), INTERVAL HOUR(date) HOUR) INTO _start FROM logins ORDER BY date LIMIT 0, 1;
 	SET _end = DATE_ADD(_start, INTERVAL 1 HOUR);
 	
-	IF _end >= _limit THEN
+	IF _end > _limit THEN
 		SET _run = 0;
 	ELSEIF (SELECT count(id) FROM logins) = 0 THEN
 		SET _run = 0;
@@ -66,6 +66,15 @@ WHILE _run > 0 DO
 				l.date >= _start AND
 				l.date <= _end
 			GROUP BY d.domain, l.method;
+		
+		INSERT INTO logins_archive (date, email, user_id, method, local_addr, remote_addr)
+			SELECT
+				date, email, user_id, method, local_addr, remote_addr
+			FROM logins
+			WHERE
+				date >= _start AND
+				date <= _end
+			ORDER BY date;
 		
 		DELETE FROM logins WHERE date >= _start AND date <= _end;
 	END IF;
