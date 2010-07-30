@@ -40,7 +40,7 @@ class Daemon(object):
     def __init__(self):
         self.config = get_config()
         self.rpcserver = RpcServer()
-        self.core = Core()
+        self.core = Core(self)
 
         if self.config['monitor']:
             from vmail.daemon.monitor import Monitor

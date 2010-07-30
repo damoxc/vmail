@@ -40,6 +40,9 @@ log = logging.getLogger(__name__)
 
 class Core(object):
 
+    def __init__(self, daemon):
+        self.daemon = daemon
+
     @export
     def authenticate(self, user, pw_clear):
         """
@@ -304,6 +307,8 @@ class Core(object):
             try:
                 if os.path.isdir(user.maildir):
                     shutil.rmtree(user.maildir)
+                    if self.daemon.monitor:
+                        self.daemon.monitor.remove_watch(user.maildir)
 
                 if user.vacation:
                     rw_db.delete(user.vacation)
@@ -406,6 +411,8 @@ class Core(object):
                 rw_db.add(user)
                 rw_db.commit()
                 send_welcome_message(user.email)
+                if self.daemon.monitor:
+                    self.daemon.monitor.add_watch(user.maildir)
                 return user.id
         except Exception, e:
             log.exception(e)

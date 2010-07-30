@@ -28,7 +28,9 @@ import logging
 import pyinotify
 
 from twisted.internet import threads, task
+
 from vmail.common import get_config, get_usage
+from vmail.error import VmailException
 from vmail.model import User, rw_db
 
 log = logging.getLogger(__name__)
@@ -95,7 +97,8 @@ class Monitor(object):
     def _start(self):
         dirs = self.get_maildirs()
         log.debug('Adding watches')
-        self.watches = [self.manager.add_watch(d, self.mask) for d in dirs]
+        self.watches = dict([(d, self.manager.add_watch(d, self.mask))
+            for d in dirs])
 
     def on_started(self, result):
         log.debug('Starting processing')
@@ -110,3 +113,19 @@ class Monitor(object):
         self.notifier.process_events()
         if self.notifier.check_events(0.1):
             self.notifier.read_events()
+
+    def add_watch(self, path):
+        """
+        Add a new directory to be monitored 
+        """
+        if path in self.watches:
+            raise VmailException('Path already being monitored')
+        self.watches[path] = self.manager.add_watch(path, self.mask)
+
+    def remove_watch(self, path):
+        """
+        Remove a watch from the monitoring
+        """
+        if path not in self.watches:
+            raise VmailException('Path not being monitored')
+        self.manager.rm_watch(self.watches[path])
