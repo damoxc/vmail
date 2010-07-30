@@ -305,7 +305,8 @@ class Core(object):
                 if os.path.isdir(user.maildir):
                     shutil.rmtree(user.maildir)
 
-                rw_db.delete(user.vacation)
+                if user.vacation:
+                    rw_db.delete(user.vacation)
                 rw_db.delete(user)
                 rw_db.commit()
             except Exception, e:
