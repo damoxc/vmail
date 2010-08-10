@@ -80,6 +80,7 @@ WHILE _run > 0 DO
 	END IF;
 END WHILE;
 
+OPTIMIZE TABLE `logins`;
 
 END$$
 
