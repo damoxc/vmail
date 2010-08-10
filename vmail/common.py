@@ -33,6 +33,8 @@ import smtplib
 import subprocess
 import email.utils
 
+from vmail.error import *
+
 MDS_RE = re.compile('\s*([\d\-\+]+)\s+([\d\-\+]+)')
 MSG_SIZE_RE = re.compile(',S=(\d+)(,|:)')
 ADDR_RE = re.compile('([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4})', re.I)
@@ -54,9 +56,6 @@ DEFAULT_CONFIG = {
     'autohost': 'autoreply.example.com'
 }
 _config = None
-
-class VmailError(Exception):
-    pass
 
 class Address(object):
 
