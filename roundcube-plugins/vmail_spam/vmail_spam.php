@@ -68,21 +68,11 @@ class vmail_spam extends rcube_plugin {
 			$rcmail->imap->unset_flag($uids, 'JUNK');
 			$rcmail->imap->set_flag($uids, 'NONJUNK');
 
-			// send the messages off to the filter training
-			foreach ($_uids as &$uid) {
-				learnham($username, $folder, $uid);
-			}
-
 			$rcmail->output->command('move_messages', "INBOX");
 			$rcmail->output->command('display_message', $this->gettext('reportedasnotjunk'), 'confirmation');
 		} else {
 			$rcmail->imap->unset_flag($uids, 'NONJUNK');
 			$rcmail->imap->set_flag($uids, 'JUNK');
-
-			// send the messages off to the filter training
-			foreach ($_uids as $uid) {
-				learnspam($username, $folder, $uid);
-			}
 
 			$rcmail->output->command('move_messages', $junk_mbox);
 			$rcmail->output->command('display_message', $this->gettext('reportedasjunk'), 'confirmation');
