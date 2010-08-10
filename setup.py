@@ -35,17 +35,17 @@ setup(
     packages     = find_packages(exclude=['tests', 'docs']),
     entry_points = """
     [console_scripts]
-    vmaild         = vmail.scripts.vmaild:VMailD.main
-    getmaildirsize = vmail.scripts.getmaildirsize:GetMailDirSize.main
-    vcreatemaildir = vmail.scripts.vcreatemaildir:VCreateMailDir.main
-    vdelmaildir    = vmail.scripts.vdelmaildir:VDelMailDir.main
-    vchkrcptto     = vmail.scripts.vchkrcptto:VChkRcptTo.main
-    vgetconfig     = vmail.scripts.vgetconfig:VGetConfig.main
-    vautoreply     = vmail.scripts.vautoreply:VAutoreply.main
-    vmailman       = vmail.scripts.vmailman:VMailMan.main
-    vlastlogin     = vmail.scripts.vlastlogin:VLastLogin.main
-    vlogmessage    = vmail.scripts.vlogmessage:VLogMessage.main
-    vchkpasswd     = vmail.scripts.vchkpasswd:VChkPasswd.main
-    vquotawarning  = vmail.scripts.vquotawarning:VQuotaWarning.main
+    vmaild          = vmail.scripts.vmaild:VMailD.main
+    vgetmaildirsize = vmail.scripts.vgetmaildirsize:VGetMailDirSize.main
+    vcreatemaildir  = vmail.scripts.vcreatemaildir:VCreateMailDir.main
+    vdelmaildir     = vmail.scripts.vdelmaildir:VDelMailDir.main
+    vchkrcptto      = vmail.scripts.vchkrcptto:VChkRcptTo.main
+    vgetconfig      = vmail.scripts.vgetconfig:VGetConfig.main
+    vautoreply      = vmail.scripts.vautoreply:VAutoreply.main
+    vmailman        = vmail.scripts.vmailman:VMailMan.main
+    vlastlogin      = vmail.scripts.vlastlogin:VLastLogin.main
+    vlogmessage     = vmail.scripts.vlogmessage:VLogMessage.main
+    vchkpasswd      = vmail.scripts.vchkpasswd:VChkPasswd.main
+    vquotawarning   = vmail.scripts.vquotawarning:VQuotaWarning.main
     """
 )
