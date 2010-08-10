@@ -1,5 +1,5 @@
 #
-# vmail/scripts/createmaildir.py
+# vmail/scripts/vcreatemaildir.py
 #
 # Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 #
@@ -26,7 +26,7 @@
 from vmail.common import send_welcome_message
 from vmail.scripts.base import ScriptBase
 
-class CreateMailDir(ScriptBase):
+class VCreateMailDir(ScriptBase):
 
     def run(self):
         if not self.args:

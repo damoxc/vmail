@@ -1,5 +1,5 @@
 #
-# vmail/scripts/is_validrcptto.py
+# vmail/scripts/vchkrcptto.py
 #
 # Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 #
@@ -26,7 +26,7 @@
 from vmail.client import client, reactor
 from vmail.scripts.base import ScriptBase, argcount
 
-class IsValidRcptTo(ScriptBase):
+class VChkRcptTo(ScriptBase):
 
     def on_connect(self, result):
         client.core.is_validrcptto(self.args[0]).addCallbacks(

@@ -1,5 +1,5 @@
 #
-# vmail/scripts/delmaildir.py
+# vmail/scripts/vdelmaildir.py
 #
 # Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 #
@@ -28,7 +28,7 @@ import shutil
 from vmail.common import get_mail_dir
 from vmail.scripts.base import ScriptBase
 
-class DelMailDir(ScriptBase):
+class VDelMailDir(ScriptBase):
 
     def run(self):
         if not self.args:

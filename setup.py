@@ -37,13 +37,11 @@ setup(
     [console_scripts]
     vmaild         = vmail.scripts.vmaild:VMailD.main
     getmaildirsize = vmail.scripts.getmaildirsize:GetMailDirSize.main
-    createmaildir  = vmail.scripts.createmaildir:CreateMailDir.main
-    delmaildir     = vmail.scripts.delmaildir:DelMailDir.main
-    is_validrcptto = vmail.scripts.is_validrcptto:IsValidRcptTo.main
+    vcreatemaildir = vmail.scripts.vcreatemaildir:VCreateMailDir.main
+    vdelmaildir    = vmail.scripts.vdelmaildir:VDelMailDir.main
+    vchkrcptto     = vmail.scripts.vchkrcptto:VChkRcptTo.main
     vgetconfig     = vmail.scripts.vgetconfig:VGetConfig.main
-    learnham       = vmail.scripts.learn:LearnHam.main
-    learnspam      = vmail.scripts.learn:LearnSpam.main
-    autoreply      = vmail.scripts.autoreply:Autoreply.main
+    vautoreply     = vmail.scripts.vautoreply:VAutoreply.main
     vmailman       = vmail.scripts.vmailman:VMailMan.main
     vlastlogin     = vmail.scripts.vlastlogin:VLastLogin.main
     vlogmessage    = vmail.scripts.vlogmessage:VLogMessage.main

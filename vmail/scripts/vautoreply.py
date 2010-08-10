@@ -1,5 +1,5 @@
 #
-# vmail/scripts/autoreply.py
+# vmail/scripts/vautoreply.py
 #
 # Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 #
@@ -34,12 +34,12 @@ from vmail.scripts.base import ScriptBase
 
 self.log = self.logging.getLogger(__name__)
 
-class Autoreply(ScriptBase):
+class VAutoreply(ScriptBase):
 
     #filename = '/var/self.log/vmail/vacation.self.log'
 
     def __init__(self):
-        super(Autoreply, self).__init__()
+        super(VAutoreply, self).__init__()
         self.parser.add_option('-f', '--from', dest='sender', action='store')
 
     def run(self):
