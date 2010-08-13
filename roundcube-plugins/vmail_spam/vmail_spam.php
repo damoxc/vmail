@@ -9,8 +9,6 @@
  * @author Damien Churchill <damoxc@gmail.com>
  */
 
-require_once 'lib/funcs.inc';
-
 class vmail_spam extends rcube_plugin {
 
 	public $task = 'mail';
