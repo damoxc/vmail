@@ -63,6 +63,8 @@ class VClient
 				message => "Could not connect to socket: $errormsg"
 			), true);
 		}
+
+		$this->connected = true;
 	}
 
 	function __destruct()
