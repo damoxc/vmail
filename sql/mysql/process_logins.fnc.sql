@@ -46,7 +46,7 @@ WHILE _run > 0 DO
 		SET _date = DATE(_start);
 		SET _hour = HOUR(_start);
 
-		INSERT INTO logins_hourly (date, hour, method, count)
+		INSERT IGNORE INTO logins_hourly (date, hour, method, count)
 			SELECT
 				_date, _hour, method, COUNT(id) AS `count`
 			FROM logins
@@ -55,7 +55,7 @@ WHILE _run > 0 DO
 				date <= _end
 			GROUP BY method;
 		
-		INSERT INTO logins_domains (date, hour, method, domain, count)
+		INSERT IGNORE INTO logins_domains (date, hour, method, domain, count)
 			SELECT
 				_date, _hour, l.method, d.domain, count(l.id) AS `count`
 			FROM
@@ -67,7 +67,7 @@ WHILE _run > 0 DO
 				l.date <= _end
 			GROUP BY d.domain, l.method;
 		
-		INSERT INTO logins_archive (date, email, user_id, method, local_addr, remote_addr)
+		INSERT IGNORE INTO logins_archive (date, email, user_id, method, local_addr, remote_addr)
 			SELECT
 				date, email, user_id, method, local_addr, remote_addr
 			FROM logins
