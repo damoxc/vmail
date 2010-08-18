@@ -1,9 +1,10 @@
 <?php
 
 /**
- * Vmail plugin that displays the domain quota in the mailview.
+ * Vmail plugin that warns when close to reaching quota limits.
  */
 
+require_once dirname(dirname(__FILE__)) . '/vmail/lib/funcs.inc';
 require_once dirname(dirname(__FILE__)) . '/vmail/lib/vclient.class.inc';
 
 class vmail_quota extends rcube_plugin
@@ -18,30 +19,33 @@ class vmail_quota extends rcube_plugin
 
 		$this->add_texts('localization/', array('vmail_quota'));
 
-		$domain = substr($email, strrpos($email, '@') + 1);
+		$domain = get_domain_part($email);
+		$user = get_user_part($email);
 
 		$this->client = new VClient();
-		$used = $this->client->core->get_usage($domain);
-		$quota = $this->client->core->get_quota($domain);
+		$domain_used = $this->client->core->get_usage($domain);
+		$domain_quota = $this->client->core->get_quota($domain);
 
-		if (!$used && !$quota) {
-			$this->rcmail->output->set_env('dom_quota', array(
-				'error' => true
-			));
-		} else {
-			$usage = $used / $quota * 100.0;
-			if ($usage > 100)
-				$usage = 100;
+		$user_user = $this->client->core->get_usage($domain, $user);
+		$user_quota = $this->client->core->get_quota($domain, $user);
 
-			$this->rcmail->output->set_env('dom_quota', array(
-				'usage' => intval($usage),
-				'used'  => show_bytes($used),
-				'total' => show_bytes($quota)
-			));
+		$domain_usage = ceil(($domain_used / $domain_quota) * 100);
+		$user_usage = ceil(($user_used / $user_quota) * 100);
+
+		if ($domain_usage >= 85) {
+			$this->rcmail->output->show_message('vmail_quota.domainusage', 'error',
+				array('usage' => $domain_usage));
 		}
 
-		$this->include_script('jquery.create.js');
-		$this->include_script('vmail_quota.js');
+		if ($user_usage >= 85) {
+			$this->rcmail->output->show_message('vmail_quota.userusage', 'error',
+				array('usage' => $user_usage));
+		}
+
+		if ($domain_usage >= 85 && $user_usage >= 85) {
+			$this->rcmail->output->show_message('vmail_quota.domainuserusage', 'error',
+				array('user_usage' => $user_usage, 'domain_usage' => $domain_usage));
+		}
 	}
 }
 ?>
