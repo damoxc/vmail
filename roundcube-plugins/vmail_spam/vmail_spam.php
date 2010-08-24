@@ -59,9 +59,6 @@ class vmail_spam extends rcube_plugin {
 
 		$_uids = explode(',', $uids);
 
-		$username = $rcmail->user->get_username();
-		$folder = $rcmail->imap->mailbox;
-
 		if ($mbox == $junk_mbox) {
 			$rcmail->imap->unset_flag($uids, 'JUNK');
 			$rcmail->imap->set_flag($uids, 'NONJUNK');
