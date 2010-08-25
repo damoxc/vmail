@@ -84,10 +84,11 @@ class Core(object):
         if not user:
             return False
 
-        pw_hash = pw_hash.encode('utf8')
-        ticket = ticket.encode('utf8')
+        pw_hash  = pw_hash.encode('utf8')
+        ticket   = ticket.encode('utf8')
+        password = user.password.encode('utf8')
 
-        if pw_hash != hmac.new(user.password, ticket).hexdigest():
+        if pw_hash != hmac.new(password, ticket).hexdigest():
             return False
 
         return True
