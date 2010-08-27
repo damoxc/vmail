@@ -3,7 +3,6 @@ sub init {
 	$self->isa_plugin("vmail/common");
 	$self->vm_debug;
 	$self->SUPER::init($qp);
-	$self->{_connection_id} = undef;
 }
 
 sub register {
@@ -19,6 +18,7 @@ sub register {
 			$self->{_level} = log_level($loglevel);
 		}
 	}
+	$self->{_transaction} = 0;
 
 	$self->SUPER::init($qp, $loglevel);
 }
@@ -44,30 +44,14 @@ sub hook_logging {
 	# Return if the level is above our log level
 	return DECLINED if ($trace > $self->{_level});
 
-	# If we haven't connected yet we can't do anything.
-	return DECLINED if not $self->vm_connected;
+	# We don't care if there isn't a connection in progress
+	return DECLINED if not $self->qp->connection->remote_ip;
 
-	my $connection_id = $self->qp->connection->notes('id') || undef;
-	my $transaction_id = $transaction->notes('id') || undef;
+	my $cnx = $self->qp->connection;
+	my $tnx = ($cnx->{_transactions}) ? scalar @{$cnx->{_transactions}} : 0;
 
-	# Create a new connection entry if we don't have an id yet
-	if (not $connection_id) {
-		my $client_ip  = lc $self->qp->connection->remote_ip;
-		$connection_id = $self->vm_call('qpsmtpd.log_connect', $client_ip);
-		$self->qp->connection->notes('id', $connection_id);
-	}
+	push @{ $cnx->{_log} }, [$tnx, $trace, $hook, $plugin, @log];
 
-	# Create a new transaction entry if we don't have an id yet
-	if ($transaction && not $transaction_id) {
-		$transaction_id = $self->vm_call('qpsmtpd.log_transaction',
-			$connection_id);
-		$transaction->notes('id', $transaction_id);
-	}
-
-	# Log the message
-	$self->vm_call('qpsmtpd.log', $connection_id, $transaction_id, $hook,
-		$plugin, $trace, join(" ", @log));
-	
 	return DECLINED;
 }
 
@@ -124,8 +108,16 @@ sub hook_ok {
 sub hook_reset_transaction {
 	my ($self, $transaction) = @_;
 
+	my $cnx            = $self->qp->connection;
 	my $rcpt_count     = length($transaction->recipients);
 	my $bad_rcpt_count = length($transaction->notes('bad_rcpts'));
+
+	# We only want to log transactions that had recipients
+	if ($rcpt_count == 0 && $bad_rcpt_count == 0) {
+		return DECLINED;
+	}
+	
+	# Gather additional information about the transaction
 	my $sender         = ($transaction->sender) ? lc $transaction->sender->address : undef;
 
 	my $subject = ($transaction->header) ? $transaction->header->get('Subject') : undef;
@@ -141,24 +133,23 @@ sub hook_reset_transaction {
 		$subject =~ s/\n$//g;
 	}
 
-	$self->vm_call("qpsmtpd.log_post_transaction", $transaction_id, $sender,
-		$size, $subject, $success, $message);
-
-	return DECLINED if ($rcpt_count == 0 && $bad_rcpt_count == 0);
-
+	# Add all the good recipients to the transaction
+	my @recipients = ();
 	foreach my $rcpt ($transaction->recipients) {
-		my $addr = lc $rcpt->address;
-		$self->vm_call("qpsmtpd.log_recipient", $transaction_id, $addr, 1);
+		push(@recipients, [lc $rcpt->address, 1, '']);
 	}
 
+	# Add all the bad recipients to the transaction
 	my $bad_rcpts = $transaction->notes('bad_rcpts');
-	return DECLINED if not $bad_rcpts;
-
-	while (scalar(@$bad_rcpts) > 0) {
-		my $bad_rcpt = shift(@$bad_rcpts);
-		$self->vm_call("qpsmtpd.log_recipient", $transaction_id,
-			$bad_rcpt->[0], 0, $bad_rcpt->[1]);
+	if ($bad_rcpts) {
+		while (scalar(@$bad_rcpts) > 0) {
+			my $bad_rcpt = shift(@$bad_rcpts);
+			push(@recipients, [$bad_rcpt->[0], 0, $bad_rcpt->[1]]);
+		}
 	}
+
+	push(@{$cnx->{_transactions}},
+		[$sender, $size, $subject, $success, $message, \@recipients]);
 
 	return DECLINED;
 }
@@ -167,13 +158,16 @@ sub hook_reset_transaction {
 # additional information.
 sub hook_post_connection {
 	my $self = shift;
-	my $connection_id = $self->qp->connection->notes('id');
-	my $relay_client  = $self->qp->connection->relay_client || 0;
-	my $tls           = $self->qp->connection->notes('tls_enabled') || 0;
-	my $user          = $self->qp->connection->notes('authuser');
+	my $cnx          = $self->qp->connection;
+	my $remote_ip    = $cnx->remote_ip;
+	my $relay_client = $cnx->relay_client || 0;
+	my $tls          = $cnx->notes('tls_enabled') || 0;
+	my $user         = $cnx->notes('authuser');
 
-	$self->vm_call('qpsmtpd.log_post_connect', $connection_id, $user,
-		$relay_client, $tls);
+	# Add all the logging information about this connection to the database
+	$self->vm_call('qpsmtpd.log_connection', $remote_ip, $user,
+		$relay_client, $tls, $cnx->{_transactions}, $cnx->{_log});
+
 	return DECLINED;
 }
 

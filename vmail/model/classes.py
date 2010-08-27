@@ -124,12 +124,6 @@ class LoginDomain(object):
 class LoginHourly(object):
     pass
 
-class Message(object):
-    pass
-
-class MessageRecipient(object):
-    pass
-
 class QpsmtpdConnection(object):
     pass
 
@@ -214,20 +208,18 @@ mapper(Host, hosts)
 mapper(Login, logins)
 mapper(LoginDomain, logins_domains)
 mapper(LoginHourly, logins_hourly)
-mapper(Message, messages)
-mapper(MessageRecipient, message_recipients, properties = {
-    'message': relation(Message, backref='recipients', uselist=False)
-})
 mapper(QpsmtpdConnection, qpsmtpd_connections)
+mapper(QpsmtpdLog, qpsmtpd_log, properties = {
+    'connection': relation(QpsmtpdConnection, backref='log')
+})
+
 mapper(QpsmtpdTransaction, qpsmtpd_transactions, properties = {
-    'connection': relation(QpsmtpdConnection, backref='transactions')
+    'connection': relation(QpsmtpdConnection, backref='transactions'),
+    'log': relation(QpsmtpdLog)
 })
 mapper(QpsmtpdRecipient, qpsmtpd_rcpts, properties = {
-    'transaction': relation(QpsmtpdTransaction, backref='recipients')
-})
-mapper(QpsmtpdLog, qpsmtpd_log, properties = {
-    'connection': relation(QpsmtpdConnection, backref='log'),
-    'transaction': relation(QpsmtpdTransaction, backref='log')
+    'transaction': relation(QpsmtpdTransaction, backref='recipients'),
+    '_transaction': qpsmtpd_rcpts.c.transaction
 })
 
 mapper(Transport, transport, properties = {

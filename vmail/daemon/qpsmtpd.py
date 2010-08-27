@@ -37,150 +37,130 @@ log = logging.getLogger(__name__)
 class Qpsmtpd(object):
 
     @export
-    def log(self, connection_id, transaction_id, hook, plugin, level,
-            message):
+    def log_connection(self, remote_addr, user, relay_client, tls,
+            transactions, logs):
         """
-        Log a message in a SMTP transaction to the database.
-
-        :param connection_id: The connection to link this log entry to
-        :type connection_id: int
-        :param transaction_id: The transaction to link this log entry to
-        :type transaction_id: int
-        :param hook: The hook in which this log message was called
-        :type hook: string
-        :param plugin: The plugin the message originates from
-        :type plugin: string
-        :param level: The level of the message
-        :type level: int
-        :param message: The message to log
-        :type message: string
-        """
-
-        try:
-            entry = QpsmtpdLog()
-            entry.connection_id = connection_id
-            entry.transaction_id = transaction_id
-            entry.hook = hook
-            entry.plugin = plugin
-            entry.level = level
-            entry.message = message
-            rw_db.add(entry)
-            rw_db.commit()
-        except Exception, e:
-            log.exception(e)
-
-        return None
-
-    @export
-    def log_connect(self, remote_addr):
-        """
-        Logs the beginning of a connection to qpsmtpd.
+        Logs an entire connection to qpsmtpd into the database.
 
         :param remote_addr: The remote address connecting
         :type remote_addr: str
-        """
-        try:
-            connection = QpsmtpdConnection()
-            connection.local_addr = socket.getfqdn()
-            connection.remote_addr = remote_addr
-            rw_db.add(connection)
-            rw_db.commit()
-        except Exception, e:
-            log.exception(e)
-        else:
-            return connection.id
-
-    @export
-    def log_post_connect(self, connection_id, user, relay_client, tls):
-        """
-        Updates the information on the qpsmtpd connection.
-
-        :param connection_id: The connection to update
-        :type connection_id: int
         :param user: The authenticated user for this connection
         :type user: str
         :param relay_client: The client is allowed to relay messages.
         :type relay_client: bool
         :param tls: Whether this was a secure connection
         :type tls: bool
+        :param transactions: A list of lists containing information about
+            transactions
+        :type transactions: list
+        :param logs: A list of lists containing log entries
+        :type logs: list
         """
+        log.debug('Logging connection')
 
-        rw_db.query(QpsmtpdConnection).filter_by(id=connection_id).update({
-            QpsmtpdConnection.user:         user,
-            QpsmtpdConnection.relay_client: relay_client,
-            QpsmtpdConnection.tls:          tls
-        })
-        rw_db.commit()
-
-    @export
-    def log_recipient(self, transaction_id, email_addr, success,
-            message=None):
-        """
-        Log a recipient as part of a transaction.
-
-        :param transaction_id: The transaction the recipient was used in
-        :type transaction_id: int
-        :param email_addr: The email address of the recipient
-        :type email_addr: str
-        :param success: Whether or not the recipient was successful
-        :type success: bool
-        :param message: Any message attached to the recipient
-        :type message: str
-        """
         try:
+            # Log the connection into the database
+            connection = QpsmtpdConnection()
+            connection.local_addr   = socket.getfqdn()
+            connection.remote_addr  = remote_addr
+            connection.user         = user
+            connection.relay_client = relay_client
+            connection.tls          = tls
+            rw_db.add(connection)
+        except Exception, e:
+            log.exception(e)
+            return
+
+        # Add the log entries to the database
+        self.log_entries(connection, logs)
+        
+        # Add the transactions to the database
+        try:
+            self.log_transactions(connection, transactions)
+        except Exception, e:
+            log.exception(e)
+            return
+
+        try:
+            # Finally commit all the log information
+            rw_db.commit()
+        except Exception, e:
+            print e
+
+        log.debug('connection logged')
+    
+    def log_entries(self, connection, logs):
+        """
+        This method handles adding the log entries to the database.
+
+        :param connection: The connection the logs took place in
+        :type connection: QpsmtpdConnection
+        :param logs: A list of lists containing the log information
+        :type logs: list
+        """
+        log.debug('Logging log entries')
+
+        # Add all the log entries 
+        for (tnx, level, hook, plugin, message) in logs:
+            log.debug('Logging entry (tnx=%s, hook=%s, plugin=%s, level=%s, message=%s', tnx, hook, plugin, level, message)
+            try:
+                entry = QpsmtpdLog()
+                entry.transaction = tnx
+                entry.hook        = hook
+                entry.plugin      = plugin
+                entry.level       = level
+                entry.message     = message
+                connection.log.append(entry)
+            except Exception, e:
+                log.exception(e)
+
+    def log_transactions(self, connection, transactions):
+        """
+        Handle logging all the transactions where a message was sent or
+        rejected within the connection.
+
+        :param connection: The connection the logs took place in
+        :type connection: QpsmtpdConnection
+        :param transactions: A list of lists containing the transactions
+        :type transactions: list
+        """
+
+        log.debug('Logging transactions')
+
+        # Add all the transactions
+        for number, (sender, size, subject, success, message, rcpts) in enumerate(transactions):
+            transaction = QpsmtpdTransaction()
+            transaction.transaction = number
+            transaction.sender      = sender
+            transaction.size        = size
+            transaction.subject     = subject
+            transaction.success     = success
+            transaction.message     = message
+            connection.transactions.append(transaction)
+
+            # Add the transaction recipients
+            self.log_recipients(transaction, rcpts)
+
+    def log_recipients(self, transaction, recipients):
+        """
+        Handle logging all the recipients that a message was sent or
+        attempted to be sent to.
+
+        :param transaction: The transaction that the recipients were used
+        :type transaction: QpsmtpdTransaction
+        :param recipients: list of recipient info
+        :type recipients: list
+        """
+
+        log.debug('Logging recipients')
+
+        # Add all the recipients in the transaction
+        for (email_addr, success, message) in recipients:
             rcpt = QpsmtpdRecipient()
-            rcpt.transaction_id = transaction_id
             rcpt.email_addr = email_addr
             rcpt.success = success
             rcpt.message = message
-            rw_db.add(rcpt)
-            rw_db.commit()
-        except Exception, e:
-            log.exception(e)
-
-    @export
-    def log_transaction(self, connection_id):
-        """
-        Log a transaction passing through the email system.
-
-        :param connection_id: The connection the transaction is part of
-        :type connection_id: int
-        """
-
-        try:
-            transaction = QpsmtpdTransaction()
-            transaction.connection_id = connection_id
-            rw_db.add(transaction)
-            rw_db.commit()
-        except Exception, e:
-            log.exception(e)
-        else:
-            return transaction.id
-    
-    @export
-    def log_post_transaction(self, transaction_id, sender, size, subject,
-            success, message=None):
-        """
-        Updates the information on the qpsmtpd transaction.
-
-        :param transaction_id: The transaction to update
-        :type transaction_id: int
-        :param sender: The message sender
-        :type sender: str
-        :param size: The message size
-        :type size: int
-        :param subject: The message subject:
-        :type subject: str
-        """
-
-        rw_db.query(QpsmtpdTransaction).filter_by(id=transaction_id).update({
-            QpsmtpdTransaction.sender:  sender,
-            QpsmtpdTransaction.size:    size,
-            QpsmtpdTransaction.subject: subject,
-            QpsmtpdTransaction.success: success,
-            QpsmtpdTransaction.message: message
-        })
-        rw_db.commit()
+            transaction.recipients.append(rcpt)
 
     # Setup and tear down methods
     def __before__(self, method):

@@ -26,6 +26,7 @@
 import datetime
 
 from sqlalchemy import MetaData, Table, Column, ForeignKey
+from sqlalchemy import ForeignKeyConstraint, PrimaryKeyConstraint
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, Time
 
 meta = MetaData()
@@ -69,80 +70,92 @@ logins = Table('logins', meta,
 )
 
 logins_domains = Table('logins_domains', meta,
-    Column('date', DateTime, primary_key=True),
-    Column('hour', Integer, primary_key=True),
-    Column('method', String(10), primary_key=True),
-    Column('domain', String(80), primary_key=True),
-    Column('count', Integer)
+    Column('date', DateTime),
+    Column('hour', Integer),
+    Column('method', String(10)),
+    Column('domain', String(80)),
+    Column('count', Integer),
+    PrimaryKeyConstraint('date', 'hour', 'method', 'domain')
 )
 
 logins_hourly = Table('logins_hourly', meta,
-    Column('date', DateTime, primary_key=True),
-    Column('hour', Integer, primary_key=True),
-    Column('method', String(10), primary_key=True),
-    Column('count', Integer)
-)
-
-messages = Table('messages', meta,
-    Column('id', Integer, primary_key=True),
     Column('date', DateTime),
-    Column('user', String(100)),
-    Column('sender', String(100)),
-    Column('subject', String(255)),
-    Column('local_addr', String(50)),
-    Column('remote_addr', String(50))
-)
-
-message_recipients = Table('message_recipients', meta,
-    Column('message_id', Integer, ForeignKey('messages.id'), primary_key=True),
-    Column('recipient', String(100), primary_key=True)
+    Column('hour', Integer),
+    Column('method', String(10)),
+    Column('count', Integer),
+    PrimaryKeyConstraint('date', 'hour', 'method')
 )
 
 packages = Table('packages', meta,
-    Column('id', Integer, primary_key=True),
+    Column('id', Integer),
     Column('name', String(100)),
     Column('quota', Integer(20)),
-    Column('account_limit', Integer)
+    Column('account_limit', Integer),
+    PrimaryKeyConstraint('id')
 )
 
 qpsmtpd_connections = Table('qpsmtpd_connections', meta,
-    Column('id', Integer, primary_key=True),
+    Column('id', Integer),
     Column('local_addr', String(80)),
     Column('remote_addr', String(80)),
     Column('user', String(100)),
     Column('relay_client', Boolean, default=False),
     Column('tls', Boolean, default=False),
-    Column('date', DateTime, default=datetime.datetime.now())
+    Column('date', DateTime, default=datetime.datetime.now()),
+    PrimaryKeyConstraint('id')
 )
 
 qpsmtpd_log = Table('qpsmtpd_log', meta,
-    Column('id', Integer, primary_key=True),
-    Column('connection_id', Integer, ForeignKey('qpsmtpd_connections.id')),
-    Column('transaction_id', Integer, ForeignKey('qpsmtpd_transactions.id')),
+    Column('id', Integer),
+    Column('connection_id', Integer),
+    Column('transaction', Integer),
     Column('hook', String(20)),
     Column('plugin', String(40)),
     Column('level', Integer),
     Column('message', String(255)),
-    Column('date', DateTime, default=datetime.datetime.now())
+    Column('date', DateTime, default=datetime.datetime.now()),
+    PrimaryKeyConstraint('id'),
+    ForeignKeyConstraint(
+        ['connection_id'],
+        ['qpsmtpd_connections.id']
+    )
 )
 
 qpsmtpd_transactions = Table('qpsmtpd_transactions', meta,
-    Column('id', Integer, primary_key=True),
-    Column('connection_id', Integer, ForeignKey('qpsmtpd_connections.id')),
+    Column('connection_id', Integer),
+    Column('transaction', Integer),
     Column('date', DateTime, default=datetime.datetime.now()),
     Column('sender', String(100)),
     Column('size', Integer),
     Column('subject', String(255)),
     Column('success', Boolean, default=False),
-    Column('message', String(255))
+    Column('message', String(255)),
+    PrimaryKeyConstraint('connection_id', 'transaction'),
+    ForeignKeyConstraint(
+        ['connection_id'],
+        ['qpsmtpd_connections.id']
+    ),
+    ForeignKeyConstraint(
+        ['connection_id', 'transaction'],
+        ['qpsmtpd_log.connection_id', 'qpsmtpd_log.transaction']
+    )
 )
 
 qpsmtpd_rcpts = Table('qpsmtpd_rcpts', meta,
-    Column('transaction_id', Integer,
-        ForeignKey('qpsmtpd_transactions.id'), primary_key=True),
-    Column('email_addr', String(100), primary_key=True),
+    Column('connection_id', Integer),
+    Column('transaction', Integer),
+    Column('email_addr', String(100)),
     Column('success', Boolean),
-    Column('message', String(255))
+    Column('message', String(255)),
+    PrimaryKeyConstraint('connection_id', 'transaction', 'email_addr'),
+    ForeignKeyConstraint(
+        ['connection_id', 'transaction'],
+        ['qpsmtpd_transactions.connection_id', 'qpsmtpd_transactions.transaction']
+    ),
+    ForeignKeyConstraint(
+        ['connection_id', 'transaction'],
+        ['qpsmtpd_log.connection_id', 'qpsmtpd_log.transaction']
+    )
 )
 
 transport = Table('transport', meta,
