@@ -26,7 +26,7 @@
 CREATE TABLE IF NOT EXISTS `qpsmtpd_log` (
 	`id`             int(11)      NOT NULL auto_increment,
 	`connection_id`  int(11)      NOT NULL,
-	`transaction_id` int(11)      DEFAULT NULL,
+	`transaction`    int(11)      DEFAULT NULL,
 	`hook`           varchar(20)  DEFAULT NULL,
 	`plugin`         varchar(40)  DEFAULT NULL,
 	`level`          int(1)       NOT NULL,

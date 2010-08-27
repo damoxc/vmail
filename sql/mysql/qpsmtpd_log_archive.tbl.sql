@@ -1,5 +1,5 @@
 --
--- sql/mysql/qpsmtpd_transactions.tbl.sql
+-- sql/mysql/qpsmtpd_log_archive.tbl.sql
 --
 -- Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 --
@@ -23,16 +23,13 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-CREATE TABLE IF NOT EXISTS `qpsmtpd_transactions` (
-	`id`             int(11)      NOT NULL AUTO_INCREMENT,
-	`connection_id`  int(40)      NOT NULL,
-	`transaction`    int(11)      NOT NULL,
+CREATE TABLE IF NOT EXISTS `qpsmtpd_log_archive` (
+	`id`             int(11)      NOT NULL auto_increment,
+	`connection_id`  int(11)      NOT NULL,
+	`transaction`    int(11)      DEFAULT NULL,
+	`hook`           varchar(20)  DEFAULT NULL,
+	`plugin`         varchar(40)  DEFAULT NULL,
+	`level`          int(1)       NOT NULL,
+	`message`        varchar(255) NOT NULL,
 	`date`           datetime     NOT NULL,
-	`sender`         varchar(100) NOT NULL,
-	`size`           int(11)      NOT NULL,
-	`subject`        varchar(255) DEFAULT NULL,
-	`success`        tinyint(1)   DEFAULT 0,
-	`message`        varchar(255) DEFAULT NULL,
-	PRIMARY KEY (`id`),
-	KEY `sender` (`sender`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=ARCHIVE DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

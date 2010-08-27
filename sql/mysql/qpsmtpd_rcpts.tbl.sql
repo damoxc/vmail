@@ -24,7 +24,8 @@
 --
 
 CREATE TABLE IF NOT EXISTS `qpsmtpd_rcpts` (
-  `transaction_id` int(11)      NOT NULL,
+  `connection_id`  int(11)      NOT NULL,
+  `transaction`    int(11)      NOT NULL,
   `email_addr`     varchar(255) NOT NULL,
   `success`        tinyint(1)   NOT NULL,
   `message`        varchar(255) DEFAULT NULL,
