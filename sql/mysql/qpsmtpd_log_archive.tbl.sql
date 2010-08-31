@@ -31,5 +31,5 @@ CREATE TABLE IF NOT EXISTS `qpsmtpd_log_archive` (
 	`plugin`         varchar(40)  DEFAULT NULL,
 	`level`          int(1)       NOT NULL,
 	`message`        varchar(255) NOT NULL,
-	`date`           datetime     NOT NULL,
+	`date`           datetime     NOT NULL
 ) ENGINE=ARCHIVE DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
