@@ -1,5 +1,5 @@
 --
--- sql/mysql/users.tbl.sql
+-- sql/mysql/user_quotas.tbl.sql
 --
 -- Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 --
@@ -23,16 +23,13 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-CREATE TABLE IF NOT EXISTS `users` (
-	`id`              int(11)      NOT NULL auto_increment,
-	`domain_id`       int(11)      NOT NULL,
-	`email`           varchar(80)  NOT NULL,
-	`secondary_email` varchar(80)  NOT NULL,
-	`name`            varchar(255) NOT NULL,
-	`password`        varchar(20)  NOT NULL,
-	`cleartext`       varchar(20)  NOT NULL,
-	`quota`           bigint(20)   NOT NULL DEFAULT 10485760,
-	`enabled`         tinyint(1)   NOT NULL DEFAULT 1,
-	`admin`           tinyint(1)   NOT NULL DEFAULT 0,
-	PRIMARY KEY  (`id`)
+
+--
+-- Table structure for table `user_quotas`
+--
+CREATE TABLE IF NOT EXISTS `user_quotas` (
+  `email`    varchar(80) NOT NULL,
+  `bytes`    bigint(20)  NOT NULL DEFAULT '0',
+  `messages` int(11)     NOT NULL DEFAULT '0',
+  PRIMARY KEY (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

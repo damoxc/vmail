@@ -174,9 +174,16 @@ users = Table('users', meta,
     Column('password', String(20)),
     Column('cleartext', String(20)),
     Column('quota', Integer),
-    Column('usage', Integer, default=0),
     Column('enabled', Boolean, default=True),
     Column('admin', Boolean, default=False)
+)
+
+user_quotas = Table('user_quotas', meta,
+    Column('email', String(80)),
+    Column('bytes', Integer, default=0),
+    Column('messages', Integer, default=0),
+    PrimaryKeyConstraint('email'),
+    ForeignKeyConstraint(['email'], ['users.email'])
 )
 
 vacation = Table('vacation', meta,

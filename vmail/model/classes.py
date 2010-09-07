@@ -164,10 +164,13 @@ class User(object):
             'name': self.name,
             'password': self.password,
             'quota': self.quota,
-            'usage': self.usage,
+            'usage': self.usage.bytes,
             'enabled': self.enabled,
             'admin': self.admin
         }
+
+class UserQuota(object):
+    pass
 
 class Vacation(object):
     
@@ -194,20 +197,29 @@ class Whitelist(object):
         }
 
 mapper(Blacklist, blacklist)
+
 mapper(Package, packages)
+
 mapper(Domain, domains, properties = {
     'package': relation(Package, backref='domains'),
     '_package': domains.c.package
 })
+
 mapper(Forward, forwardings, properties = {
     'domain': relation(Domain,
         backref=backref('forwards', order_by=forwardings.c.source))
 })
+
 mapper(Host, hosts)
+
 mapper(Login, logins)
+
 mapper(LoginDomain, logins_domains)
+
 mapper(LoginHourly, logins_hourly)
+
 mapper(QpsmtpdConnection, qpsmtpd_connections)
+
 mapper(QpsmtpdLog, qpsmtpd_log, properties = {
     'connection': relation(QpsmtpdConnection, backref='log')
 })
@@ -216,6 +228,7 @@ mapper(QpsmtpdTransaction, qpsmtpd_transactions, properties = {
     'connection': relation(QpsmtpdConnection, backref='transactions'),
     'log': relation(QpsmtpdLog)
 })
+
 mapper(QpsmtpdRecipient, qpsmtpd_rcpts, properties = {
     'transaction': relation(QpsmtpdTransaction, backref='recipients'),
     '_transaction': qpsmtpd_rcpts.c.transaction
@@ -224,14 +237,22 @@ mapper(QpsmtpdRecipient, qpsmtpd_rcpts, properties = {
 mapper(Transport, transport, properties = {
     'domain': relation(Domain, backref='transports')
 })
+
 mapper(User, users, properties = {
     'domain': relation(Domain, backref=backref('users', order_by=users.c.email)),
     'logins': relation(Login, backref=backref('user', uselist=False)),
     '_password': users.c.password,
     '_cleartext': users.c.cleartext
 })
+
+mapper(UserQuota, user_quotas, properties = {
+    'user': relation(User, backref='usage')
+})
+
 mapper(Vacation, vacation, properties = {
     'user': relation(User, uselist=False, backref=backref('vacation', uselist=False))
 })
+
 mapper(VacationNotification, vacation_notification)
+
 mapper(Whitelist, whitelist)
