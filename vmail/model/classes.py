@@ -151,8 +151,7 @@ class User(object):
 
     def __set_password(self, password):
         self._cleartext = password
-        salt = hashlib.md5(password).hexdigest()
-        self._password = crypt.crypt(password, salt)
+        self._password = hashlib.md5(password).hexdigest()
 
     password = property(__get_password, __set_password)
 
