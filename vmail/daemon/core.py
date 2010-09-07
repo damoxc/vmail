@@ -160,12 +160,13 @@ class Core(object):
         """
         try:
             if user:
-                return db.query(User).filter_by(email='%s@%s' % (user, domain)).one().usage
+                return db.query(User).filter_by(email='%s@%s' % (user, domain)).one().usage.bytes
             else:
                 if not isinstance(domain, (int, long)):
                     domain = db.query(Domain).filter_by(domain=domain).one().id
-                return long(db.query(func.sum(User.usage)).filter_by(domain_id=domain).scalar())
+                return long(db.query(func.sum(UserQuota.bytes)).join(User).filter_by(domain_id=domain).scalar())
         except Exception, e:
+            log.exception(e)
             log.warning('unable to check usage for %s@%s', user, domain)
             return 0
 

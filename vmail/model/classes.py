@@ -246,7 +246,7 @@ mapper(User, users, properties = {
 })
 
 mapper(UserQuota, user_quotas, properties = {
-    'user': relation(User, backref='usage')
+    'user': relation(User, backref=backref('usage', uselist=False))
 })
 
 mapper(Vacation, vacation, properties = {
