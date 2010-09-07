@@ -1,5 +1,5 @@
 #
-# vmail/scripts/getmaildirsize.py
+# vmail/scripts/vgetmaildirsize.py
 #
 # Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 #
@@ -27,10 +27,10 @@ from vmail.common import fsize
 from vmail.client import client, reactor
 from vmail.scripts.base import ScriptBase
 
-class GetMailDirSize(ScriptBase):
+class VGetMailDirSize(ScriptBase):
 
     def __init__(self):
-        super(GetMailDirSize, self).__init__(add_help_option=False)
+        super(VGetMailDirSize, self).__init__(add_help_option=False)
         self.parser.add_option('-q', '--quota', dest='quota',
             action='store_true', help='Display the quota as well')
         self.parser.add_option('-h', '--human-readable', dest='human',
