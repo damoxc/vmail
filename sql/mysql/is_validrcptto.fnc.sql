@@ -31,13 +31,13 @@ CREATE PROCEDURE `is_validrcptto`(
 )
 BEGIN
 
-DECLARE does_exist INT DEFAULT 0;
-DECLARE match_id INT DEFAULT 0;
+DECLARE does_exist   INT DEFAULT 0;
+DECLARE match_id     INT DEFAULT 0;
 DECLARE user_enabled INT DEFAULT 0;
-DECLARE domain VARCHAR(50);
-DECLARE dest VARCHAR(255);
-
-SET _email = _email;
+DECLARE bytes        INT DEFAULT 0;
+DECLARE quota        INT DEFAULT 0;
+DECLARE domain       VARCHAR(50);
+DECLARE dest         VARCHAR(255);
 
 single_loop: LOOP
 
@@ -48,6 +48,33 @@ single_loop: LOOP
 	END IF;
 
 	IF match_id > 0 AND user_enabled > 0 THEN
+		/* Check user quota */
+		SELECT
+			IFNULL(SUM(uq.bytes), 0), u.quota INTO bytes, quota
+		FROM
+			users u LEFT OUTER JOIN
+			user_quotas uq ON uq.email = u.email
+		WHERE u.email = _email;
+
+		IF bytes >= quota THEN
+			SELECT 4 AS 'returncode', _email AS 'destination', 'local' AS 'type';
+			LEAVE single_loop;
+		END IF;
+
+		/* Check domain quota */
+		SELECT
+			IFNULL(SUM(uq.bytes), 0), d.quota INTO bytes, quota
+		FROM
+			user_quotas uq INNER JOIN
+			users u ON uq.email = u.email INNER JOIN
+			domains d ON d.id = u.domain_id
+		WHERE d.domain = domain;
+
+		IF bytes >= quota THEN
+			SELECT 5 AS 'returncode', _email AS 'destination', 'local' AS 'type';
+			LEAVE single_loop;
+		END IF;
+
 		SELECT 0 AS 'returncode', _email AS 'destination', 'local' AS 'type';
 		LEAVE single_loop;
 	END IF;

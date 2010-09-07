@@ -166,8 +166,8 @@ class Core(object):
                     domain = db.query(Domain).filter_by(domain=domain).one().id
                 return long(db.query(func.sum(UserQuota.bytes)).join(User).filter_by(domain_id=domain).scalar())
         except Exception, e:
-            log.exception(e)
             log.warning('unable to check usage for %s@%s', user, domain)
+            log.exception(e)
             return 0
 
     @export
@@ -230,7 +230,7 @@ class Core(object):
 
                 # Check a users quota
                 try:
-                    user_usage = get_usage(domain, user)
+                    user_usage = self.get_usage(domain, user)
                 except:
                     log.warning('unable to check User(%s) quota', email)
                 else:
