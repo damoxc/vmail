@@ -164,7 +164,7 @@ class User(object):
             'name': self.name,
             'password': self.password,
             'quota': self.quota,
-            'usage': self.usage.bytes,
+            'usage': self.usage.bytes if self.usage else 0,
             'enabled': self.enabled,
             'admin': self.admin
         }
@@ -246,7 +246,7 @@ mapper(User, users, properties = {
 })
 
 mapper(UserQuota, user_quotas, properties = {
-    'user': relation(User, backref=backref('usage', uselist=False))
+    'user': relation(User, backref=backref('usage', lazy=False, uselist=False))
 })
 
 mapper(Vacation, vacation, properties = {
