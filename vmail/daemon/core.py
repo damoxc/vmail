@@ -202,6 +202,8 @@ class Core(object):
             log.exception(e)
             return 255
 
+        log.debug(row)
+
         if not row:
             log.critical('is_validrcptto() call failed with no result')
             return 1
@@ -211,45 +213,6 @@ class Core(object):
             # we have a return code greater than zero so we should return
             # it.
             return row[0]
-
-        # see if we want to do some quota checking now
-        elif row[2] == 'local' or (row[2] == 'forward' and row[3]):
-            if row[2] == 'forward':
-                email = row[1]
-
-            log.debug('checking quotas for %s', email)
-            result = db.execute('CALL get_quotas(:email)', {'email': email})
-            row = result.fetchone()
-            if not row:
-                # we'd rather let a message through than fail on quota
-                return 0
-
-            try:
-                (user_quota, domain_quota) = row
-                (user, domain) = email.split('@')
-
-                # Check a users quota
-                try:
-                    user_usage = self.get_usage(domain, user)
-                except:
-                    log.warning('unable to check User(%s) quota', email)
-                else:
-                    # user is over quota, stop it before deliver
-                    if get_usage(domain, user) >= user_quota:
-                        return 4
-
-                try:
-                    domain_usage = get_usage(domain)
-                except:
-                    log.warning('unable to check Domain(%s) quota', domain)
-                else:
-                    # domain is over quota
-                    if get_usage(domain) >= domain_quota:
-                        return 5
-
-            except Exception, e:
-                log.error('error checking User(%s)', email)
-                log.exception(e)
 
         return 0
 
