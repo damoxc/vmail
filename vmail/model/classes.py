@@ -170,7 +170,14 @@ class User(object):
         }
 
 class UserQuota(object):
-    pass
+    
+    def __json__(self):
+        return {
+            'id': self.id,
+            'email': self.email,
+            'bytes': self.bytes,
+            'messages': self.messages
+        }
 
 class Vacation(object):
     
