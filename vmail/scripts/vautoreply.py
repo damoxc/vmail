@@ -58,7 +58,6 @@ class VAutoreply(ScriptBase):
         reactor.stop()
 
     def on_err_vacation(self, failure):
-        print failure.value['traceback']
         self.log.error('error: %s', failure.getErrorMessage())
         reactor.stop()
 
