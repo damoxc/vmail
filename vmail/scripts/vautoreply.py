@@ -29,6 +29,7 @@ import smtplib
 from email.utils import formatdate
 
 from vmail.common import Address, check_message
+from vmail.client import client, reactor
 from vmail.error import IgnoredMessageError
 from vmail.model import User, Vacation, connect, db
 from vmail.scripts.base import ScriptBase
@@ -51,13 +52,14 @@ class VAutoreply(ScriptBase):
 
     def on_sent_vacation(self, result, recipient):
         if not result:
-            log.warning('not sending vacation message')
+            self.log.warning('not sending vacation message')
         else:
-            log.info('sent vacation message to %s', recipient)
+            self.log.info('sent vacation message to %s', recipient)
         reactor.stop()
 
     def on_err_vacation(self, failure):
-        self.log.error('error: %s', error.value['value'])
+        print failure.value['traceback']
+        self.log.error('error: %s', failure.getErrorMessage())
         reactor.stop()
 
     def run(self):
