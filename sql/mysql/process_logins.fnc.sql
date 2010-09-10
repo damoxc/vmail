@@ -80,7 +80,11 @@ WHILE _run > 0 DO
 	END IF;
 END WHILE;
 
+-- Remove any excess caused by deleting from the MyISAM table logins
 OPTIMIZE TABLE `logins`;
+
+-- Tidy up the logins archive table
+DELETE FROM logins_archive WHERE date <= DATE_SUB(NOW(), INTERVAL 1 MONTH);
 
 END$$
 
