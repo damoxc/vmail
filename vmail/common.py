@@ -366,3 +366,40 @@ def generate_maildirsize(domain, user, quota):
     fp.write('%dS\n' % quota)
     fp.write('%d %d\n' % (size, count))
     fp.close()
+
+MESSAGE_CHECKS = [
+    (r'^x\-spam\-(flag|status):\s+yes', 'x-spam-$1: yes found'),
+    (r'^x\-facebook\-notify:', 'Mail from Facebook'),
+    (r'^precedence:\s+(bulk|list|junk)', 'precedence: $1 found'),
+    (r'^auto\-submitted:\s*(?!no)', 'auto-submitted: something found'),
+    (r'^List\-(Id|Post):', 'list-$1: found'),
+    (r'^(x\-(barracuda\-)?spam\-status):\s+(yes)', '$1: $3 found'),
+    (r'^(x\-dspam\-result):\s+(spam|bl[ao]cklisted)', '$1: $2 found'),
+    (r'^(x\-(anti|avas\-)?virus\-status):\s+(infected)', '$1: $3 found'),
+    (r'^(x\-(avas\-spam|spamtest|crm114|razor|pyzor)\-status):\s+(spam)', '$1: $3'),
+    (r'^(x\-osbf\-lua\-score):\s+[0-9\/\.\-\+]+\s+\[([-S])\]', '$1: $2 found')
+]
+
+# Compile all the message checks for improved speed
+MESSAGE_CHECKS = [(re.compile(r, re.I), m) for (r, m) in MESSAGE_CHECKS]
+
+def check_message(message):
+    """
+    Checks message headers to see if the message should be ignored.
+
+    :param message: The message to check
+    :type message: rfc822.Message
+    :returns: True or False
+    :rtype: bool
+    """
+
+    for header in message.headers:
+        for regex, msg in MESSAGE_CHECKS:
+            match = regex.search(header)
+            if not match:
+                continue
+            for i, g in enumerate(match.groups()):
+                msg = msg.replace('$%s' % i + 1, g)
+            raise IgnoredMessageError(msg)
+
+    return True

@@ -28,3 +28,6 @@ class VmailError(Exception):
 
 class VmailException(Exception):
     pass
+
+class IgnoredMessageError(VmailError):
+    pass
