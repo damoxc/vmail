@@ -7,6 +7,12 @@ case "$1" in
 		# ensure that the users and groups exist
 		addgroup --gid=5000 vmail | cat
 		adduser --uid=5000 --gid=5000 --disabled-login --system --home=/home/vmail vmail | cat
+
+		# create the log directory
+		[ -d "/var/log/vmail" ] || {
+			mkdir /var/log/vmail
+			chown vmail /var/log/vmail
+		}
 	;;
 
 	abort-upgrade|abort-remove|abort-deconfigure)
