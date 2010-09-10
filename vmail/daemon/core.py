@@ -247,6 +247,7 @@ class Core(object):
         rw_db.commit()
         return True
 
+    @export
     def send_vacation(self, user, destination):
         """
         Sends a vacation message to the destination address unless they have
@@ -288,7 +289,7 @@ class Core(object):
         message.add_header('To', str(recipient))
         message.add_header('Date', formatdate())
         message.add_header('Subject', user.vacation.subject)
-        message.set_payload(user.vacation.body)
+        message.set_payload(user.vacation.body.encode('utf8'))
 
         # Send the message to the local SMTP server
         smtp = smtplib.SMTP('localhost')
