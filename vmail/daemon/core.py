@@ -29,6 +29,8 @@ import socket
 import imaplib
 import logging
 import datetime
+from email.message import Message
+from email.utils import formatdate
 
 from twisted.internet import reactor, threads
 
@@ -245,6 +247,64 @@ class Core(object):
         rw_db.commit()
         return True
 
+    def send_vacation(self, user, destination):
+        """
+        Sends a vacation message to the destination address unless they have
+        already been notified.
+
+        :param user: The email or user_id of the user to send the message
+            for
+        :type user: str or int
+        :param destination: The email address of the remote address
+        :type destination: str
+        """
+
+        try:
+            if isinstance(user, (int, long)):
+                user = rw_db.query(User).get(user)
+            else:
+                user = rw_db.query(User).filter_by(email=user).one()
+        except Exception, e:
+            log.exception(e)
+            return False
+
+        if not user.vacation:
+            log.warning('User has no vacation message')
+            return False
+
+        recipient = Address.parse(destination)
+
+        # Check to see if the recipient has already been notified
+        if db.query(VacationNotification).filter_by(
+                on_vacation = user.email,
+                notified    = recipient.address).first():
+            log.warning('Already notified recipient')
+            return False
+
+        # TODO: Add support for html vacation messages
+        # Build up the response message here
+        message = Message()
+        message.add_header('From', '%s <%s>' % (user.name, user.email))
+        message.add_header('To', str(recipient))
+        message.add_header('Date', formatdate())
+        message.add_header('Subject', user.vacation.subject)
+        message.set_payload(user.vacation.body)
+
+        # Send the message to the local SMTP server
+        smtp = smtplib.SMTP('localhost')
+        smtp.sendmail(user.email, recipient.address, str(message))
+        smtp.close()
+
+        # Store that the recipient has been notified so we don't spam them
+        # with useless information.
+        notification = VacationNotification()
+        notification.on_vacation = user.email
+        notification.notified = destination
+        notification.notified_at = datetime.datetime.now()
+        rw_db.add(notification)
+        rw_db.commit()
+        return True
+
     ######################
     # Management Methods #
     ######################
@@ -265,7 +325,7 @@ class Core(object):
             if isinstance(user, (int, long)):
                 user = rw_db.query(User).get(user)
             else:
-                user = rw_db.query(User).filter_by(source=user).one()
+                user = rw_db.query(User).filter_by(email=user).one()
         except Exception, e:
             log.exception(e)
         else:
