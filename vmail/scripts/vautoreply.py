@@ -28,7 +28,8 @@ import rfc822
 import smtplib
 from email.utils import formatdate
 
-from vmail.common import Address
+from vmail.common import Address, check_message
+from vmail.error import IgnoredMessageError
 from vmail.model import User, Vacation, connect, db
 from vmail.scripts.base import ScriptBase
 
@@ -42,6 +43,25 @@ class VAutoreply(ScriptBase):
         super(VAutoreply, self).__init__()
         self.parser.add_option('-f', '--from', dest='sender', action='store')
 
+    def on_connect(self, result, recipient):
+        user = self.options.sender
+        client.core.send_vacation(user, recipient).addCallbacks(
+            self.on_sent_vacation,
+            self.on_err_vacation,
+            (recipient,)
+        )
+
+    def on_sent_vacation(self, result, recipient):
+        if not result:
+            log.warning('not sending vacation message')
+        else:
+            log.info('sent vacation message to %s', recipient)
+        reactor.stop()
+
+    def on_err_vacation(self, failure):
+        self.log.error('error: %s', error.value['value'])
+        reactor.stop()
+
     def run(self):
         if not self.args:
             self.log.error('no argument provided')
@@ -49,39 +69,15 @@ class VAutoreply(ScriptBase):
 
         message = rfc822.Message(sys.stdin)
 
-        # Check for the presence of headers that indicate we shouldn't respond to this
-        if message.getheader('x-spam-flag').lower() == 'yes':
-            self.log.debug('x-spam-flag: yes found; exiting')
+        # Check for the presence of headers that indicate we shouldn't
+        # respond to this
+        try:
+            check_message(message)
+        except IgnoredMessageError as e:
+            log.warning(e[0])
             return 0
 
-        if message.getheader('x-facebook-notify'):
-            self.log.debug('mail from facebook, ignoring')
-            return 0
+        recipient = message.getheader('from') or self.args[0]
 
-        if message.getheader('precendence').lower() in ('bulk', 'list', 'junk'):
-            self.log.debug('precedence is %s, exiting', message.getheader('precendence'))
-            return 0
-
-        if message.getheader('auto-submitted') and message.getheader('auto-submitted') != 'no':
-            self.log.debug('Auto-Submitted found, exiting')
-
-        # Check the from header for an address, else use the passed in address
-        recipient = Address.parse(message.getheader('from') or self.args[0])
-
-        # Connect to the database
-        connect()
-
-        sender = db.query(User).filter_by(email=self.options.sender).first()
-        if not sender.vacation:
-            self.log.error('no vacation message stored')
-            return 1
-
-        vacation = sender.vacation
-        message = 'From: %s <%s>\r\n' % (sender.name, sender.email)
-        message += 'To: %s\r\n' % recipient
-        message += 'Date: %s\r\n' % formatdate()
-        message += 'Subject: %s\r\n\r\n' % vacation.subject
-        message += vacation.body
-
-        smtp = smtplib.SMTP('127.0.0.1')
-        smtp.sendmail(sender.email, recipient.address, message)
+        client.connect().addCallback(self.on_connect, recipient)
+        reactor.run()
