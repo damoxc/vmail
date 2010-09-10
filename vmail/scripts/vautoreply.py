@@ -33,8 +33,6 @@ from vmail.error import IgnoredMessageError
 from vmail.model import User, Vacation, connect, db
 from vmail.scripts.base import ScriptBase
 
-self.log = self.logging.getLogger(__name__)
-
 class VAutoreply(ScriptBase):
 
     #filename = '/var/self.log/vmail/vacation.self.log'
