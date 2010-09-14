@@ -67,7 +67,6 @@ class Domain(object):
         u.name = 'Postmaster'
         u.password = password
         u.quota = package.quota
-        u.usage = 0
         u.admin = True
         u.enabled = True
 
