@@ -127,6 +127,9 @@ class Qpsmtpd(object):
 
         log.debug('Logging transactions')
 
+        if not transactions:
+            return
+
         # Add all the transactions
         for number, (sender, size, subject, success, message, rcpts) in enumerate(transactions):
             transaction = QpsmtpdTransaction()
