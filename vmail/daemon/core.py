@@ -273,13 +273,17 @@ class Core(object):
             log.warning('User has no vacation message')
             return False
 
+        if not user.vacation.active:
+            log.info('Vacation message is not active')
+            return False
+
         recipient = Address.parse(destination)
 
         # Check to see if the recipient has already been notified
         if db.query(VacationNotification).filter_by(
                 on_vacation = user.email,
                 notified    = recipient.address).first():
-            log.warning('Already notified recipient')
+            log.info('Already notified recipient')
             return False
 
         # TODO: Add support for html vacation messages
@@ -295,6 +299,9 @@ class Core(object):
         smtp = smtplib.SMTP('localhost')
         smtp.sendmail(user.email, recipient.address, str(message))
         smtp.close()
+
+        log.debug("Sending vacation notification to '%s' for '%s'",
+            recipient.address, user.email) 
 
         # Store that the recipient has been notified so we don't spam them
         # with useless information.
