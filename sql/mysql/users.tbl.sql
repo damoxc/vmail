@@ -34,5 +34,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 	`quota`           bigint(20)   NOT NULL DEFAULT 10485760,
 	`enabled`         tinyint(1)   NOT NULL DEFAULT 1,
 	`admin`           tinyint(1)   NOT NULL DEFAULT 0,
-	PRIMARY KEY  (`id`)
+	PRIMARY KEY  (`id`),
+	UNIQUE KEY `email_index` (`email`),
+	KEY `domain_id` (`domain_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
