@@ -32,41 +32,49 @@ from sqlalchemy import Boolean, DateTime, Integer, String, Text, Time
 meta = MetaData()
 
 blacklist = Table('blacklist', meta,
-    Column('address', String(50), primary_key=True)
+    Column('address', String(50)),
+    PrimaryKeyConstraint('address')
 )
 
 domains = Table('domains', meta,
-    Column('id', Integer, primary_key=True),
+    Column('id', Integer),
     Column('login_id', Integer, default=0),
     Column('domain', String(50)),
     Column('package', String(50)),
-    Column('package_id', Integer, ForeignKey('packages.id')),
+    Column('package_id', Integer),
     Column('quota', Integer),
     Column('account_limit', Integer),
     Column('enabled', Boolean, default=1),
+    PrimaryKeyConstraint('id'),
+    ForeignKeyConstraint(['package_id'], ['packages.id'])
 )
 
 forwardings = Table('forwardings', meta,
     Column('id', Integer, primary_key=True),
     Column('domain_id', Integer, ForeignKey('domains.id')),
     Column('source', String(80)),
-    Column('destination', Text)
+    Column('destination', Text),
+    PrimaryKeyConstraint('id'),
+    ForeignKeyConstraint(['domain_id'], ['domains.id'], ondelete='CASCADE')
 )
 
 hosts = Table('hosts', meta,
-    Column('ip_address', String(15), primary_key=True),
+    Column('ip_address', String(15)),
     Column('action', String(20)),
-    Column('comment', String(100))
+    Column('comment', String(100)),
+    PrimaryKeyConstraint('ip_address')
 )
 
 logins = Table('logins', meta,
-    Column('id', Integer, primary_key=True),
+    Column('id', Integer),
     Column('email', String(255)),
-    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('user_id', Integer),
     Column('method', String(10)),
     Column('local_addr', String(15)),
     Column('remote_addr', String(15)),
-    Column('date', DateTime)
+    Column('date', DateTime),
+    PrimaryKeyConstraint('id'),
+    ForeignKeyConstraint(['user_id'], ['users.id'])
 )
 
 logins_domains = Table('logins_domains', meta,
@@ -115,10 +123,7 @@ qpsmtpd_log = Table('qpsmtpd_log', meta,
     Column('message', String(255)),
     Column('date', DateTime, default=datetime.datetime.now()),
     PrimaryKeyConstraint('id'),
-    ForeignKeyConstraint(
-        ['connection_id'],
-        ['qpsmtpd_connections.id']
-    )
+    ForeignKeyConstraint(['connection_id'], ['qpsmtpd_connections.id'])
 )
 
 qpsmtpd_transactions = Table('qpsmtpd_transactions', meta,
@@ -159,15 +164,17 @@ qpsmtpd_rcpts = Table('qpsmtpd_rcpts', meta,
 )
 
 transport = Table('transport', meta,
-    Column('id', Integer, primary_key=True),
-    Column('domain_id', Integer, ForeignKey('domains.id')),
+    Column('id', Integer),
+    Column('domain_id', Integer),
     Column('source', String(128)),
-    Column('transport', String(128))
+    Column('transport', String(128)),
+    PrimaryKeyConstraint('id'),
+    ForeignKeyConstraint(['domain_id'], ['domains.id'], ondelete='CASCADE')
 )
 
 users = Table('users', meta,
-    Column('id', Integer, primary_key=True),
-    Column('domain_id', Integer, ForeignKey('domains.id')),
+    Column('id', Integer),
+    Column('domain_id', Integer),
     Column('email', String(80)),
     Column('secondary_email', String(80)),
     Column('name', String(255)),
@@ -175,7 +182,9 @@ users = Table('users', meta,
     Column('cleartext', String(20)),
     Column('quota', Integer),
     Column('enabled', Boolean, default=True),
-    Column('admin', Boolean, default=False)
+    Column('admin', Boolean, default=False),
+    PrimaryKeyConstraint('id'),
+    ForeignKeyConstraint(['domain_id'], ['domains.id'], ondelete='CASCADE')
 )
 
 user_quotas = Table('user_quotas', meta,
@@ -183,26 +192,30 @@ user_quotas = Table('user_quotas', meta,
     Column('bytes', Integer, default=0),
     Column('messages', Integer, default=0),
     PrimaryKeyConstraint('email'),
-    ForeignKeyConstraint(['email'], ['users.email'])
+    ForeignKeyConstraint(['email'], ['users.email'], ondelete='CASCADE')
 )
 
 vacation = Table('vacation', meta,
-    Column('id', Integer, primary_key=True),
-    Column('email', String(255), ForeignKey('users.email')),
+    Column('id', Integer),
+    Column('email', String(255)),
     Column('subject', String(255)),
     Column('body', Text),
     Column('cache', Text),
     Column('domain', String(255)),
     Column('created', DateTime),
-    Column('active', Boolean)
+    Column('active', Boolean),
+    PrimaryKeyConstraint('id'),
+    ForeignKeyConstraint(['email'], ['users.email'], ondelete='CASCADE')
 )
 
 vacation_notification = Table('vacation_notification', meta,
-    Column('on_vacation', String(255), primary_key=True),
-    Column('notified', String(255), primary_key=True),
-    Column('notified_at', Time)
+    Column('on_vacation', String(255)),
+    Column('notified', String(255)),
+    Column('notified_at', DateTime),
+    PrimaryKeyConstraint('on_vacation', 'notified')
 )
 
 whitelist = Table('whitelist', meta,
-    Column('address', String(50), primary_key=True)
+    Column('address', String(50)),
+    PrimaryKeyConstraint('address')
 )
