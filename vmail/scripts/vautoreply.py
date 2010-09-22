@@ -43,8 +43,8 @@ class VAutoreply(ScriptBase):
         self.parser.add_option('-f', '--from', dest='sender', action='store')
 
     def on_connect(self, result, recipient):
-        user = self.options.sender
-        client.core.send_vacation(user, recipient).addCallbacks(
+        sender = self.options.sender
+        client.core.send_vacation(recipient, sender).addCallbacks(
             self.on_sent_vacation,
             self.on_err_vacation,
             (recipient,)
@@ -75,8 +75,11 @@ class VAutoreply(ScriptBase):
         except IgnoredMessageError as e:
             log.warning(e[0])
             return 0
-
-        recipient = message.getheader('from') or self.args[0]
+        
+        # Since the recipient comes in the form of:
+        # user#example.com@autoreply.example.com we need to do some
+        # converting of it first.
+        recipient = self.args[0].split('@', 1)[0].replace('#', '@')
 
         client.connect().addCallback(self.on_connect, recipient)
         reactor.run()
