@@ -266,6 +266,7 @@ class Core(object):
             else:
                 user = rw_db.query(User).filter_by(email=user).one()
         except Exception, e:
+            log.warning("Unable to find user '%s'", user)
             log.exception(e)
             return False
 
