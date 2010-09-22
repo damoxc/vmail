@@ -50,8 +50,8 @@ domains = Table('domains', meta,
 )
 
 forwardings = Table('forwardings', meta,
-    Column('id', Integer, primary_key=True),
-    Column('domain_id', Integer, ForeignKey('domains.id')),
+    Column('id', Integer),
+    Column('domain_id', Integer),
     Column('source', String(80)),
     Column('destination', Text),
     PrimaryKeyConstraint('id'),
