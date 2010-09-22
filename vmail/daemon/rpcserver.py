@@ -180,7 +180,11 @@ class RpcMethod(object):
         return getattr(self.__method, key)
 
     def __call__(self, *args, **kwargs):
-        return self.__method(*args, **kwargs)
+        try:
+            return self.__method(*args, **kwargs)
+        except Exception, e:
+            log.exception(e)
+            raise
 
 class RpcServer(object):
     
