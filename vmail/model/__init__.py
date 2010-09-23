@@ -124,10 +124,12 @@ class DBObjectProxy(ObjectProxy):
 
 def _create_engine(dburi):
     config = get_config()
-    pool_size = config.get('pool_size')
-    max_overflow = config.get('max_overflow')
-    return create_engine(dburi, pool_size=pool_size,
-        max_overflow=max_overflow)
+    engine_args = {
+        'pool_size': config.get('pool_size')
+    }
+    if dburi.startswith('mysql://'):
+        engine_args['max_overflow'] = config.get('max_overflow')
+    return create_engine(dburi, **engine_args)
 
 def connect():
     config = get_config()
