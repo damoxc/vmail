@@ -129,6 +129,7 @@ def _create_engine(dburi):
     }
     if dburi.startswith('mysql://'):
         engine_args['max_overflow'] = config.get('max_overflow')
+        engine_args['pool_recycle'] = 3600
     return create_engine(dburi, **engine_args)
 
 def connect():
