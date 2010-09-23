@@ -1,13 +1,7 @@
-from twisted.trial import unittest
 from vmail.common import *
+from vmail.tests.test import BaseUnitTest
 
-class CommonTestCase(unittest.TestCase):
-
-    def setUp(self):
-        pass
-
-    def tearDown(self):
-        pass
+class CommonTestCase(BaseUnitTest):
 
     def test_fsize(self):
         self.failUnless(fsize(112245) == '109.6 KiB')
