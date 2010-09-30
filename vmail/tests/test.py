@@ -3,7 +3,24 @@ from vmail.tests import testdata
 from vmail.model.tables import *
 
 class BaseUnitTest(unittest.TestCase):
-    pass
+    
+    def failUnlessNone(self, expr, msg=None):
+        """
+        Fail the test unless the expression is None.
+        """
+        if expr is not None:
+            raise self.failureException, msg
+
+    def failIfNone(self, expr, msg=None):
+        """
+        Fail the test if the expression is None.
+        """
+        if expr is None:
+            raise self.failureException, msg
+
+    # Synonyms for assertion methods
+    assertNone = failUnlessNone
+    assertNotNone = failIfNone
 
 class DatabaseUnitTest(BaseUnitTest):
     """
