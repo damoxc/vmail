@@ -50,3 +50,13 @@ class TestDatabase(test.DatabaseUnitTest):
     def test_vacation(self):
         vacation = self.db.query(Vacation).get(1)
         self.assertTrue(isinstance(vacation, Vacation))
+
+    def test_removing_vacation(self):
+        vacation = self.db.query(Vacation).get(1)
+        email = vacation.email
+
+        self.db.delete(vacation)
+        self.db.commit()
+
+        self.assertEqual(self.db.query(VacationNotification
+            ).filter_by(on_vacation=email).count(), 0)
