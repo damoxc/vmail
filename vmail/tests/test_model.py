@@ -46,3 +46,7 @@ class TestDatabase(test.DatabaseUnitTest):
         # Check that the user_quota entry has also been removed
         self.assertNone(self.db.query(UserQuota
             ).filter_by(email='fred@testing.com').first())
+
+    def test_vacation(self):
+        vacation = self.db.query(Vacation).get(1)
+        self.assertTrue(isinstance(vacation, Vacation))

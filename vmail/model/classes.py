@@ -250,7 +250,7 @@ mapper(User, users, properties = {
     'logins':     relation(Login, backref=backref('user', uselist=False)),
     'usage':      relation(UserQuota, lazy=False, uselist=False,
                     cascade='all'),
-    'vacation':   relation(User, uselist=False, cascade='all'),
+    'vacation':   relation(Vacation, uselist=False, cascade='all'),
     '_password':  users.c.password,
     '_cleartext': users.c.cleartext
 })
