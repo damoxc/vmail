@@ -247,13 +247,12 @@ mapper(Transport, transport, properties = {
 mapper(User, users, properties = {
     'domain': relation(Domain, backref=backref('users', order_by=users.c.email)),
     'logins': relation(Login, backref=backref('user', uselist=False)),
+    'usage': relation(UserQuota, lazy=False, uselist=False, cascade='all,delete-orphan'),
     '_password': users.c.password,
     '_cleartext': users.c.cleartext
 })
 
-mapper(UserQuota, user_quotas, properties = {
-    'user': relation(User, backref=backref('usage', lazy=False, uselist=False))
-})
+mapper(UserQuota, user_quotas)
 
 mapper(Vacation, vacation, properties = {
     'user': relation(User, uselist=False, backref=backref('vacation', uselist=False))
