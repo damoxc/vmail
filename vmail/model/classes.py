@@ -207,14 +207,15 @@ mapper(Blacklist, blacklist)
 mapper(Package, packages)
 
 mapper(Domain, domains, properties = {
-    'package': relation(Package, backref='domains'),
-    '_package': domains.c.package
+    'package':    relation(Package, backref='domains'),
+    '_package':   domains.c.package,
+    'transports': relation(Transport, backref=backref('domain')),
+    'forwards':   relation(Forward, order_by=forwardings.c.source),
+    'users':      relation(User, order_by=users.c.email,
+                    backref=backref('domain', uselist=False))
 })
 
-mapper(Forward, forwardings, properties = {
-    'domain': relation(Domain,
-        backref=backref('forwards', order_by=forwardings.c.source))
-})
+mapper(Forward, forwardings)
 
 mapper(Host, hosts)
 
@@ -240,13 +241,9 @@ mapper(QpsmtpdRecipient, qpsmtpd_rcpts, properties = {
     '_transaction': qpsmtpd_rcpts.c.transaction
 })
 
-mapper(Transport, transport, properties = {
-    'domain': relation(Domain, backref='transports')
-})
+mapper(Transport, transport)
 
 mapper(User, users, properties = {
-    'domain':     relation(Domain, backref=backref('users',
-                    order_by=users.c.email)),
     'logins':     relation(Login, backref=backref('user', uselist=False)),
     'usage':      relation(UserQuota, lazy=False, uselist=False,
                     cascade='all'),
