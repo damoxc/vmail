@@ -209,10 +209,11 @@ vacation = Table('vacation', meta,
 )
 
 vacation_notification = Table('vacation_notification', meta,
-    Column('on_vacation', String(255)),
+    Column('on_vacation', String(80)),
     Column('notified', String(255)),
     Column('notified_at', DateTime),
-    PrimaryKeyConstraint('on_vacation', 'notified')
+    PrimaryKeyConstraint('on_vacation', 'notified'),
+    ForeignKeyConstraint(['on_vacation'], ['vacation.email'], ondelete='CASCADE')
 )
 
 whitelist = Table('whitelist', meta,

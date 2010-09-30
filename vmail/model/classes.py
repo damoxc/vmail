@@ -245,19 +245,20 @@ mapper(Transport, transport, properties = {
 })
 
 mapper(User, users, properties = {
-    'domain': relation(Domain, backref=backref('users', order_by=users.c.email)),
-    'logins': relation(Login, backref=backref('user', uselist=False)),
-    'usage': relation(UserQuota, lazy=False, uselist=False, cascade='all'),
-    '_password': users.c.password,
+    'domain':     relation(Domain, backref=backref('users',
+                    order_by=users.c.email)),
+    'logins':     relation(Login, backref=backref('user', uselist=False)),
+    'usage':      relation(UserQuota, lazy=False, uselist=False,
+                    cascade='all'),
+    'vacation':   relation(User, uselist=False, cascade='all'),
+    '_password':  users.c.password,
     '_cleartext': users.c.cleartext
 })
 
 mapper(UserQuota, user_quotas)
-
 mapper(Vacation, vacation, properties = {
-    'user': relation(User, uselist=False, backref=backref('vacation', uselist=False))
+    'notifications': relation(VacationNotification, cascade='all')
 })
-
 mapper(VacationNotification, vacation_notification)
 
 mapper(Whitelist, whitelist)
