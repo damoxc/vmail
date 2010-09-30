@@ -36,5 +36,13 @@ class TestDatabase(test.DatabaseUnitTest):
 
     def test_removing_user(self):
         user_count = self.db.query(User).count()
-        self.db.query(User).filter_by(id=4).delete()
+        user = self.db.query(User).get(4)
+        self.db.delete(user)
+        self.db.commit()
+
+        # Check that the user has indeed been removed from the database
         self.assertTrue(user_count > self.db.query(User).count())
+
+        # Check that the user_quota entry has also been removed
+        self.assertNone(self.db.query(UserQuota
+            ).filter_by(email='fred@testing.com').first())
