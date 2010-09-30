@@ -126,7 +126,6 @@ class DatabaseUnitTest(BaseUnitTest):
         for address in testdata.whitelist:
             whitelist.insert().values(address=address).execute()
 
-
         # Initialize the sessions
         init_model(engine)
         init_rw_model(engine)
@@ -135,6 +134,9 @@ class DatabaseUnitTest(BaseUnitTest):
         from vmail.model import db, rw_db
         self.db = db
         self.rw_db = rw_db
+
+    def tearDown(self):
+        meta.drop_all()
 
 class CoreUnitTest(DatabaseUnitTest):
     """
