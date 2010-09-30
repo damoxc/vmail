@@ -192,7 +192,7 @@ user_quotas = Table('user_quotas', meta,
     Column('bytes', Integer, default=0),
     Column('messages', Integer, default=0),
     PrimaryKeyConstraint('email'),
-    ForeignKeyConstraint(['email'], ['users.email'], ondelete='CASCADE')
+    ForeignKeyConstraint(['email'], ['users.email'])
 )
 
 vacation = Table('vacation', meta,
