@@ -16,6 +16,11 @@ class TestDatabase(test.DatabaseUnitTest):
         self.assertEqual(self.db.query(Forward
             ).filter_by(domain_id=1
             ).count(), 0)
+
+        # Check that the transports have been removed
+        self.assertEqual(self.db.query(Transport
+            ).filter_by(domain_id=1
+            ).count(), 0)
         
         # Check the users have been removed
         self.assertEqual(self.db.query(User
