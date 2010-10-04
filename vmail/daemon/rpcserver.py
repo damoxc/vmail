@@ -188,11 +188,12 @@ class RpcMethod(object):
 
 class RpcServer(object):
     
-    def __init__(self):
+    def __init__(self, socket_path=None):
         self.factory = Factory()
         self.factory.protocol = VmailProtocol
         self.factory.methods = {}
         self.config = vmail.common.get_config()
+        self.socket_path = socket_path
 
     def register_object(self, obj, name=None):
         """
@@ -217,7 +218,7 @@ class RpcServer(object):
                 self.factory.methods[name + "." + d] = RpcMethod(getattr(obj, d))
 
     def start(self):
-        sock_path = self.config['socket']
+        sock_path = self.socket_path or self.config['socket']
         if not os.path.isdir(os.path.dirname(sock_path)):
             log.fatal('Cannot create socket: directory missing')
             exit(1)
