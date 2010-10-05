@@ -111,17 +111,21 @@ class VmailClientFactory(ClientFactory):
 
 class DaemonProxy(object):
 
-    def __init__(self):
+    @property
+    def socket_path(self):
+        return self._socket_path or self.config.get('socket')
+
+    def __init__(self, socket_path=None):
         self.factory = VmailClientFactory(self)
         self.__request_counter = 0
         self.__deferred = {}
         self.config = vmail.common.get_config()
         self.protocol = None
+        self._socket_path = os.path.abspath(socket_path) if socket_path else None
 
     def connect(self):
-        log.debug('connecting to: %s', self.config.get('socket'))
-        self.socket = reactor.connectUNIX(self.config.get('socket'), 
-            self.factory)
+        log.debug('connecting to: %s', self.socket_path)
+        self.socket = reactor.connectUNIX(self.socket_path, self.factory)
         self.connect_deferred = defer.Deferred()
         return self.connect_deferred
 
@@ -201,8 +205,8 @@ class RemoteMethod(DottedObject):
 
 class Client(object):
 
-    def __init__(self):
-        self.proxy = DaemonProxy()
+    def __init__(self, socket_path=None):
+        self.proxy = DaemonProxy(socket_path)
 
     def connect(self):
         return self.proxy.connect()
