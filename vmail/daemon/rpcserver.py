@@ -234,6 +234,5 @@ class RpcServer(object):
             stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO | stat.S_ISGID)
         
     def stop(self):
-        reactor.stop()
         sock_path = self.socket_path or self.config['socket']
         os.remove(sock_path)
