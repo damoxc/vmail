@@ -229,10 +229,9 @@ class RpcServer(object):
             log.fatal('Socket already exists')
             exit(1)
 
-        reactor.listenUNIX(sock_path, self.factory)
+        self.port = reactor.listenUNIX(sock_path, self.factory)
         os.chmod(sock_path,
             stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO | stat.S_ISGID)
         
     def stop(self):
-        sock_path = self.socket_path or self.config['socket']
-        os.remove(sock_path)
+        self.port.stopListening()
