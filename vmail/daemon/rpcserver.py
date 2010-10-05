@@ -194,6 +194,8 @@ class RpcServer(object):
         self.factory.methods = {}
         self.config = vmail.common.get_config()
         self.socket_path = socket_path
+        if self.socket_path:
+            self.socket_path = os.path.abspath(self.socket_path)
 
     def register_object(self, obj, name=None):
         """
@@ -223,7 +225,7 @@ class RpcServer(object):
             log.fatal('Cannot create socket: directory missing')
             exit(1)
 
-        if os.path.exists(self.config['socket']):
+        if os.path.exists(sock_path):
             log.fatal('Socket already exists')
             exit(1)
 
@@ -233,5 +235,5 @@ class RpcServer(object):
         
     def stop(self):
         reactor.stop()
-        sock_path = self.config['socket']
+        sock_path = self.socket_path or self.config['socket']
         os.remove(sock_path)
