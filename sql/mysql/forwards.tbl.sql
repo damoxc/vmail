@@ -1,5 +1,5 @@
 --
--- sql/mysql/is_local.fnc.sql
+-- sql/mysql/forwards.tbl.sql
 --
 -- Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 --
@@ -23,21 +23,11 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-DELIMITER $$
-
-DROP FUNCTION `is_local`
-CREATE `is_local`(
-	_email VARCHAR(255)
-) RETURNS INT
-	READS SQL DATA
-BEGIN
-
-RETURN EXISTS (
-	SELECT NULL FROM users
-	WHERE email = _email
-		UNION SELECT NULL FROM resolved_forwards
-		WHERE source = _email);
-
-END$$
-
-DELIMITER ;
+CREATE TABLE IF NOT EXISTS `forwards` (
+	`id`          int(11)      NOT NULL AUTO_INCREMENT,
+	`domain_id`   int(11)      NOT NULL,
+	`source`      varchar(80)  NOT NULL,
+	`destination` varchar(255) NOT NULL,
+	PRIMARY KEY  (`id`),
+	UNIQUE KEY `source` (`source`, `destination`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
