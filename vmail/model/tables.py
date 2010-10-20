@@ -58,6 +58,15 @@ forwardings = Table('forwardings', meta,
     ForeignKeyConstraint(['domain_id'], ['domains.id'], ondelete='CASCADE')
 )
 
+forwards = Table('forwards', meta,
+    Column('id', Integer),
+    Column('domain_id', Integer),
+    Column('source', String(80)),
+    Column('destination', String(255)),
+    PrimaryKeyConstraint('id'),
+    ForeignKeyConstraint(['domain_id'], ['domains.id'], ondelete='CASCADE')
+)
+
 hosts = Table('hosts', meta,
     Column('ip_address', String(15)),
     Column('action', String(20)),
@@ -161,6 +170,13 @@ qpsmtpd_rcpts = Table('qpsmtpd_rcpts', meta,
         ['connection_id', 'transaction'],
         ['qpsmtpd_log.connection_id', 'qpsmtpd_log.transaction']
     )
+)
+
+resolved_forwards = Table('resolved_forwards', meta,
+    Column('id', Integer),
+    Column('source', String(80)),
+    Column('destination', String(255)),
+    PrimaryKeyConstraint('id')
 )
 
 transport = Table('transport', meta,
