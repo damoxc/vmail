@@ -28,6 +28,7 @@
 import os
 import sys
 import stat
+import fcntl
 import logging
 import datetime
 import traceback
@@ -195,6 +196,7 @@ class RpcServer(object):
         self.config = vmail.common.get_config()
         self.socket_path = socket_path
         self.port = None
+        self.lockfile = None
         if self.socket_path:
             self.socket_path = os.path.abspath(self.socket_path)
 
@@ -226,9 +228,24 @@ class RpcServer(object):
             log.fatal('Cannot create socket: directory missing')
             exit(1)
 
-        if os.path.exists(sock_path):
-            log.fatal('Socket already exists')
-            exit(1)
+        # We want to check if another instance is running now
+        self.lockfile = open(sock_path + '.sock', 'a+')
+        try:
+            fcntl.flock(self.lockfile.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except IOError as e:
+            # We only care about other instances holding a lock
+            if e.errno == 11:
+                log.fatal('Another instance of vmaild is already running')
+                exit(1)
+            elif e.errno == 13:
+                log.fatal('Permission denied checking lock file')
+                exit(1)
+            else:
+                raise
+        else:
+            # Remove the socket file if it exists
+            if os.path.exists(sock_path):
+                os.remove(sock_path)
 
         self.port = reactor.listenUNIX(sock_path, self.factory)
         os.chmod(sock_path,
@@ -237,3 +254,7 @@ class RpcServer(object):
     def stop(self):
         if self.port:
             self.port.stopListening()
+
+        if self.lockfile:
+            os.remove(self.lockfile.name)
+            fcntl.flock(self.lockfile.fileno(), fcntl.LOCK_UN)
