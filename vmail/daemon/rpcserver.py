@@ -194,6 +194,7 @@ class RpcServer(object):
         self.factory.methods = {}
         self.config = vmail.common.get_config()
         self.socket_path = socket_path
+        self.port = None
         if self.socket_path:
             self.socket_path = os.path.abspath(self.socket_path)
 
@@ -234,4 +235,5 @@ class RpcServer(object):
             stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO | stat.S_ISGID)
         
     def stop(self):
-        self.port.stopListening()
+        if self.port:
+            self.port.stopListening()
