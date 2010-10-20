@@ -23,10 +23,14 @@
 #   Boston, MA    02110-1301, USA.
 #
 
+import os
 import sys
 import logging
 import logging.handlers
 import optparse
+
+from twisted.internet import defer
+from vmail.client import client, reactor
 
 LEVELS = { 
     'INFO': logging.INFO,
@@ -106,6 +110,43 @@ class ScriptBase(object):
         instance.log = logging.getLogger(instance.__class__.__module__)
         (instance.options, instance.args) = instance.parser.parse_args()
         instance.setup_logging(instance.options.loglevel)
+        cls._run(instance)
+
+    @classmethod
+    def _run(cls, instance):
         retval = instance.run()
         if isinstance(retval, int):
             sys.exit(retval)
+
+class DaemonScriptBase(ScriptBase):
+
+    @classmethod
+    def _run(cls, instance):
+        retval = instance.run()
+
+        if isinstance(retval, defer.Deferred):
+            instance._retval = 0
+            def exit(retval):
+                if reactor.running:
+                    reactor.stop()
+                instance._retval = retval
+
+            retval.addCallbacks(exit, exit)
+            reactor.run()
+            sys.exit(instance._retval)
+
+        elif isinstance(retval, int):
+            exit(retval)
+
+    def connect(self):
+        if not os.path.exists(client.proxy.socket_path):
+            self.log.error('vmaild not running')
+            return 255
+
+        return client.connect().addCallbacks(self.on_connect, self.on_connect_err)
+
+    def on_connect(self):
+        reactor.stop()
+
+    def on_connect_err(self, error):
+        reactor.stop()
