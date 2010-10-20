@@ -26,6 +26,7 @@
 import os
 import grp
 import pwd
+import logging
 
 from twisted.internet import reactor
 
@@ -34,6 +35,8 @@ from vmail.daemon.core import Core
 from vmail.daemon.qpsmtpd import Qpsmtpd
 from vmail.daemon.rpcserver import RpcServer
 from vmail.model import connect, rw_connect
+
+log = logging.getLogger(__name__)
 
 class Daemon(object):
 
@@ -53,8 +56,17 @@ class Daemon(object):
 
     def start(self):
         # Get the uid and gid we want to run as
-        gid = grp.getgrnam(self.config['group']).gr_gid
-        uid = pwd.getpwnam(self.config['user']).pw_uid
+        try:
+            gid = grp.getgrnam(self.config['group']).gr_gid
+        except KeyError:
+            log.fatal("Cannot find group '%s'", self.config['group'])
+            return 1
+
+        try:
+            uid = pwd.getpwnam(self.config['user']).pw_uid
+        except KeyError:
+            log.fatal("Cannot find user '%s'", self.config['user'])
+            return 1
 
         # Relinquish our root privileges
         os.setgid(gid)
