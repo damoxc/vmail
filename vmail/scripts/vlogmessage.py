@@ -24,9 +24,9 @@
 #
 
 from vmail.client import client, reactor
-from vmail.scripts.base import ScriptBase, argcount
+from vmail.scripts.base import DaemonScriptBase, argcount
 
-class VLogMessage(ScriptBase):
+class VLogMessage(DaemonScriptBase):
     
     script = 'vlogmessage'
     usage  = 'Usage: %prog [options] sender [remote_addr]'
@@ -44,21 +44,16 @@ class VLogMessage(ScriptBase):
     def on_connect(self, result):
         sender = self.args[0].lower()
         remote_addr = self.args[1] if len(self.args) == 2 else None
-        client.core.log_message(sender, self.options.user,
+        return client.core.log_message(sender, self.options.user,
             self.options.subject, remote_addr,
             self.options.recipients).addCallbacks(
                 self.on_logged_message,
                 self.on_logged_message
             )
 
-    def on_connect_err(self, error):
-        reactor.stop()
-
     def on_logged_message(self, result):
-        reactor.stop()
+        return 0
 
     @argcount(1)
     def run(self):
-        client.connect().addCallbacks(self.on_connect, self.on_connect_err)
-        reactor.run()
-        return 0
+        return self.connect()

@@ -25,9 +25,9 @@
 
 from vmail.common import fsize
 from vmail.client import client, reactor
-from vmail.scripts.base import ScriptBase
+from vmail.scripts.base import DaemonScriptBase
 
-class VGetMailDirSize(ScriptBase):
+class VGetMailDirSize(DaemonScriptBase):
 
     def __init__(self):
         super(VGetMailDirSize, self).__init__(add_help_option=False)
@@ -44,18 +44,15 @@ class VGetMailDirSize(ScriptBase):
 
     def on_connect(self, result):
         if self.options.quota:
-            client.core.get_quota(self.domain, self.user).addCallbacks(
+            return client.core.get_quota(self.domain, self.user).addCallbacks(
                 self.on_got_quota,
                 self.on_got_quota_err
             )
         else:
-            client.core.get_usage(self.domain, self.user).addCallbacks(
+            return client.core.get_usage(self.domain, self.user).addCallbacks(
                 self.on_got_usage,
                 self.on_got_usage_err
             )
-
-    def on_connect_fail(self, reason):
-        reactor.stop()
 
     def on_got_usage(self, usage):
         if self.options.human:
@@ -64,22 +61,21 @@ class VGetMailDirSize(ScriptBase):
                 self.quota = fsize(self.quota)
         print ('%s/%s' % (usage, self.quota) if 
             self.options.quota else '%s' % usage)
-        reactor.stop()
 
     def on_got_usage_err(self, error):
         self.log.error('error: %s', error.value['value'])
-        reactor.stop()
+        return 1
 
     def on_got_quota(self, quota):
         self.quota = quota
-        client.core.get_usage(self.domain, self.user).addCallbacks(
+        return client.core.get_usage(self.domain, self.user).addCallbacks(
             self.on_got_usage,
             self.on_got_usage_err
         )
 
     def on_got_quota_err(self, error):
         self.log.error('error: %s', error.value['value'])
-        reactor.stop()
+        return 1
 
     def run(self):
         if not self.args:
@@ -95,5 +91,4 @@ class VGetMailDirSize(ScriptBase):
             self.log.error('no argument provided')
             return 1
 
-        client.connect().addCallback(self.on_connect)
-        reactor.run()
+        return self.connect()

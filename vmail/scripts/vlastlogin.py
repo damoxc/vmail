@@ -24,7 +24,7 @@
 #
 
 from vmail.client import client, reactor
-from vmail.scripts.base import ScriptBase, argcount
+from vmail.scripts.base import DaemonScriptBase, argcount
 
 class VLastLogin(ScriptBase):
 
@@ -32,16 +32,13 @@ class VLastLogin(ScriptBase):
     usage  = 'Usage: %prog [options] user method [addr]'
 
     def on_connect(self, result):
-        client.core.last_login(self.args[0], self.method,
+        return client.core.last_login(self.args[0], self.method,
             self.args[2] if len(self.args) == 3 else None).addCallbacks(
                 self.on_logged_login, self.on_logged_login
             )
 
-    def on_connect_err(self, error):
-        reactor.stop()
-
     def on_logged_login(self, result):
-        reactor.stop()
+        return 0
 
     @argcount(2)
     def run(self):
@@ -50,6 +47,4 @@ class VLastLogin(ScriptBase):
             self.log.error('incorrect method supplied')
             return 2
 
-        client.connect().addCallbacks(self.on_connect, self.on_connect_err)
-        reactor.run()
-        return 0
+        return self.connect()

@@ -28,17 +28,17 @@ from email.utils import formatdate
 
 from vmail.common import get_config, get_config_dir, deliver
 from vmail.client import client, reactor
-from vmail.scripts.base import ScriptBase, argcount
+from vmail.scripts.base import DaemonScriptBase, argcount
 
-class VQuotaWarning(ScriptBase):
+class VQuotaWarning(DaemonScriptBase):
 
     @argcount(2)
     def run(self):
         self.user = self.args[0]
         self.usage = self.args[1]
         self.addrs = []
-        client.connect().addCallbacks(self.on_connect, self.on_connect_err)
-        reactor.run()
+
+        return self.connect()
 
     def send_notifications(self):
         postmaster = 'postmaster@' + get_config('defaulthost')
@@ -78,12 +78,10 @@ class VQuotaWarning(ScriptBase):
             try:
                 smtp.sendmail(postmaster, addr, msg)
             except:
-                log.warning('Failed sending to %s', addr)
-
-        reactor.stop()
+                self.log.warning('Failed sending to %s', addr)
 
     def on_connect(self, result):
-        client.core.get_user(self.user).addCallbacks(self.on_got_user,
+        return client.core.get_user(self.user).addCallbacks(self.on_got_user,
             self.on_got_user_err)
 
     def on_got_user(self, user):
@@ -92,7 +90,7 @@ class VQuotaWarning(ScriptBase):
             self.addrs.append(other)
 
         domain = self.user.split('@', 1)[1]
-        client.core.get_user('postmaster@' + domain).addCallbacks(
+        return client.core.get_user('postmaster@' + domain).addCallbacks(
             self.on_got_postmaster, self.on_got_postmaster_err)
 
     def on_got_postmaster(self, postmaster):
@@ -102,11 +100,8 @@ class VQuotaWarning(ScriptBase):
             self.addrs.append(other)
         self.send_notifications()
 
-    def on_connect_err(self, result):
-        reactor.stop()
-
     def on_got_user_err(self, error):
-        reactor.stop()
+        return 1
 
     def on_got_postmaster_err(self, error):
-        reactor.stop()
+        return 1

@@ -24,27 +24,21 @@
 #
 
 from vmail.client import client, reactor
-from vmail.scripts.base import ScriptBase, argcount
+from vmail.scripts.base import DaemonScriptBase, argcount
 
-class VChkRcptTo(ScriptBase):
+class VChkRcptTo(DaemonScriptBase):
 
     def on_connect(self, result):
-        client.core.is_validrcptto(self.args[0]).addCallbacks(
+        return client.core.is_validrcptto(self.args[0]).addCallbacks(
             self.on_got_result,
             self.on_got_result_err
         )
 
-    def on_connect_err(self, error):
-        self.result = 1
-        reactor.stop()
-
     def on_got_result(self, result):
-        self.result = result
-        reactor.stop()
+        return result
 
     def on_got_result_err(self, result):
-        self.result = 1
-        reactor.stop()
+        return 1
 
     @argcount(1)
     def run(self):
@@ -52,9 +46,4 @@ class VChkRcptTo(ScriptBase):
             log.error('invalid argument')
             return 1
 
-        client.connect().addCallbacks(
-            self.on_connect,
-            self.on_connect_err
-        )
-        reactor.run()
-        return self.result
+        return self.connect()
