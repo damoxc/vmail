@@ -96,7 +96,6 @@ class Core(object):
         return True
 
     def _authenticate(self, user):
-        print dir(db)
         user = db.query(User).filter_by(email=user).first()
         if not user:
             return False
