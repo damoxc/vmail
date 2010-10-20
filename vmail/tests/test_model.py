@@ -13,7 +13,7 @@ class TestDatabase(test.DatabaseUnitTest):
         self.db.commit()
 
         # Check the forwards have been removed
-        self.assertEqual(self.db.query(Forward
+        self.assertEqual(self.db.query(Forwards
             ).filter_by(domain_id=1
             ).count(), 0)
 

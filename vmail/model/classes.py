@@ -87,7 +87,7 @@ class Domain(object):
             'enabled': self.enabled
         }
 
-class Forward(object):
+class Forwards(object):
     
     def __json__(self):
         return {
@@ -210,12 +210,12 @@ mapper(Domain, domains, properties = {
     'package':    relation(Package, backref='domains'),
     '_package':   domains.c.package,
     'transports': relation(Transport, backref=backref('domain')),
-    'forwards':   relation(Forward, order_by=forwardings.c.source),
+    'forwards':   relation(Forwards, order_by=forwardings.c.source),
     'users':      relation(User, order_by=users.c.email,
                     backref=backref('domain', uselist=False))
 })
 
-mapper(Forward, forwardings)
+mapper(Forwards, forwardings)
 
 mapper(Host, hosts)
 

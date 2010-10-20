@@ -96,6 +96,7 @@ class Core(object):
         return True
 
     def _authenticate(self, user):
+        print dir(db)
         user = db.query(User).filter_by(email=user).first()
         if not user:
             return False
@@ -321,9 +322,9 @@ class Core(object):
     def delete_forward(self, forward):
         try:
             if isinstance(forward, (int, long)):
-                rw_db.query(Forward).filter_by(id=forward).delete()
+                rw_db.query(Forwards).filter_by(id=forward).delete()
             else:
-                rw_db.query(Forward).filter_by(source=forward).delete()
+                rw_db.query(Forwards).filter_by(source=forward).delete()
             rw_db.commit()
         except Exception, e:
             log.exception(e)
@@ -361,9 +362,9 @@ class Core(object):
     @export
     def get_forward(self, forward):
         if isinstance(forward, (int, long)):
-            return rw_db.query(Forward).get(forward).one()
+            return rw_db.query(Forwards).get(forward).one()
         else:
-            return rw_db.query(Forward).filter_by(source=forward).one()
+            return rw_db.query(Forwards).filter_by(source=forward).one()
 
     @export
     def get_forwards(self, domain):
@@ -396,18 +397,18 @@ class Core(object):
             return
         try:
             if forward:
-                params = dict([(getattr(Forward, k), params[k]) for k in params])
+                params = dict([(getattr(Forwards, k), params[k]) for k in params])
                 if isinstance(forward, (int, long)):
-                    rw_db.query(Forward).filter_by(id=forward).update(params)
+                    rw_db.query(Forwards).filter_by(id=forward).update(params)
                 else:
-                    rw_db.query(Forward).filter_by(source=forward).update(params)
+                    rw_db.query(Forwards).filter_by(source=forward).update(params)
             else:
-                forward = Forward()
+                forward = Forwards()
                 for k, v in params.iteritems():
                     setattr(forward, k, v)
                 rw_db.add(forward)
             rw_db.commit()
-            if isinstance(forward, Forward):
+            if isinstance(forward, Forwards):
                 return forward.id
         except Exception, e:
             log.exception(e)
