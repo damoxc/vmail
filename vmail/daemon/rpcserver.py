@@ -38,7 +38,7 @@ from twisted.internet import reactor, defer, threads
 from twisted.python.failure import Failure
 
 import vmail.common
-from vmail.error import VmailError
+from vmail.error import VmailError, RPCException, RPCError
 
 log = logging.getLogger(__name__)
 json = vmail.common.json
@@ -207,6 +207,8 @@ class RpcMethod(object):
     def __call__(self, *args, **kwargs):
         try:
             return self.__method(*args, **kwargs)
+        except RPCError:
+            raise
         except Exception, e:
             log.exception(e)
             raise

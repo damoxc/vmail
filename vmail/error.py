@@ -31,3 +31,9 @@ class VmailException(Exception):
 
 class IgnoredMessageError(VmailError):
     pass
+
+class RPCError(VmailError):
+    pass
+
+class RPCException(VmailException):
+    pass
