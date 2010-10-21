@@ -373,9 +373,13 @@ class Core(object):
     @export
     def get_forward(self, forward):
         if isinstance(forward, (int, long)):
-            return rw_db.query(Forwards).get(forward).one()
+            fwd = rw_db.query(Forwards).get(forward)
         else:
-            return rw_db.query(Forwards).filter_by(source=forward).one()
+            fwd = rw_db.query(Forwards).filter_by(source=forward).first()
+
+        if fwd is None:
+            raise ForwardNotFoundError(forward)
+        return fwd
 
     @export
     def get_forwards(self, domain):
