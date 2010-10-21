@@ -36,6 +36,7 @@ from twisted.internet import reactor, threads
 
 from vmail.common import *
 from vmail.daemon.rpcserver import export
+from vmail.error import *
 from vmail.model import *
 
 log = logging.getLogger(__name__)
@@ -135,8 +136,9 @@ class Core(object):
         :returns: (action, comment)
         :rtype: tuple
         """
-        host = db.query(Host).filter(
-            Host.ip_address.like('%' + remote_addr + '%')).first()
+        host = db.query(Host
+            ).filter(Host.ip_address.like('%' + remote_addr + '%')
+            ).first()
 
         if host:
             return (host.action, host.comment)
@@ -162,14 +164,16 @@ class Core(object):
         """
         try:
             if user:
-                user = db.query(User).filter_by(email='%s@%s' % (user, domain)).first()
-                return user.usage.bytes if user else 0
+                email = '%s@%s' % (user, domain)
+                user = db.query(User).filter_by(email=email).first()
+                if not user:
+                    raise UserNotFoundError(email)
+                return user.usage.bytes
             else:
                 if not isinstance(domain, (int, long)):
                     dom = db.query(Domain).filter_by(domain=domain).first()
                     if not dom:
-                        log.warning("domain '%s' does not exist", domain)
-                        return 0
+                        raise DomainNotFoundError(domain)
                     domain = dom.id
                 return long(db.query(func.sum(UserQuota.bytes)
                     ).join(User
@@ -186,9 +190,15 @@ class Core(object):
         """
         if user:
             email = '%s@%s' % (user, domain)
+            user = db.query(User).filter_by(email=email).first()
+            if not user:
+                raise UserNotFoundError(email)
             return db.query(User).filter_by(email=email).one().quota
         else:
-            return db.query(Domain).filter_by(domain=domain).one().quota
+            dom = db.query(Domain).filter_by(domain=domain).first()
+            if not dom:
+                raise DomainNotFoundError(domain)
+            return dom.quota
 
     @export
     def is_validrcptto(self, email):
