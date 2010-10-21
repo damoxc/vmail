@@ -129,6 +129,9 @@ class DaemonProxy(object):
         self.connect_deferred = defer.Deferred()
         return self.connect_deferred
 
+    def disconnect(self):
+        self.socket.disconnect()
+
     def _on_connect_fail(self, result):
         self.connect_deferred.errback(False)
 
@@ -210,6 +213,9 @@ class Client(object):
 
     def connect(self):
         return self.proxy.connect()
+
+    def disconnect(self):
+        return self.proxy.disconnect()
     
     def __getattr__(self, method):
         return DottedObject(self.proxy, method)
