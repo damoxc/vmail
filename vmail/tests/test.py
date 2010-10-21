@@ -1,9 +1,13 @@
+import logging
+
 from twisted.trial import unittest
 from vmail.tests import testdata
 from vmail.model.tables import *
 
-import logging
-logging.basicConfig()
+logging.basicConfig(
+    level  = logging.ERROR,
+    format = '%(asctime)s %(levelname)s [%(funcName)s] %(message)s'
+)
 
 class BaseUnitTest(unittest.TestCase):
     
