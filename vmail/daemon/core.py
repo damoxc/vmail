@@ -162,26 +162,21 @@ class Core(object):
         """
         Get the total quota usage for the specified domain or account.
         """
-        try:
-            if user:
-                email = '%s@%s' % (user, domain)
-                user = db.query(User).filter_by(email=email).first()
-                if not user:
-                    raise UserNotFoundError(email)
-                return user.usage.bytes
-            else:
-                if not isinstance(domain, (int, long)):
-                    dom = db.query(Domain).filter_by(domain=domain).first()
-                    if not dom:
-                        raise DomainNotFoundError(domain)
-                    domain = dom.id
-                return long(db.query(func.sum(UserQuota.bytes)
-                    ).join(User
-                    ).filter_by(domain_id=domain).scalar())
-        except Exception, e:
-            log.warning('unable to check usage for %s@%s', user, domain)
-            log.exception(e)
-            return 0
+        if user:
+            email = '%s@%s' % (user, domain)
+            user = db.query(User).filter_by(email=email).first()
+            if not user:
+                raise UserNotFoundError(email)
+            return user.usage.bytes
+        else:
+            if not isinstance(domain, (int, long)):
+                dom = db.query(Domain).filter_by(domain=domain).first()
+                if not dom:
+                    raise DomainNotFoundError(domain)
+                domain = dom.id
+            return long(db.query(func.sum(UserQuota.bytes)
+                ).join(User
+                ).filter_by(domain_id=domain).scalar())
 
     @export
     def get_quota(self, domain, user=None):
