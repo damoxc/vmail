@@ -1,6 +1,6 @@
 from vmail.tests import test
 
-class TestCore(test.DaemonUnitTest):
+class TestCoreSMTP(test.DaemonUnitTest):
 
     def test_authenticate(self):
         """
@@ -138,3 +138,20 @@ class TestCore(test.DaemonUnitTest):
             self.assertNotNone(result)
         return self.client.core.get_quota('higglepuddle.com'
             ).addErrback(on_err_quota)
+
+class TestCoreManagement(test.DaemonUnitTest):
+
+    def test_delete_forward(self):
+        """
+        This method tests deleting a forward via the rpc interface.
+        """
+        def on_error(failure):
+            self.assertNotNone(failure)
+
+        def on_deleted(result):
+            self.assertNone(result)
+            return self.client.core.get_forward('help@example.com',
+                ).addErrback(on_error)
+
+        return self.client.core.delete_forward('help@example.com'
+            ).addCallback(on_deleted)
