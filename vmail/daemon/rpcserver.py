@@ -134,9 +134,10 @@ class VmailProtocol(Protocol):
 
         if method in self.factory.methods:
             meth = self.factory.methods[method]
-            d = threads.deferToThread(self._callMethod, meth, args, kwargs)
-            d.addCallback(self._on_got_response, request_id)
-            d.addErrback(self._on_err_response, request_id)
+            try:
+                self._on_got_response(self._callMethod(meth, args, kwargs), request_id)
+            except Exception:
+                self._on_err_response(Failure(), request_id)
         else:
             error = VmailError('No method by that name')
             failure = Failure(error, VmailError)
@@ -165,6 +166,29 @@ class VmailProtocol(Protocol):
                     log.error('running __after__() failed')
                     log.exception(e)
 
+class VmailProtocolThreaded(VmailProtocol):
+    """
+    This is a subclass of the VmailProtocol that executes the RPC methods
+    in their own thread to improve concurrency.
+    """
+
+    def _dispatch(self, request_id, method, args, kwargs):
+        """
+        This method is run when a RPC request is made. It will run the
+        local method and will send either a RPC response or RPC error
+        back to the client.
+        """
+
+        if method in self.factory.methods:
+            meth = self.factory.methods[method]
+            d = threads.deferToThread(self._callMethod, meth, args, kwargs)
+            d.addCallback(self._on_got_response, request_id)
+            d.addErrback(self._on_err_response, request_id)
+        else:
+            error = VmailError('No method by that name')
+            failure = Failure(error, VmailError)
+            self._on_err_response(failure, request_id)
+
 class RpcMethod(object):
     """
     This class acts as a wrapper around methods that checks for before and
@@ -189,9 +213,12 @@ class RpcMethod(object):
 
 class RpcServer(object):
     
-    def __init__(self, socket_path=None):
+    def __init__(self, socket_path=None, threaded=True):
         self.factory = Factory()
-        self.factory.protocol = VmailProtocol
+        if threaded:
+            self.factory.protocol = VmailProtocolThreaded
+        else:
+            self.factory.protocol = VmailProtocol
         self.factory.methods = {}
         self.config = vmail.common.get_config()
         self.socket_path = socket_path
