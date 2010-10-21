@@ -279,9 +279,13 @@ class RpcServer(object):
             stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO | stat.S_ISGID)
         
     def stop(self):
+        d = None
+
         if self.port:
-            self.port.stopListening()
+            d = self.port.stopListening()
 
         if self.lockfile:
             os.remove(self.lockfile.name)
             fcntl.flock(self.lockfile.fileno(), fcntl.LOCK_UN)
+
+        return d
