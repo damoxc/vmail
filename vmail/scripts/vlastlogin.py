@@ -26,7 +26,7 @@
 from vmail.client import client, reactor
 from vmail.scripts.base import DaemonScriptBase, argcount
 
-class VLastLogin(ScriptBase):
+class VLastLogin(DaemonScriptBase):
 
     script = 'vlastlogin'
     usage  = 'Usage: %prog [options] user method [addr]'
