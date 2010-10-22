@@ -26,6 +26,7 @@
 import os
 import sys
 import logging
+import logging.config
 import logging.handlers
 import optparse
 
@@ -62,6 +63,7 @@ class ScriptBase(object):
 
     log_filename = None
     log_format = 'short'
+    log_config = None
     usage = None
 
     def __init__(self, add_help_option=True):
@@ -109,7 +111,10 @@ class ScriptBase(object):
         instance = cls()
         instance.log = logging.getLogger(instance.__class__.__module__)
         (instance.options, instance.args) = instance.parser.parse_args()
-        instance.setup_logging(instance.options.loglevel)
+        if cls.log_config and os.path.exists(cls.log_config):
+            logging.config.fileConfig(cls.log_config)
+        else:
+            instance.setup_logging(instance.options.loglevel)
         cls._run(instance)
 
     @classmethod
@@ -136,14 +141,15 @@ class DaemonScriptBase(ScriptBase):
             sys.exit(instance._retval)
 
         elif isinstance(retval, int):
-            exit(retval)
+            sys.exit(retval)
 
-    def connect(self):
+    def connect(self, cbArgs=None, ebArgs=None):
         if not os.path.exists(client.proxy.socket_path):
             self.log.error('vmaild not running')
             return 255
 
-        return client.connect().addCallbacks(self.on_connect, self.on_connect_err)
+        return client.connect().addCallbacks(self.on_connect,
+            self.on_connect_err, cbArgs, ebArgs)
 
     def on_connect(self):
         reactor.stop()
