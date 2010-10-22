@@ -90,4 +90,5 @@ class Daemon(object):
         if self.monitor:
             self.monitor.stop()
         self.rpcserver.stop()
-        reactor.stop()
+        if reactor.running:
+            reactor.stop()
