@@ -26,7 +26,7 @@
 CREATE TABLE IF NOT EXISTS `resolved_forwards` (
 	`id`          int(11)      NOT NULL AUTO_INCREMENT,
 	`source`      varchar(80)  NOT NULL,
-	`destination` varchar(255) NOT NULL,
+	`destination` varchar(250) NOT NULL,
 	PRIMARY KEY  (`id`),
 	INDEX `source` (`source`, `destination`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
