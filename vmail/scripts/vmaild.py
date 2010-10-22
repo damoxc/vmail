@@ -26,13 +26,15 @@
 import os
 import re
 
+from vmail.common import get_config_dir
 from vmail.daemon.daemon import Daemon
 from vmail.scripts.base import ScriptBase
 
 class VMailD(ScriptBase):
 
+    log_config   = get_config_dir('logging.cfg')
     log_filename = '/var/log/vmail/vmaild.log'
-    log_format = 'full'
+    log_format   = 'full'
 
     def run(self):
         self.daemon = Daemon()
