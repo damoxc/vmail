@@ -113,6 +113,9 @@ class ScriptBase(object):
         (instance.options, instance.args) = instance.parser.parse_args()
         if cls.log_config and os.path.exists(cls.log_config):
             logging.config.fileConfig(cls.log_config)
+            if instance.options.loglevel:
+                logging.root.setLevel(LEVELS.get(
+                    instance.options.loglevel.upper(), logging.INFO))
         else:
             instance.setup_logging(instance.options.loglevel)
         cls._run(instance)
