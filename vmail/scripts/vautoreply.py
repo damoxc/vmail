@@ -31,10 +31,9 @@ from email.utils import formatdate
 from vmail.common import Address, check_message
 from vmail.client import client, reactor
 from vmail.error import IgnoredMessageError
-from vmail.model import User, Vacation, connect, db
-from vmail.scripts.base import ScriptBase
+from vmail.scripts.base import DaemonScriptBase
 
-class VAutoreply(ScriptBase):
+class VAutoreply(DaemonScriptBase):
 
     #filename = '/var/self.log/vmail/vacation.self.log'
 
@@ -44,7 +43,7 @@ class VAutoreply(ScriptBase):
 
     def on_connect(self, result, recipient):
         sender = self.options.sender
-        client.core.send_vacation(recipient, sender).addCallbacks(
+        return client.core.send_vacation(recipient, sender).addCallbacks(
             self.on_sent_vacation,
             self.on_err_vacation,
             (recipient,)
@@ -55,11 +54,9 @@ class VAutoreply(ScriptBase):
             self.log.warning('not sending vacation message')
         else:
             self.log.info('sent vacation message to %s', recipient)
-        reactor.stop()
 
     def on_err_vacation(self, failure):
         self.log.error('error: %s', failure.getErrorMessage())
-        reactor.stop()
 
     def run(self):
         if not self.args:
@@ -73,7 +70,7 @@ class VAutoreply(ScriptBase):
         try:
             check_message(message)
         except IgnoredMessageError as e:
-            log.warning(e[0])
+            self.log.warning(e[0])
             return 0
         
         # Since the recipient comes in the form of:
@@ -81,5 +78,4 @@ class VAutoreply(ScriptBase):
         # converting of it first.
         recipient = self.args[0].split('@', 1)[0].replace('#', '@')
 
-        client.connect().addCallback(self.on_connect, recipient)
-        reactor.run()
+        return self.connect(recipient)
