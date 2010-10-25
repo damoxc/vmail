@@ -401,9 +401,14 @@ class Core(object):
     @export
     def get_user(self, user):
         if isinstance(user, (int, long)):
-            return db.query(User).get(user)
+            email = 'user #%d' % user
+            user = db.query(User).get(user)
         else:
-            return db.query(User).filter_by(email=user).one()
+            email = user
+            user = db.query(User).filter_by(email=email).first()
+
+        if not user:
+            raise UserNotFoundError(email)
 
     @export
     def get_vacation(self, email):

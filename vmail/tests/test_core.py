@@ -161,3 +161,13 @@ class TestCoreManagement(test.DaemonUnitTest):
         """
         This methods tests deleting a user via the rpc interface.
         """
+
+        def on_deleted(result):
+            self.assertNone(result)
+            return self.client.core.get_user('dave@example.com'
+                ).addCallback(self.fail
+                ).addErrback(self.assertIsInstance, Failure)
+
+        return self.client.core.delete_user('dave@example.com'
+            ).addCallback(on_deleted
+            ).addErrback(self.fail)
