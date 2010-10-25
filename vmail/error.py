@@ -38,11 +38,14 @@ class RPCError(VmailError):
 class RPCException(VmailException):
     pass
 
-class DomainNotFoundError(RPCError):
+class VmailCoreError(RPCError):
     pass
 
-class ForwardNotFoundError(RPCError):
+class DomainNotFoundError(VmailCoreError):
     pass
 
-class UserNotFoundError(RPCError):
+class ForwardNotFoundError(VmailCoreError):
+    pass
+
+class UserNotFoundError(VmailCoreError):
     pass
