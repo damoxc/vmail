@@ -117,6 +117,9 @@ class Core(object):
         :param remote_addr: The remote host to block
         :type remote_addr: string
         """
+        if rw_db.query(Host).get(remote_addr):
+            raise VmailCoreError('Host %s already exists' % remote_addr)
+
         host = Host()
         host.ip_address = remote_addr
         host.action = 'DENY_DISCONNECT'
