@@ -151,6 +151,11 @@ class DaemonScriptBase(ScriptBase):
             self.log.error('vmaild not running')
             return 255
 
+        if cbArgs is not None and not isinstance(cbArgs, tuple):
+            cbArgs = (cbArgs,)
+        if ebArgs is not None and not isinstance(ebArgs, tuple):
+            ebArgs = (ebArgs,)
+
         return client.connect().addCallbacks(self.on_connect,
             self.on_connect_err, cbArgs, ebArgs)
 
