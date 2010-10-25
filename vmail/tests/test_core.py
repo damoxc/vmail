@@ -1,4 +1,5 @@
 from vmail.tests import test
+from twisted.python.failure import Failure
 
 class TestCoreSMTP(test.DaemonUnitTest):
 
@@ -7,19 +8,17 @@ class TestCoreSMTP(test.DaemonUnitTest):
         Checks a known user with the correct password to ensure successful
         authenticate.
         """
-        def on_authenticate(result):
-            self.assertTrue(result)
         return self.client.core.authenticate('dave@example.com', 'daisychain'
-            ).addCallback(on_authenticate)
+            ).addCallback(self.assertTrue
+            ).addErrback(self.fail)
 
     def test_authenticate_fails(self):
         """
         Checks a known user with the incorrect password to ensure failure
         """
-        def on_authenticate(result):
-            self.assertFalse(result)
         return self.client.core.authenticate('dave@example.com', 'password'
-            ).addCallback(on_authenticate)
+            ).addCallback(self.assertFalse
+            ).addErrback(self.fail)
 
     def test_blocking_host(self):
         """
@@ -33,9 +32,20 @@ class TestCoreSMTP(test.DaemonUnitTest):
         def on_blocked(result):
             self.assertNone(result)
             return self.client.core.check_host('10.20.30.40'
-                ).addCallback(on_checked)
+                ).addCallback(on_checked
+                ).addErrback(self.fail)
+
         return self.client.core.block_host('10.20.30.40'
-            ).addCallback(on_blocked)
+            ).addCallback(on_blocked
+            ).addErrback(self.fail)
+
+    def test_blocking_host_already_exists(self):
+        """
+        Tests adding a host to the block list that is already on it.
+        """
+        return self.client.core.block_host('43.52.175.8'
+            ).addCallback(self.fail
+            ).addErrback(self.assertIsInstance, Failure)
 
     def test_check_host(self):
         """
@@ -49,44 +59,41 @@ class TestCoreSMTP(test.DaemonUnitTest):
             self.assertEqual(comment, 'Suspected spam source')
 
         return self.client.core.check_host('97.38.123.17'
-            ).addCallback(on_checked)
+            ).addCallback(on_checked
+            ).addErrback(self.fail)
 
     def test_check_host_unknown(self):
         """
         Checks an unknown host in the hosts table to ensure there is no
         result returned.
         """
-        def on_checked(result):
-            self.assertNone(result)
         return self.client.core.check_host('1.2.3.4'
-            ).addCallback(on_checked)
+            ).addCallback(self.assertNone
+            ).addErrback(self.fail)
 
     def test_check_whitelist(self):
         """
         Tests checking a known address against the whitelist.
         """
-        def on_checked(result):
-            self.assertTrue(result)
         return self.client.core.check_whitelist('dumbledore@hogwarts.com'
-            ).addCallback(on_checked)
+            ).addCallback(self.assertTrue
+            ).addErrback(self.fail)
 
     def test_check_whitelist_unknown(self):
         """
         Tests checking an unknown address against the whitelist.
         """
-        def on_checked(result):
-            self.assertFalse(result)
         return self.client.core.check_whitelist('snape@hogwarts.com'
-            ).addCallback(on_checked)
+            ).addCallback(self.assertFalse
+            ).addErrback(self.fail)
 
     def test_get_usage_domain(self):
         """
         Tests checking the usage for a domain.
         """
-        def on_got_usage(result):
-            self.assertEqual(result, 20656946)
         return self.client.core.get_usage('example.com'
-            ).addCallback(on_got_usage)
+            ).addCallback(self.assertEqual, 20656946
+            ).addErrback(self.fail)
 
     def test_get_usage_domain_unknown(self):
         """
@@ -94,19 +101,17 @@ class TestCoreSMTP(test.DaemonUnitTest):
         """
         # TODO: Fix this once vmaild has correct email reporting so the
         # exception type is checked etc.
-        def on_err_usage(result):
-            self.assertNotNone(result)
         return self.client.core.get_usage('higglepuddle.com'
-            ).addErrback(on_err_usage)
+            ).addCallback(self.fail
+            ).addErrback(self.assertIsInstance, Failure)
     
     def test_get_usage_user(self):
         """
         Tests checking the usage for a user.
         """
-        def on_got_usage(result):
-            self.assertEqual(result, 81998643)
         return self.client.core.get_usage('testing.com', 'fred'
-            ).addCallback(on_got_usage)
+            ).addCallback(self.assertEqual, 81998643
+            ).addErrback(self.fail)
 
     def test_get_usage_user_unknown(self):
         """
@@ -114,19 +119,17 @@ class TestCoreSMTP(test.DaemonUnitTest):
         """
         # TODO: Fix this once vmaild has correct email reporting so the
         # exception type is checked etc.
-        def on_err_usage(result):
-            self.assertNotNone(result)
         return self.client.core.get_usage('higglepuddle.com', 'yankeedoodle'
-            ).addErrback(on_err_usage)
+            ).addCallback(self.fail
+            ).addErrback(self.assertIsInstance, Failure)
 
     def test_get_quota_domain(self):
         """
         Tests checking the quota for a domain.
         """
-        def on_got_quota(result):
-            self.assertEqual(result, 52428800)
         return self.client.core.get_quota('example.com'
-            ).addCallback(on_got_quota)
+            ).addCallback(self.assertEqual, 52428800
+            ).addErrback(self.fail)
 
     def test_get_quota_domain_unknown(self):
         """
@@ -134,10 +137,9 @@ class TestCoreSMTP(test.DaemonUnitTest):
         """
         # TODO: Fix this once vmaild has correct email reporting so the
         # exception type is checked etc.
-        def on_err_quota(result):
-            self.assertNotNone(result)
         return self.client.core.get_quota('higglepuddle.com'
-            ).addErrback(on_err_quota)
+            ).addCallback(self.fail
+            ).addErrback(self.assertIsInstance, Failure)
 
 class TestCoreManagement(test.DaemonUnitTest):
 
@@ -145,13 +147,17 @@ class TestCoreManagement(test.DaemonUnitTest):
         """
         This method tests deleting a forward via the rpc interface.
         """
-        def on_error(failure):
-            self.assertNotNone(failure)
-
         def on_deleted(result):
             self.assertNone(result)
-            return self.client.core.get_forward('help@example.com',
-                ).addErrback(on_error)
+            return self.client.core.get_forward('help@example.com'
+                ).addCallback(self.fail
+                ).addErrback(self.assertIsInstance, Failure)
 
         return self.client.core.delete_forward('help@example.com'
-            ).addCallback(on_deleted)
+            ).addCallback(on_deleted
+            ).addErrback(self.fail)
+
+    def test_delete_user(self):
+        """
+        This methods tests deleting a user via the rpc interface.
+        """
