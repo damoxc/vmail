@@ -415,7 +415,10 @@ class Core(object):
 
     @export
     def get_vacation(self, email):
-        return db.query(Vacation).filter_by(email=email).one()
+        vacation = db.query(Vacation).filter_by(email=email).first()
+        if not vacation:
+            raise VmailCoreError('Cannot find vacation for %s' % email)
+        return vacation
 
     @export
     def save_forward(self, forward, params):

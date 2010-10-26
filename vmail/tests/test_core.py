@@ -172,6 +172,14 @@ class TestCoreManagement(test.DaemonUnitTest):
             ).addCallback(on_deleted
             ).addErrback(self.fail)
 
+    def test_delete_user_unknown(self):
+        """
+        This method tests deleting an unknown user via the rpc interface.
+        """
+        return self.client.core.delete_user('dave@example.com'
+            ).addCallback(self.fail
+            ).addErrback(self.assertIsInstance, Failure)
+
     def test_get_user(self):
         """ 
         This method tests getting the user data via the rpc interface.
@@ -180,6 +188,44 @@ class TestCoreManagement(test.DaemonUnitTest):
             self.assertNotNone(user)
             self.assertTrue(user['enabled'])
             self.assertEqual(user['email'], 'fred@testing.com')
+
         return self.client.core.get_user('fred@testing.com'
             ).addCallback(got_user
             ).addErrback(self.fail)
+
+    def test_get_user_unknown(self):
+        """ 
+        This method tests getting the user data via the rpc interface for
+        an unknown user.
+        """
+        return self.client.core.get_user('hinkypinky@testing.com'
+            ).addCallback(self.fail
+            ).addErrback(self.assertIsInstance, Failure)
+
+    def test_get_vacation(self):
+        """
+        Tests getting a vacation message for a user.
+        """
+        def check_vacation(vacation):
+            self.assertNotNone(vacation)
+            self.assertEqual(vacation['email'], 'dave@example.com')
+
+        return self.client.core.get_vacation('dave@example.com'
+            ).addCallback(check_vacation
+            ).addErrback(self.fail)
+
+    def test_get_vacation_missing(self):
+        """
+        Tests getting a missing vacation message for a user.
+        """
+        return self.client.core.get_vacation('fred@testing.com'
+            ).addCallback(self.fail
+            ).addErrback(self.assertIsInstance, Failure)
+
+    def test_get_vacation_unknown(self):
+        """
+        Tests getting a vacation message for an unknown user.
+        """
+        return self.client.core.get_vacation('hinkypinky@testing.com'
+            ).addCallback(self.fail
+            ).addErrback(self.assertIsInstance, Failure)
