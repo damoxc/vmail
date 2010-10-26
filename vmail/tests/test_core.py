@@ -171,3 +171,15 @@ class TestCoreManagement(test.DaemonUnitTest):
         return self.client.core.delete_user('dave@example.com'
             ).addCallback(on_deleted
             ).addErrback(self.fail)
+
+    def test_get_user(self):
+        """ 
+        This method tests getting the user data via the rpc interface.
+        """
+        def got_user(user):
+            self.assertNotNone(user)
+            self.assertTrue(user['enabled'])
+            self.assertEqual(user['email'], 'fred@testing.com')
+        return self.client.core.get_user('fred@testing.com'
+            ).addCallback(got_user
+            ).addErrback(self.fail)
