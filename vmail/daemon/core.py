@@ -407,8 +407,11 @@ class Core(object):
             email = user
             user = db.query(User).filter_by(email=email).first()
 
+        # If the user doesn't exist throw a RPC error
         if not user:
             raise UserNotFoundError(email)
+
+        return user
 
     @export
     def get_vacation(self, email):
