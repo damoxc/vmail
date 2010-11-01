@@ -35,9 +35,13 @@ class DatabaseUnitTest(BaseUnitTest):
     data manipulation. Each test gets a fresh database.
     """
 
+    def _create_engine(self):
+        from vmail.model import _create_engine
+        return _create_engine('sqlite:///')
+
     def setUp(self):
-        from vmail.model import _create_engine, init_model, init_rw_model
-        engine = _create_engine('sqlite:///')
+        from vmail.model import init_model, init_rw_model
+        engine = self._create_engine()
 
         # Create the database schema
         meta.bind = engine
@@ -144,6 +148,16 @@ class DatabaseUnitTest(BaseUnitTest):
 
     def tearDown(self):
         meta.drop_all()
+
+class ThreadedDatabaseUnitTest(DatabaseUnitTest):
+    """
+    Creates a sqlite engine as a file to allow for threaded tests to be
+    run.
+    """
+
+    def _create_engine(self):
+        from vmail.model import _create_engine
+        return _create_engine('sqlite:///test.db')
 
 class DaemonUnitTest(DatabaseUnitTest):
     """
