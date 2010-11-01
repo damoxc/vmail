@@ -141,6 +141,32 @@ class TestCoreSMTP(test.DaemonUnitTest):
             ).addCallback(self.fail
             ).addErrback(self.assertIsInstance, Failure)
 
+    def test_last_login(self):
+        """
+        Tests recording a login to the mail system.
+        """
+        return self.client.core.last_login('dave@example.com', 'imap', '1.2.3.4'
+            ).addCallback(self.assertTrue
+            ).addErrback(self.fail)
+
+    def test_last_login_unknown(self):
+        """
+        Tests recording a login to the mail system for an unknown user.
+        """
+        return self.client.core.last_login('yankeedoodle@higglepuddle.com', 'imap', '1.2.3.4'
+            ).addCallback(self.fail
+            ).addErrback(self.assertIsInstance, Failure)
+
+    def test_last_login_mixed_case(self):
+        """
+        Tests recording a login to the mail system for a user but using
+        mixed case to ensure it still matches.
+        """
+        return self.client.core.last_login('Dave@Example.com', 'imap', '1.2.3.4'
+            ).addCallback(self.assertTrue
+            ).addErrback(self.fail)
+
+
 class TestCoreManagement(test.DaemonUnitTest):
 
     def test_delete_forward(self):

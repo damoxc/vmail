@@ -245,6 +245,9 @@ class Core(object):
         :keyword remote_addr: The remote address of the log in
         :type remote_addr: string
         """
+        # Ensure we are working with a lowercase email address
+        email = email.lower()
+
         try:
             user = db.query(User).filter_by(email=email).first()
         except Exception as e:
