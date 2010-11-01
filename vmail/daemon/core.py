@@ -246,10 +246,13 @@ class Core(object):
         :type remote_addr: string
         """
         try:
-            user = db.query(User).filter_by(email=email).one()
-        except:
-            log.warning('[last_login] unable to get User(%s)', email)
+            user = db.query(User).filter_by(email=email).first()
+        except Exception as e:
+            log.exception(e)
             user = None
+
+        if user is None:
+            raise UserNotFoundError(email)
 
         login = Login()
         login.email = email
