@@ -131,7 +131,7 @@ def _create_engine(dburi, debug=False):
     }
     if dburi.startswith('mysql://'):
         engine_args['max_overflow'] = config.get('max_overflow')
-        engine_args['pool_recycle'] = 3600
+        engine_args['pool_recycle'] = 1800
         procs.use_procedures('mysql')
     else:
         procs.use_procedures('py')
