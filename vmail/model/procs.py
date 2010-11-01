@@ -188,6 +188,34 @@ def _py_resolve_forwards():
 def _py_is_local():
     raise NotImplementedError('is_local')
 
+def _mysql_get_quotas(email):
+    """
+    Return the domain and user quotas for the email address specified.
+
+    :param email: The address to check
+    :type email: str
+    :returns: The domain and user quotas in a tuple
+    :rtype: tuple
+    """
+    result = db.execute('CALL get_quotas(:email', {'email': email})
+    row = result.fetchone()
+    result.close()
+    return (row[0], row[1])
+
+def _mysql_is_validrcptto(email):
+    """
+    Checks to see a recipient is valid.
+
+    :param email: The address to check
+    :type email: str
+    :returns: A tuple with information about the address
+    :rtype: tuple
+    """
+    result = db.execute('CALL is_validrcptto(:email', {'email': email})
+    row = result.fetchone()
+    result.close()
+    return (row[0], row[1], row[2])
+
 # Create the procedure proxies
 for proc in _procedures:
     setattr(_module, proc, ProcedureProxy(proc))
