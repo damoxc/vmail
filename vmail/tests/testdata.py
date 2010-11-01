@@ -37,10 +37,10 @@ transport = [
 ]
 
 users = [
-    (1, 'postmaster@example.com', None, 'Postmaster', None, 'password', 52428800, True, True),
-    (1, 'dave@example.com', None, 'Dave Smith', None, 'daisychain', 52428800, True, False),
-    (2, 'postmaster@testing.com', None, 'Postmaster', None, 'password', 104857600, True, True),
-    (2, 'fred@testing.com', None, 'Fred Jones', None, 'ecomdim', 104857600, True, False),
+    (1, 'postmaster@example.com', None, 'Postmaster', '', 'password', 52428800, True, True),
+    (1, 'dave@example.com', None, 'Dave Smith', '', 'daisychain', 52428800, True, False),
+    (2, 'postmaster@testing.com', None, 'Postmaster', '', 'password', 104857600, True, True),
+    (2, 'fred@testing.com', None, 'Fred Jones', '', 'ecomdim', 104857600, True, False),
 ]
 
 user_quotas = [
