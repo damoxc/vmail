@@ -33,6 +33,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from vmail.common import get_config
 from vmail.error import VmailException
 from vmail.model.classes import *
+from vmail.model import procs
 
 log = logging.getLogger(__name__)
 
@@ -131,6 +132,10 @@ def _create_engine(dburi, debug=False):
     if dburi.startswith('mysql://'):
         engine_args['max_overflow'] = config.get('max_overflow')
         engine_args['pool_recycle'] = 3600
+        procs.use_procedures('mysql')
+    else:
+        procs.use_procedures('py')
+
     return create_engine(dburi, **engine_args)
 
 def connect():
