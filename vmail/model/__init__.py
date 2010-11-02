@@ -46,12 +46,8 @@ class SessionPool(object):
     environment.
     """
 
-    def __init__(self, engine, min_sessions=10, max_sessions=25):
-        self.engine = engine
-        self.min_sessions = min_sessions
-        self.max_sessions = max_sessions
-        self.session_pool = []
-        self.available = []
+    def __init__(self, engine):
+        self.session = create_session(engine)
         self.checkouts = {}
         self.lock = threading.Lock()
 
@@ -61,22 +57,16 @@ class SessionPool(object):
             cur_thread = threading.current_thread()
             if cur_thread.ident not in self.checkouts:
                 raise VmailSessionException('No session checked out')
-            self.available.append(self.checkouts.pop(cur_thread.ident))
+            session = self.checkouts.pop(cur_thread.ident)
+            session.close()
+            del session
         finally:
             self.lock.release()
 
     def checkout(self):
         self.lock.acquire()
         try:
-            while not self.available:
-                if len(self.session_pool) < self.max_sessions:
-                    session = create_session(self.engine)
-                    self.session_pool.append(session)
-                    self.available.append(session)
-                else:
-                    time.sleep(0.1)
-            
-            session = self.available.pop()
+            session = self.session()
             cur_thread = threading.current_thread()
             self.checkouts[cur_thread.ident] = session
             return session
