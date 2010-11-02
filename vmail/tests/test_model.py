@@ -1,3 +1,5 @@
+from twisted.internet import reactor, threads
+
 from vmail.tests import test
 from vmail.model.classes import *
 
@@ -83,3 +85,28 @@ class TestDatabase(test.DatabaseUnitTest):
         self.assertEqual(self.db.query(VacationNotification
             ).filter_by(on_vacation=email
             ).count(), 0)
+
+class TestSessionPool(test.ThreadedDatabaseUnitTest):
+
+    def test_same_object_across_threads(self):
+        """
+        Test using a session to access an object, checking it back in 
+        and then opening a new session accessing the same object.
+        """
+        from vmail.model import rw_pool
+
+        def get_vacation():
+            rw_db = rw_pool.checkout()
+            user = rw_db.query(User).get(2)
+            rw_pool.checkin()
+            return True
+
+        def get_user():
+            rw_db = rw_pool.checkout()
+            user = rw_db.query(User).get(2)
+            rw_db.delete(user.vacation)
+            rw_pool.checkin()
+            return True
+
+        threads.deferToThread(get_vacation)
+        return threads.deferToThread(get_user)
