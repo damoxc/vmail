@@ -258,7 +258,7 @@ class RpcServer(object):
             exit(1)
 
         # We want to check if another instance is running now
-        self.lockfile = open(sock_path + '.sock', 'a+')
+        self.lockfile = open(sock_path + '.lock', 'a+')
         try:
             fcntl.flock(self.lockfile.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except IOError as e:
