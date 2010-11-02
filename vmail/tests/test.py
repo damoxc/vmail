@@ -171,19 +171,6 @@ class DaemonUnitTest(DatabaseUnitTest):
         from vmail.daemon.core import Core
         from vmail.daemon.qpsmtpd import Qpsmtpd
 
-        me = self
-
-        def before(self, method):
-            func = method.im_func
-            func.func_globals['db'] = me.db
-            func.func_globals['rw_db'] = me.rw_db
-
-        def after(self, method):
-            pass
-
-        Core.__before__ = before
-        Core.__after__ = lambda x, y: None
-
         self.rpcserver = RpcServer('vmaild.sock', False)
         self.rpcserver.register_object(Core(None))
         self.rpcserver.register_object(Qpsmtpd())
