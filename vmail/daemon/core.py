@@ -527,8 +527,5 @@ class Core(object):
         func = method.im_func
 
         # dispose of the database connections
-        func.func_globals['db'].remove()
         pool.checkin()
-
-        func.func_globals['rw_db'].remove()
         rw_pool.checkin()
