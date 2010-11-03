@@ -1,5 +1,7 @@
 <?php
 
+$vmail_cfg = array();
+
 function array_insert($array, $index, $value) {
 	array_splice($array, $index, count($array), array_merge(array($value), array_slice($array, $index)));
 }
@@ -33,10 +35,14 @@ function delmaildir($email) {
 }
 
 function getconfig($key) {
-	$cmd = 'vgetconfig "%k"';
-	$cmd = str_replace('%k', $key, $cmd);
-	$output = explode(':', exec($cmd), 2);
-	return trim($output[1]);
+	global $vmail_cfg;
+	if (!count($vmail_cfg)) {
+		$fh = fopen('/etc/vmail/vmail.cfg', 'r');
+		$cfg_contents = fread($fh, 2048);
+		fclose($fh);
+		$vmail_cfg = json_decode($cfg_contents, true);
+	}
+	return $vmail_cfg[$key];
 }
 
 ?>
