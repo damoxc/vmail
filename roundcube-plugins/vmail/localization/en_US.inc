@@ -29,14 +29,17 @@ $labels['quota'] = 'Quota';
 $labels['enabled'] = 'Enabled';
 $labels['admin'] = 'Administrator';
 
+$labels['add'] = 'Add';
 $labels['yes'] = 'Yes';
 $labels['no'] = 'No';
 $labels['other'] = 'Other';
 $labels['unlimited'] = 'Unlimited';
 
 // Forwards specific labels
+$labels['forwards'] = 'Forwards';
 $labels['source'] = 'Source';
 $labels['destination'] = 'Destination';
+$labels['destinations'] = 'Destinations';
 $labels['newforward'] = 'New Forward';
 $labels['editforward'] = 'Edit Forward';
 $labels['anyaddress'] = 'Any Address';
