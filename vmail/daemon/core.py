@@ -191,7 +191,7 @@ class Core(object):
             user = db.query(User).filter_by(email=email).first()
             if not user:
                 raise UserNotFoundError(email)
-            return db.query(User).filter_by(email=email).one().quota
+            return user.quota
         else:
             dom = db.query(Domain).filter_by(domain=domain).first()
             if not dom:
