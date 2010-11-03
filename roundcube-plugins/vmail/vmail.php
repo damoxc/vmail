@@ -995,17 +995,6 @@ class vmail extends rcube_plugin
 		$forward = ($this->forward) ? $this->forward : $this->forwards[$this->fid];
 		$source = get_user_part($forward->source);
 
-		// forward source input
-		$input = new html_inputfield(array(
-			'id'   => '_source',
-			'name' => '_source',
-			'size' => 50
-		));
-		$table->add('title', $this->form_label('_source', 'source'));
-		$table->add(null, $input->show($source) . '@' . $this->domain_name);
-		$this->rcmail->output->add_gui_object('source_input', '_source');
-		$table->add_row();
-
 		// forward catchall checkbox
 		$input = new html_checkbox(array(
 			'id'    => '_catchall',
@@ -1015,6 +1004,17 @@ class vmail extends rcube_plugin
 		$table->add('title', $this->form_label('_catchall', 'catchall'));
 		$table->add(null, $input->show($forward->catchall));
 		$this->rcmail->output->add_gui_object('catchall_input', '_catchall');
+		$table->add_row();
+
+		// forward source input
+		$input = new html_inputfield(array(
+			'id'   => '_source',
+			'name' => '_source',
+			'size' => 50
+		));
+		$table->add('title', $this->form_label('_source', 'source'));
+		$table->add(null, $input->show($source) . '@' . $this->domain_name);
+		$this->rcmail->output->add_gui_object('source_input', '_source');
 		$table->add_row();
 
 		// Add a break before the destinations table
