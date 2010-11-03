@@ -961,23 +961,14 @@ class vmail extends rcube_plugin
 		return sprintf('<label for="%s"><b>%s:</b></label>', $input_id, $label);
 	}
 
-	function forwardslist_html()
+	function forwardslist_html($attrib)
 	{
 		$forwards = $this->get_forwards();
 
 		// Set up the columns to display.
-		$cols = array(
-			'vmail.source',
-			'vmail.destination'
-		);
+		$cols = array('vmail.source');
 
-		$out = rcube_table_output(array(
-			'cols'        => 3,
-			'cellpadding' => 0,
-			'cellspacing' => 0,
-			'class'       => 'records-table',
-			'id'          => 'forwards-table'),
-			$forwards, $cols, 'vmail.id');
+		$out = rcube_table_output($attrib, $forwards, $cols, 'vmail.id');
 		$this->rcmail->output->include_script('list.js');
 		$this->rcmail->output->add_gui_object('forwardslist', 'forwards-table');
 		return $out;
@@ -986,9 +977,7 @@ class vmail extends rcube_plugin
 	function forwardeditform_html()
 	{
 		$title = Q($this->gettext(($this->fid) ? 'editforward' : 'newforward'));
-		$out = '<div id="account-title" class="boxtitle">' . $title . '</div>';
-		$out .= '<div class="boxcontent">';
-		$out .= $this->rcmail->output->form_tag(array(
+		$out = $this->rcmail->output->form_tag(array(
 			'id' => 'forwardeditform',
 			'name' => 'forwardeditform',
 			'method' => 'post',
@@ -1001,7 +990,7 @@ class vmail extends rcube_plugin
 		));
 		$out .= $hiddenfields->show();
 
-		$table = new html_table(array('cols' => 2));
+		$table = new html_table(array('cols' => 3));
 
 		$forward = ($this->forward) ? $this->forward : $this->forwards[$this->fid];
 		$source = get_user_part($forward->source);
@@ -1015,6 +1004,7 @@ class vmail extends rcube_plugin
 		$table->add('title', $this->form_label('_source', 'source'));
 		$table->add(null, $input->show($source) . '@' . $this->domain_name);
 		$this->rcmail->output->add_gui_object('source_input', '_source');
+		$table->add_row();
 
 		// forward catchall checkbox
 		$input = new html_checkbox(array(
@@ -1025,50 +1015,53 @@ class vmail extends rcube_plugin
 		$table->add('title', $this->form_label('_catchall', 'catchall'));
 		$table->add(null, $input->show($forward->catchall));
 		$this->rcmail->output->add_gui_object('catchall_input', '_catchall');
+		$table->add_row();
+
+		// Add a break before the destinations table
+		$table->add(null, '&nbsp;');
+		$table->add_row();
+
+		// Add a header
+		$table->add('title', sprintf("<b><u>%s</u></b>", $this->gettext('destinations')));
+		$table->add_row();
 		
-		// forward destination input
-		$input = new html_inputfield(array(
-			'id'   => '_destination',
-			'name' => '_destination',
-			'size' => 50
-		));
-		$table->add('title', $this->form_label('_destination', 'destination'));
-		$table->add(null, $input->show($forward->destination));
+		// Set up the destinations to display.
+		$destinations = explode(',', $forward->destination);
+		$i = 0;
+
+		// Loop over creating the form elements for them
+		foreach ($destinations as $destination) {
+			$input = new html_inputfield(array(
+				'id'   => "_destination-$i",
+				'name' => "_destination-$i",
+				'size' => 80
+			));
+			$table->add(array('colspan'=>2), $input->show($destination));
+
+			$del_btn = new html_inputfield(array(
+				'id'    => "_delete_dst-$i",
+				'name'  => "_delete_dst-$i",
+				'class' => 'button dstdeletebtn',
+				'style' => 'margin-right: 0.5em',
+				'type'  => 'button',
+				'value' => Q(rcube_label('delete'))
+			));
+			$table->add(null, $del_btn->show());
+
+			$add_btn = new html_inputfield(array(
+				'id'    => "_add_dst-$i",
+				'name'  => "_add_dst-$i",
+				'class' => 'button dstaddbtn',
+				'style' => 'margin-right: 0.5em',
+				'type'  => 'button',
+				'value' => Q(rcube_label('vmail.add'))
+			));
+			$table->add(null, $add_btn->show());
+			$table->add_row();
+		}
 
 		$out .= $table->show();
 		$out .= '</form>';
-		$out .= '<p>';
-
-		// delete button
-		$attr =  array(
-			'id'    => '_delete_fwd',
-			'class' => 'button',
-			'name'  => '_action',
-			'style' => 'margin-right: 0.5em',
-			'type'  => 'button',
-			'value' => Q(rcube_label('delete'))
-		);
-		if (!$this->fid) {
-			$attr['disabled'] = true;
-			$attr['style'] .= '; color: gray;';
-		}
-		$input = new html_inputfield($attr);
-		$out .= $input->show();
-		$this->rcmail->output->add_gui_object('del_forward', '_delete_fwd');
-
-		// save button
-		$input = new html_inputfield(array(
-			'id'    => '_save_fwd',
-			'class' => 'button mainaction',
-			'name'  => '_action',
-			'type'  => 'button',
-			'value' => Q(rcube_label('save'))
-		));
-		$out .= $input->show();
-		$this->rcmail->output->add_gui_object('save_forward', '_save_fwd');
-
-		$out .= '</p>';
-		$out .= '</div>';
 		return $out;
 	}
 }

@@ -3,7 +3,7 @@
 	default CSS last updated in version 2009-09-26
 */
 
-#accounts-list, #forwards-list {
+#accounts-list {
 	position: absolute;
 	overflow: auto;
 	top: 95px;
@@ -13,7 +13,7 @@
 	border: 1px solid #999;
 }
 
-#accounts-detail, #forwards-detail {
+#accounts-detail {
 	position: absolute;
 	overflow: auto;
 	top: 95px;
@@ -23,21 +23,24 @@
 	border: 1px solid #999;
 }
 
-#accounts-detail .disabled, #forwards-detail .disabled {
+#accounts-detail .disabled,
+#forward-detail .disabled {
 	color: #ccc;
 }
 
-#accounts-detail .disabled input, #forwards-detail .disabled input {
+#accounts-detail .disabled input,
+#forward-detail .disabled input {
 	border: 1px solid #ccc;
+	background-color: #eee;
 }
 
-#accounts-details img, #forwards-details img {
+#accounts-details img {
 	margin: 0 auto;
 	width: 260px;
 	height: 228px;
 }
 
-#accounts-table, #forwards-table {
+#accounts-table {
 	width: 100%;
 	cursor: default;
 }
@@ -71,4 +74,55 @@
 #domain-usage {
 	float: right;
 	font-size: 11px;
+}
+
+
+/********************
+ * Forwards section *
+ ********************/
+#forwards-table {
+	width: 100%;
+	table-layout: fixed;
+}
+
+#forwards-table tbody td {
+	cursor: default;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	-o-text-overflow: ellipsis;
+}
+
+#forwards-frame
+{
+  position: relative;
+  margin-top: 20px;
+  border: 1px solid #999999;
+}
+
+#forward-details
+{
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid #999999;
+  overflow: auto;
+  background-color: #F2F2F2;
+}
+
+#forward-details table td.title
+{
+  font-weight: bold;
+  text-align: right;
+}
+
+#forwards-list
+{
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  border: 1px solid #999999;
+  background-color: #F9F9F9;
+  overflow: hidden;
 }

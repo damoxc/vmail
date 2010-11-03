@@ -4,23 +4,31 @@
 		<title><roundcube:object name="pagetitle" /></title>
 		<roundcube:include file="/includes/links.html" />
 		<script type="text/javascript" src="/functions.js"></script>
+		<script type="text/javascript" src="/splitter.js"></script>
 	</head>
 	<body>
 		<roundcube:include file="/includes/taskbar.html" />
 		<roundcube:include file="/includes/header.html" />
 		<roundcube:include file="/includes/settingstabs.html" />
 
-		<div id="forwards-list">
-			<roundcube:object name="plugin.forwardslist" id="forwards-table" summary="Forwards list" class="records-table" />
-		</div>
-		
-		<p id="listbuttons">
-			<roundcube:button command="plugin.forward-new" type="input" label="vmail.newforward" class="button" condition="config:forwards_level:0<2" />
-		</p>
-
-		<div id="forwards-detail">
-			<div style="margin: 10px auto; text-align: center;">
-				<img src="/images/watermark.gif" width="260" height="228" alt="" />
+		<div id="mainscreen">
+			<div id="forwards-list">
+				<div id="forwards-title" class="boxtitle"><roundcube:label name="vmail.forwards" /></div>
+				<div class="boxlistcontent">
+					<roundcube:object name="plugin.forwardslist" id="forwards-table" summary="Forwards list" class="records-table" cols="2" cellspacing="0" noheader="true" editIcon="" />
+				</div>
+				<div class="boxfooter">
+					<roundcube:button command="add" type="link" title="vmail.newforward" class="buttonPas addgroup" classAct="button addgroup" content=" " condition="config:identities_level:0<2" />
+				</div>
+			</div>
+			<script type="text/javascript">
+			  var fwdviewsplit = new rcube_splitter({id:'fwdviewsplitter', p1: 'forwards-list', p2: 'forwards-details', orientation: 'v', relative: true, start: 250 });
+			  rcmail.add_onload('fwdviewsplit.init()');
+			</script>
+			<div id="forwards-details">
+				<div style="margin: 10px auto; text-align: center;">
+					<img src="/images/watermark.gif" width="260" height="228" alt="" />
+				</div>
 			</div>
 		</div>
 	</body>
