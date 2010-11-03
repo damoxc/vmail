@@ -170,7 +170,7 @@ class Core(object):
             user = db.query(User).filter_by(email=email).first()
             if not user:
                 raise UserNotFoundError(email)
-            return user.usage.bytes
+            return user.usage.bytes if user.usage else 0L
         else:
             if not isinstance(domain, (int, long)):
                 dom = db.query(Domain).filter_by(domain=domain).first()
@@ -179,7 +179,7 @@ class Core(object):
                 domain = dom.id
             return long(db.query(func.sum(UserQuota.bytes)
                 ).join(User
-                ).filter_by(domain_id=domain).scalar())
+                ).filter_by(domain_id=domain).scalar() or 0)
 
     @export
     def get_quota(self, domain, user=None):
