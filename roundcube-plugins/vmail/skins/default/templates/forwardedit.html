@@ -26,7 +26,7 @@
 						noheader="true" editIcon="" />
 				</div>
 				<div class="boxfooter">
-					<roundcube:button command="plugin.forward-new" type="link" 
+					<roundcube:button command="add-forward" type="link" 
 						title="vmail.newforward"
 						class="buttonPas addgroup"
 						classAct="button addgroup" 
@@ -49,12 +49,12 @@
 						summary="Forwards form" />
 					<p>
 						<br />
-						<roundcube:button command="delete" type="input"
+						<roundcube:button command="delete-forward" type="input"
 							class="button"
 							label="delete"
 							condition="env:fid!=null"
 							style="margin-right:0.5em" />
-						<roundcube:button command="save" type="input"
+						<roundcube:button command="save-forward" type="input"
 							class="button mainaction" 
 							label="save" />
 					</p>

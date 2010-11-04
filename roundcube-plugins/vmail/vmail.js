@@ -27,8 +27,8 @@ var forwards = {
 		rcmail.register_command('plugin.forwards', function() {
 			rcmail.goto_url('plugin.forwards');
 		}, true);
-		rcmail.register_command('plugin.forward-new', function() {
-			forwards.goto_url('new');
+		rcmail.register_command('add-forward', function() {
+			rcmail.goto_url('plugin.add-forward');
 		}, true);
 
 		rcmail.env.forwards_path = rcmail.env.comm_path + '&_action=plugin.forwards';
