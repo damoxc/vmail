@@ -24,12 +24,12 @@
 }
 
 #accounts-detail .disabled,
-#forward-detail .disabled {
+#forward-details .disabled {
 	color: #ccc;
 }
 
 #accounts-detail .disabled input,
-#forward-detail .disabled input {
+#forward-details .disabled input {
 	border: 1px solid #ccc;
 	background-color: #eee;
 }
