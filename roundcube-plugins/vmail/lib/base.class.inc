@@ -31,7 +31,7 @@ class Base
 	{
 		$this->id = $data->id;
 		foreach ($this->keys as $key) {
-			$this->data[$key] = $data->$key;
+			$this->data[$key] = (is_array($data)) ? $data[$key] : $data->$key;
 		}
 	}
 
