@@ -212,6 +212,23 @@ class TestCoreManagement(test.DaemonUnitTest):
             ).addCallback(self.fail
             ).addErrback(self.assertIsInstance, Failure)
 
+    def test_get_forwards(self):
+        """
+        Test getting the forwards for a domain
+        """
+        sources = ['help@example.com', 'info@example.com']
+        return self.client.core.get_forwards('example.com'
+            ).addCallback(self.assertEqual, sources
+            ).addErrback(self.fail)
+
+    def test_get_forwards_unknown(self):
+        """
+        Test getting the forwards for an unknown domain.
+        """
+        return self.client.core.get_forwards('higglepuddle.com'
+            ).addCallback(self.fail
+            ).addErrback(self.assertIsInstance, Failure)
+
     def test_get_user(self):
         """ 
         This method tests getting the user data via the rpc interface.
@@ -272,5 +289,35 @@ class TestCoreManagement(test.DaemonUnitTest):
         Tests getting a vacation message for an unknown user.
         """
         return self.client.core.get_vacation('hinkypinky@testing.com'
+            ).addCallback(self.fail
+            ).addErrback(self.assertIsInstance, Failure)
+
+    def test_save_forward(self):
+        """
+        Test saving a forward and then checking to ensure that what we saved
+        matches what is returned by core.get_forward.
+        """
+        source = 'sales@example.com'
+        destinations = ['dave@example.com']
+
+        def on_added_forward(source_):
+            self.assertEqual(source_, source)
+            return self.client.core.get_forward(source_
+                ).addCallback(self.assertEqual, destinations
+                ).addErrback(self.fail)
+
+        return self.client.core.save_forward(source, destinations
+            ).addCallback(on_added_forward
+            ).addErrback(self.fail)
+
+    def test_save_forward_unknown(self):
+        """
+        Tests saving a forward for an unknown domain.
+        """
+
+        source = 'yankeedoodle@higglepuddle.com'
+        destinations = ['help@higglepuddle.com']
+
+        return self.client.core.save_forward(source, destinations
             ).addCallback(self.fail
             ).addErrback(self.assertIsInstance, Failure)

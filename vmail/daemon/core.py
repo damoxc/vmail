@@ -339,15 +339,15 @@ class Core(object):
     # Management Methods #
     ######################
     @export
-    def delete_forward(self, forward):
-        try:
-            if isinstance(forward, (int, long)):
-                rw_db.query(Forwards).filter_by(id=forward).delete()
-            else:
-                rw_db.query(Forwards).filter_by(source=forward).delete()
-            rw_db.commit()
-        except Exception, e:
-            log.exception(e)
+    def delete_forward(self, source):
+        """
+        Remove a forward from the system.
+
+        :param source: The forwards address
+        :type source: str
+        """
+        rw_db.query(Forward).filter_by(source=source).delete()
+        rw_db.commit()
 
     @export
     def delete_user(self, email):
@@ -385,19 +385,42 @@ class Core(object):
             return db.query(Domain).filter_by(domain=domain).one()
 
     @export
-    def get_forward(self, forward):
-        if isinstance(forward, (int, long)):
-            fwd = rw_db.query(Forwards).get(forward)
-        else:
-            fwd = rw_db.query(Forwards).filter_by(source=forward).first()
+    def get_forward(self, source):
+        """
+        Get the destinations for a forward from the mail system.
+        
+        :param source: The forward's source
+        :type source: str
+        """
+        destinations = [f.destination for f in rw_db.query(Forward
+            ).filter_by(source = source)]
 
-        if fwd is None:
-            raise ForwardNotFoundError(forward)
-        return fwd
+        if not destinations:
+            raise ForwardNotFoundError(source)
+
+        return destinations
 
     @export
     def get_forwards(self, domain):
-        return self.get_domain(domain).forwards
+        """
+        Return a list of the forward sources for the specified domain.
+
+        :param domain: The domain to fetch the forwards for
+        :type domain: str or int
+        """
+        if not isinstance(domain, (int, long)):
+            domain_id = db.query(Domain).filter_by(domain=domain).first()
+            if not domain_id:
+                raise DomainNotFoundError(domain)
+            domain_id = domain_id.id
+        else:
+            domain_id = domain
+
+        forwards = db.query(Forward.source
+            ).filter_by(domain_id=domain_id
+            ).group_by(Forward.source).all()
+
+        return [f[0] for f in forwards]
 
     @export
     def get_users(self, domain):
@@ -432,26 +455,37 @@ class Core(object):
         return vacation
 
     @export
-    def save_forward(self, forward, params):
-        if not params:
+    def save_forward(self, source, destinations):
+        """
+        Save a forwards details into the database and then trigger an
+        update via the process_forwards procedure.
+
+        :param source: The forward to update
+        :type source: str
+        :param destinations: The forwards destinations
+        :type destinations: list
+        """
+
+        # If we haven't been supplied any destinations just return
+        if not destinations:
             return
-        try:
-            if forward:
-                params = dict([(getattr(Forwards, k), params[k]) for k in params])
-                if isinstance(forward, (int, long)):
-                    rw_db.query(Forwards).filter_by(id=forward).update(params)
-                else:
-                    rw_db.query(Forwards).filter_by(source=forward).update(params)
-            else:
-                forward = Forwards()
-                for k, v in params.iteritems():
-                    setattr(forward, k, v)
-                rw_db.add(forward)
-            rw_db.commit()
-            if isinstance(forward, Forwards):
-                return forward.id
-        except Exception, e:
-            log.exception(e)
+
+        # Due to the new table structure we merely delete the old forwards
+        # if there are any.
+        rw_db.query(Forward).filter_by(source=source).delete()
+        
+        # Add all the new forwards as specified by the destinations list
+        for destination in destinations:
+            forward = Forward()
+            forward.source = source
+            forward.destination = destination
+            rw_db.add(forward)
+
+        # Finnally commit the changes to the forwards table
+        rw_db.commit()
+
+        # Return the forwards source
+        return source
 
     @export
     def save_user(self, user, params):

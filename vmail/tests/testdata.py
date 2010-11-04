@@ -11,6 +11,12 @@ domains = [
     ('testing.com', 'Package 2', 2, 104857600, 10)
 ]
 
+forwards = [
+    (1, 'help@example.com', 'dave@example.com'),
+    (1, 'info@example.com', 'help@example.com'),
+    (2, 'webmaster@testing.com', 'fred@testing.com')
+]
+
 forwardings = [
     (1, 'help@example.com', 'dave@example.com'),
     (1, 'info@example.com', 'help@example.com'),

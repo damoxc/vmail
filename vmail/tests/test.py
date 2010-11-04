@@ -107,6 +107,13 @@ class DatabaseUnitTest(BaseUnitTest):
                 destination   = destination
             ).execute()
 
+        for (domain_id, source, destination) in testdata.forwards:
+            forwards.insert().values(
+                domain_id     = domain_id,
+                source        = source,
+                destination   = destination
+            ).execute()
+
         for (domain_id, source, transport_) in testdata.transport:
             transport.insert().values(
                 domain_id = domain_id,
