@@ -350,27 +350,32 @@ class Core(object):
             log.exception(e)
 
     @export
-    def delete_user(self, user):
-        try:
-            if isinstance(user, (int, long)):
-                user = rw_db.query(User).get(user)
-            else:
-                user = rw_db.query(User).filter_by(email=user).one()
-        except Exception, e:
-            log.exception(e)
-        else:
-            try:
-                if os.path.isdir(user.maildir):
-                    shutil.rmtree(user.maildir)
-                    if self.daemon.monitor:
-                        self.daemon.monitor.remove_watch(user.maildir)
+    def delete_user(self, email):
+        """
+        Remove a user from the mail system.
 
-                if user.vacation:
-                    rw_db.delete(user.vacation)
-                rw_db.delete(user)
-                rw_db.commit()
-            except Exception, e:
-                log.exception(e)
+        :param email: The users email address or user id
+        :type email: str or int
+        """
+        if isinstance(email, (int, long)):
+            user = rw_db.query(User).get(email)
+        else:
+            user = rw_db.query(User).filter_by(email=email).first()
+
+        if not user:
+            raise UserNotFoundError(email)
+
+        try:
+            if os.path.isdir(user.maildir):
+                shutil.rmtree(user.maildir)
+                if self.daemon.monitor:
+                    self.daemon.monitor.remove_watch(user.maildir)
+        except Exception, e:
+            log.error('Unable to remove maildir for %s', email)
+            log.exception(e)
+
+        rw_db.delete(user)
+        rw_db.commit()
 
     @export
     def get_domain(self, domain):
