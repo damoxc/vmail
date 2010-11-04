@@ -61,7 +61,17 @@ class SessionPool(object):
             cur_thread = threading.current_thread()
             if cur_thread.ident not in self.checkouts:
                 raise VmailSessionException('No session checked out')
-            self.available.append(self.checkouts.pop(cur_thread.ident))
+
+            # Grab the session from the checkouts
+            session = self.checkouts.pop(cur_thread.ident)
+            
+            # Remove any objects from the session and rollback any in
+            # progress transaction
+            session.expunge_all()
+            session.rollback()
+
+            # Add the session back to the Pool.
+            self.available.append(session)
         finally:
             self.lock.release()
 

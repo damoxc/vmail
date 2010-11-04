@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from datetime import datetime
 
 blacklist = [
@@ -51,7 +52,8 @@ user_quotas = [
 ]
 
 vacation = [
-    ('dave@example.com', 'Out of Office notification', 'Unfortunately I am currently out of the office however I will be back shortly.', datetime(2010, 7, 22, 15, 39, 12), 1)
+    ('dave@example.com', 'Out of Office notification', 'Unfortunately I am currently out of the office however I will be back shortly.', datetime(2010, 7, 22, 15, 39, 12), 1),
+    ('fred@testing.com', 'On Holiday', u'Blah blah blah unicode and stuff, N.B. ’testing’ – the name of the game.', datetime(2010, 7, 22, 15, 39, 12), 1)
 ]
 
 vacation_notification = [

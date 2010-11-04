@@ -246,6 +246,19 @@ class TestCoreManagement(test.DaemonUnitTest):
             ).addCallback(check_vacation
             ).addErrback(self.fail)
 
+    def test_get_vacation_unicode(self):
+        """
+        Tests getting a vacation message that contains unicode characters.
+        """
+
+        def check_vacation(vacation):
+            self.assertNotNone(vacation)
+            self.assertEqual(vacation['email'], 'fred@testing.com')
+
+        return self.client.core.get_vacation('fred@testing.com'
+            ).addCallback(check_vacation
+            ).addErrback(self.fail)
+
     def test_get_vacation_missing(self):
         """
         Tests getting a missing vacation message for a user.
