@@ -192,6 +192,12 @@ class TestCoreManagement(test.DaemonUnitTest):
             self.assertNone(result)
             return self.client.core.get_user('dave@example.com'
                 ).addCallback(self.fail
+                ).addErrback(on_get_user_failed)
+
+        def on_get_user_failed(failure):
+            self.assertIsInstance(failure, Failure)
+            return self.client.core.get_vacation('dave@example.com'
+                ).addCallback(self.fail
                 ).addErrback(self.assertIsInstance, Failure)
 
         return self.client.core.delete_user('dave@example.com'
