@@ -4,7 +4,7 @@ require_once 'base.class.inc';
 
 class Forward extends Base
 {
-	public $keys = array('domain_id', 'source', 'destination');
+	public $keys = array('domain_id', 'source', 'destinations');
 
 	public function __get($key)
 	{
@@ -17,15 +17,15 @@ class Forward extends Base
 	public function delete()
 	{
 		if (!$this->id) return;
-		$this->client->core->delete_forward($this->id);
+		$this->client->core->delete_forward($this->source);
 	}
 
 	public function save()
 	{
 		$params = $this->get_params();
 		if (count($params) == 0) return;
-		$result = $this->client->core->save_forward($this->id, $params);
-		if ($result > 0) $this->id = $result;
+		$result = $this->client->core->save_forward($this->source, $this->destinations);
+		if ($result > 0) $this->source = $result;
 	}
 
 	public static function get_forward($source)

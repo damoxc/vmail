@@ -33,8 +33,13 @@ class Domain extends Base
 
 				case 'forwards':
 					$fwd_data = $this->client->core->get_forwards($this->id);
-					foreach ($fwd_data as $data) {
-						$forwards[] = Forward::from_data($data);
+					foreach ($fwd_data as $k => $v) {
+						
+						$forwards[] = Forward::from_data(array(
+							'source'       => $k, 
+							'destinations' => $v,
+							'domain_id'    => $this->id
+						));
 					}
 					$this->cache['forwards'] = $forwards;
 					break;

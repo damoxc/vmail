@@ -1,10 +1,15 @@
 /* Show user_settings plugin script */
 
 function create_tab(name, label) {
-	var tab = $('<span>').attr('id', 'settingstabplugin' + name).addClass('tablink');
-	var button = $('<a>').attr('href', rcmail.env.comm_path + '&_action=plugin.' + name)
+	var tab = $('<span>')
+		.attr('id', 'settingstabplugin' + name)
+		.addClass('tablink');
+
+	var button = $('<a>')
+		.attr('href', rcmail.env.comm_path + '&_action=plugin.' + name)
 		.html(rcmail.gettext(label, 'vmail'))
 		.appendTo(tab);
+
 	return {'tab': tab, 'button': button};
 }
 

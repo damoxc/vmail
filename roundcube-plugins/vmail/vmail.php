@@ -597,7 +597,8 @@ class vmail extends rcube_plugin
 	 ******************************************************************/
 	function get_forwards($domain = null)
 	{
-		$_forwards = (!$this->forwards) ? $this->domain->forwards : array_values($this->forwards);
+		$_forwards = (!$this->forwards) ? $this->domain->forwards : $this->forwards;
+
 		if (!$this->users) {
 			$this->users = $this->domain->users;
 			foreach ($this->users as $user) {
@@ -605,10 +606,23 @@ class vmail extends rcube_plugin
 			}
 		}
 
+		function fwd_cmp($a, $b) {
+			return strcmp($a->source, $b->source);
+		}
+		usort($_forwards, 'fwd_cmp');
+
+		$i = 1;
 		foreach ($_forwards as $forward) {
-			$this->forwards[$forward->id] = $forward;
+			$this->forwards[$i] = $forward;
 			// skip any mailing list forwards
-			if (strpos($forward->destination, '@lists.ukplc.net') !== false) continue;
+			$is_mailinglist = false;
+			foreach ($forward->destinations as $destination) {
+				if (strpos($destination, '@lists.ukplc.net') !== false) {
+					$is_mailinglist = true;
+					break;
+				}
+			}
+			if ($is_mailinglist) continue;
 
 			// skip any user forwards
 			if (in_array($forward->source, $this->usernames)) continue;
@@ -620,9 +634,10 @@ class vmail extends rcube_plugin
 			if ($forward->catchall) {
 				$row['vmail.source'] = $this->gettext('anyaddress');
 			}
-			$row["vmail.id"] = $forward->id;
+			$row['vmail.id'] = $i++;
 			$forwards[] = $row;			
 		}
+
 		return $forwards;
 	}
 
@@ -1026,11 +1041,10 @@ class vmail extends rcube_plugin
 		$table->add_row();
 		
 		// Set up the destinations to display.
-		$destinations = explode(',', $forward->destination);
 		$i = 0;
 
 		// Loop over creating the form elements for them
-		foreach ($destinations as $destination) {
+		foreach ($forward->destinations as $destination) {
 			$input = new html_inputfield(array(
 				'id'   => "_destination-$i",
 				'name' => "_destination-$i",
