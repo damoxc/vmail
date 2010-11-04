@@ -16,7 +16,7 @@ class Forward extends Base
 
 	public function delete()
 	{
-		if (!$this->id) return;
+		if (!$this->source) return;
 		$this->client->core->delete_forward($this->source);
 	}
 

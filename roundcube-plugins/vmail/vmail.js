@@ -30,11 +30,13 @@ var forwards = {
 		rcmail.register_command('add-forward', function() {
 			rcmail.goto_url('plugin.add-forward');
 		}, true);
+		rcmail.register_command('delete-forward', this.delete_forward, true);
 
 		rcmail.env.forwards_path = rcmail.env.comm_path + '&_action=plugin.forwards';
 
-		if (rcmail.gui_objects.forwardslist) {
-			this.init_forwardslist();
+		if (rcmail.gui_objects.forwards_list) {
+			this.init_forwards_list();
+			this.tab.addClass('tablink-selected');
 		}
 
 		if (!rcmail.env.fid && rcmail.gui_objects.source_input) {
@@ -70,18 +72,18 @@ var forwards = {
 		}
 	},
 
-	init_forwardslist: function() {
-		rcmail.forwardslist = new rcube_list_widget(rcmail.gui_objects.forwardslist, {
+	init_forwards_list: function() {
+		rcmail.forwards_list = new rcube_list_widget(rcmail.gui_objects.forwards_list, {
 			multiselect: false,
 			draggable:   false,
 			keyboard:    false
 		});
-		rcmail.forwardslist.addEventListener('select', this.on_forward_select);
-		rcmail.forwardslist.init();
-		rcmail.forwardslist.focus();
+		rcmail.forwards_list.addEventListener('select', this.on_forward_select);
+		rcmail.forwards_list.init();
+		rcmail.forwards_list.focus();
 		if (rcmail.env.fid && rcmail.env.act != 'del') {
-			rcmail.forwardslist.select(rcmail.env.fid);
-			$('#forwards-list')[0].scrollTop = rcmail.forwardslist.rows[rcmail.env.fid].obj.offsetTop;
+			rcmail.forwards_list.select(rcmail.env.fid);
+			$('#forwards-list')[0].scrollTop = rcmail.forwards_list.rows[rcmail.env.fid].obj.offsetTop;
 		}
 	},
 
@@ -110,6 +112,19 @@ var forwards = {
 			return false;
 
 		if (action && (id || action == 'add')) this.goto_url(action, id);
+	},
+
+	delete_forward: function(id) {
+		var selection = rcmail.forwards_list.get_selection();
+		if (!(selection.length || rcmail.env.fid))
+			return;
+
+		if (!id)
+			id = rcmail.env.fid ? rcmail.env.fid : selection[0];
+
+		rcmail.goto_url('plugin.delete-forward', '_fid='+id+'&_token='+rcmail.env.request_token, true);
+
+		return true;
 	}
 }
 

@@ -21,6 +21,10 @@ require_once 'lib/forward.class.inc';
 require_once 'lib/user.class.inc';
 require_once 'lib/vacation.class.inc';
 
+function fwd_cmp($a, $b) {
+	return strcmp($a->source, $b->source);
+}
+
 class vmail extends rcube_plugin
 {
 	public $task = 'settings';
@@ -87,9 +91,14 @@ class vmail extends rcube_plugin
 		$this->register_handler('plugin.accounteditform',
 			array($this, 'accounteditform_html'));
 
-		// Register the forwards section
+		// Register the forwards handlers
 		$this->register_action('plugin.forwards',
 			array($this, 'forwards_handler'));
+		$this->register_action('plugin.add-forward',
+			array($this, 'add_forward_handler'));
+		$this->register_action('plugin.delete-forward',
+			array($this, 'delete_forward_handler'));
+
 		$this->register_handler('plugin.forwardslist',
 			array($this, 'forwardslist_html'));
 		$this->register_handler('plugin.forwardeditform',
@@ -517,19 +526,30 @@ class vmail extends rcube_plugin
 		$this->rcmail->output->send('vmail.' . $this->template);
 	}
 
-	function forwarddel_handler()
+	function add_forward_handler()
 	{
+		$this->rcmail->output->set_pagetitle('New Forward');
+		$this->rcmail->output->send('vmail.forwardedit');
+	}
+
+	function delete_forward_handler()
+	{
+		$this->fid = (int) get_input_value('_fid', RCUBE_INPUT_GET);
+		if (!$this->fid) {
+			return;
+		}
 		$this->get_forwards();
 
 		$forward = $this->forwards[$this->fid];
-		if (!$forward) {
-			return;
+		if ($forward) {
+			$forward->delete();
+			unset($this->forwards[$forward->id]);
+			$this->rcmail->output->show_message('vmail.forwarddeleted', 'confirmation');
+		} else {
+			$this->rcmail->output->show_message('vmail.del-forward-err', 'error');
 		}
 
-		$forward->delete();
-		unset($this->forwards[$forward->id]);
-
-		$this->rcmail->output->show_message('vmail.forwarddeleted', 'confirmation');
+		$this->rcmail->output->send('vmail.forwards');
 	}
 
 	function forwardsave_handler()
@@ -606,9 +626,6 @@ class vmail extends rcube_plugin
 			}
 		}
 
-		function fwd_cmp($a, $b) {
-			return strcmp($a->source, $b->source);
-		}
 		usort($_forwards, 'fwd_cmp');
 
 		$i = 1;
@@ -985,7 +1002,7 @@ class vmail extends rcube_plugin
 
 		$out = rcube_table_output($attrib, $forwards, $cols, 'vmail.id');
 		$this->rcmail->output->include_script('list.js');
-		$this->rcmail->output->add_gui_object('forwardslist', 'forwards-table');
+		$this->rcmail->output->add_gui_object('forwards_list', 'forwards-table');
 		return $out;
 	}
 
@@ -1043,8 +1060,11 @@ class vmail extends rcube_plugin
 		// Set up the destinations to display.
 		$i = 0;
 
+		// Create the destinations
+		$destinations = ($forward->destinations) ? $forward->destinations : array('');
+
 		// Loop over creating the form elements for them
-		foreach ($forward->destinations as $destination) {
+		foreach ($destinations as $destination) {
 			$input = new html_inputfield(array(
 				'id'   => "_destination-$i",
 				'name' => "_destination-$i",
