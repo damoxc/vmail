@@ -216,9 +216,12 @@ class TestCoreManagement(test.DaemonUnitTest):
         """
         Test getting the forwards for a domain
         """
-        sources = ['help@example.com', 'info@example.com']
+        forwards = {
+            u'help@example.com': [u'dave@example.com'],
+            u'info@example.com': [u'help@example.com']
+        }
         return self.client.core.get_forwards('example.com'
-            ).addCallback(self.assertEqual, sources
+            ).addCallback(self.assertEqual, forwards
             ).addErrback(self.fail)
 
     def test_get_forwards_unknown(self):

@@ -403,10 +403,12 @@ class Core(object):
     @export
     def get_forwards(self, domain):
         """
-        Return a list of the forward sources for the specified domain.
+        Return a dict of the forwards for the specified domain.
 
         :param domain: The domain to fetch the forwards for
         :type domain: str or int
+        :keyword full: Set to True to include the destinations
+        :type full: bool
         """
         if not isinstance(domain, (int, long)):
             domain_id = db.query(Domain).filter_by(domain=domain).first()
@@ -416,11 +418,15 @@ class Core(object):
         else:
             domain_id = domain
 
-        forwards = db.query(Forward.source
-            ).filter_by(domain_id=domain_id
-            ).group_by(Forward.source).all()
-
-        return [f[0] for f in forwards]
+        forwards = db.query(Forward
+            ).filter_by(domain_id=domain_id,
+            ).order_by(Forward.source
+            ).all()
+        fwds = {}
+        for forward in forwards:
+            destinations = fwds.setdefault(forward.source, [])
+            destinations.append(forward.destination)
+        return fwds
 
     @export
     def get_users(self, domain):
