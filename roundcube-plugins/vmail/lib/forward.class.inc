@@ -24,7 +24,7 @@ class Forward extends Base
 	{
 		$params = $this->get_params();
 		if (count($params) == 0) return;
-		$result = $this->client->core->save_forward($this->source, $this->destinations);
+		$result = $this->client->core->save_forward($this->domain_id, $this->source, $this->destinations);
 		if ($result > 0) $this->source = $result;
 	}
 

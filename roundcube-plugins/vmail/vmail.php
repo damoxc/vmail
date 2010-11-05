@@ -91,14 +91,19 @@ class vmail extends rcube_plugin
 		$this->register_handler('plugin.accounteditform',
 			array($this, 'accounteditform_html'));
 
-		// Register the forwards handlers
+		// Register the forwards actions
 		$this->register_action('plugin.forwards',
 			array($this, 'forwards_handler'));
 		$this->register_action('plugin.add-forward',
 			array($this, 'add_forward_handler'));
 		$this->register_action('plugin.delete-forward',
 			array($this, 'delete_forward_handler'));
+		$this->register_action('plugin.edit-forward',
+			array($this, 'edit_forward_handler'));
+		$this->register_action('plugin.save-forward',
+			array($this, 'save_forward_handler'));
 
+		// Register the forwards handlers
 		$this->register_handler('plugin.forwardslist',
 			array($this, 'forwardslist_html'));
 		$this->register_handler('plugin.forwardeditform',
@@ -503,27 +508,7 @@ class vmail extends rcube_plugin
 	function forwards_handler()
 	{
 		$this->rcmail->output->set_pagetitle('Forwards');
-		$this->template = 'forwards';
-		if ($action = get_input_value('_act', RCUBE_INPUT_GPC)) {
-			$this->fid = (int) get_input_value('_fid', RCUBE_INPUT_GET);
-			if ($action == 'del') {
-				$this->forwarddel_handler();
-			} else if ($action == 'edit') {
-				$this->rcmail->output->set_pagetitle('Edit Forward');
-				$this->template = 'forwardedit';
-
-			} else if ($action == 'new') {
-				$this->rcmail->output->set_pagetitle('New Forward');
-				$this->template = 'forwardedit';
-
-			} else if ($action == 'save') {
-				$this->forwardsave_handler();
-
-			}
-		}
-		$this->rcmail->output->set_env('act', $action);
-		$this->rcmail->output->set_env('fid', $this->fid);
-		$this->rcmail->output->send('vmail.' . $this->template);
+		$this->rcmail->output->send('vmail.forwards');
 	}
 
 	function add_forward_handler()
@@ -543,78 +528,98 @@ class vmail extends rcube_plugin
 		$forward = $this->forwards[$this->fid];
 		if ($forward) {
 			$forward->delete();
-			unset($this->forwards[$forward->id]);
-			$this->rcmail->output->show_message('vmail.forwarddeleted', 'confirmation');
+			$this->update_forward($forward, true);
+			$this->confirmation_message('vmail.forwarddeleted');
 		} else {
-			$this->rcmail->output->show_message('vmail.del-forward-err', 'error');
+			$this->error_message('vmail.errdeleteforward');
 		}
 
-		$this->rcmail->output->send('vmail.forwards');
+		// The rest of the process is the same as the default page
+		$this->forwards_handler();
 	}
 
-	function forwardsave_handler()
+	function edit_forward_handler()
 	{
-		$this->fid = (int)get_input_value('_fid', RCUBE_INPUT_POST);
-		
+		$this->fid = (int) get_input_value('_fid', RCUBE_INPUT_GET);
+		$this->get_forwards();
+		$this->forward = $this->forwards[$this->fid];
+
+		// Check to see if someone has entered an invalid id
+		if (!$this->forward) {
+			$this->error_message('vmail.errnoforward');
+			$this->forwards_handler();
+		}
+
+		$this->rcmail->output->set_env('fid', $this->fid);
+		$this->rcmail->output->set_pagetitle('Edit Forward');
+		$this->rcmail->output->send('vmail.forwardedit');
+	}
+
+	function save_forward_handler()
+	{
+		// First things first, set the page title
+		$this->rcmail->output->set_pagetitle('Edit Forward');
+
+		// Get the POST values for the forward
 		$source = strtolower(get_input_value('_source', RCUBE_INPUT_POST));
 		$catchall = get_input_value('_catchall', RCUBE_INPUT_POST);
-		$destination = strtolower(get_input_value('_destination', RCUBE_INPUT_POST));
+		foreach (get_input_value('_destination', RCUBE_INPUT_POST) as $d) {
+			$destinations[] = strtolower($d);
+		}
 
+		// If this is a catchall then we want to disregard the source
 		if ($catchall) $source = '';
+
+		// Create the forward now so the users input details don't
+		// disappear incase of an error
+		$this->forward = new Forward();
+		$this->forward->domain_id = $this->domain_id;
+		$this->forward->source = $source . '@' . $this->domain_name;
+		$this->forward->destinations = $destinations;
 
 		// We want to make sure there aren't any invalid characters
 		// in the forward source local-part.
 		// TODO: make this RFC compliant
 		if (strpos($source, '@') !== false) {
-			$this->rcmail->output->show_message('vmail.errbadsource', 'error');
+			$this->error_message('vmail.errbadsource');
 			$this->rcmail->output->set_env('focus_field', '_source');
-			$this->template = 'forwardedit';
+			$this->rcmail->output->send('vmail.forwardedit');
 			return;
 		}
 
+		// Get the forwards and the users
 		$this->get_forwards();
-		$forward = ($this->fid > 0) ? $this->forwards[$this->fid] : new Forward();
-
-		$forward->domain_id = $this->domain_id;
-		$forward->source = $source . '@' . $this->domain_name;
-		$forward->destination = $destination;
 
 		// Check to see if the forward clashes with a user name or not
 		if (in_array($forward->source, $this->usernames)) {
-			$this->rcmail->output->show_message('vmail.erraccexists', 'error');
-			$this->template = 'forwardedit';
-			return;
+			$this->error_message('vmail.erraccexists');
 		}
 
-		// Save or create the forward.
-		$forward->save();
+		// We are good to save
+		$this->forward->save();
 
-		if (!$this->fid) {
-			$this->fid = $forward->id;
-			$this->forwards[$this->fid] = $forward;
+		// Update the forwards list
+		$this->update_forward($this->forward);
+		$this->confirmation_message('vmail.forwardsaved');
 
-			// Build fid => source mapping
-			foreach ($this->forwards as $fid => $fwd) {
-				$fids[$fid] = $fwd->source;
-			}
-			asort($fids);
-
-			// Build new sorted version of the list
-			foreach ($fids as $fid => $source) {
-				$forwards[$fid] = $this->forwards[$fid];
-			}
-			$this->forwards = $forwards;
-
-			$this->rcmail->output->show_message('vmail.forwardcreated', 'confirmation');
-		} else {
-			$this->rcmail->output->show_message('vmail.forwardsaved', 'confirmation');
-		}
-		$this->template = 'forwardedit';
+		// Display the edit page again
+		$this->rcmail->output->set_env('fid', $this->fid);
+		$this->rcmail->output->send('vmail.forwardedit');
 	}
 
 	/******************************************************************
 	 * Helper methods                                                 *
 	 ******************************************************************/
+	function confirmation_message($message)
+	{
+		$this->rcmail->output->show_message($message, 'confirmation');
+	}
+
+	function error_message($message)
+	{
+		$this->rcmail->output->show_message($message, 'error');
+	}
+
 	function get_forwards($domain = null)
 	{
 		$_forwards = (!$this->forwards) ? $this->domain->forwards : $this->forwards;
@@ -630,32 +635,98 @@ class vmail extends rcube_plugin
 
 		$i = 1;
 		foreach ($_forwards as $forward) {
-			$this->forwards[$i] = $forward;
-			// skip any mailing list forwards
-			$is_mailinglist = false;
-			foreach ($forward->destinations as $destination) {
-				if (strpos($destination, '@lists.ukplc.net') !== false) {
-					$is_mailinglist = true;
-					break;
-				}
-			}
-			if ($is_mailinglist) continue;
+			// Give the forward an id if it hasn't already got one
+			if (!$forward->id) $forward->id = $i++;
 
-			// skip any user forwards
-			if (in_array($forward->source, $this->usernames)) continue;
+			// Skip the forward if needs be
+			if ($this->skip_forward($forward)) {
+				continue;
+			}
 
-			// format the forward for display in the list
-			foreach ($forward->keys as $col) {
-				$row["vmail.$col"] = $forward->$col;
-			}
-			if ($forward->catchall) {
-				$row['vmail.source'] = $this->gettext('anyaddress');
-			}
-			$row['vmail.id'] = $i++;
-			$forwards[] = $row;			
+			// Store the forward for later use
+			$this->forwards[$forward->id] = $forward;
+
+			// Save the forward row ready for display
+			$forwards[] = $this->forward_to_row($forward);
 		}
 
 		return $forwards;
+	}
+
+	/**
+	 * See if a Forward should be skipped from being displayed in the
+	 * forwards list.
+	 */
+	function skip_forward($forward)
+	{
+		// Check to see if this is a mailing list forward
+		foreach ($forward->destinations as $destination) {
+			// FIXME: This is still using a hardcoded ukplc.net
+			if (strpos($destination, '@lists.ukplc.net') !== false) {
+				return true;
+			}
+		}
+
+		// Look and see if this forward belongs to a user
+		if (in_array($forward->source, $this->usernames)) {
+			return true;
+		}
+	}
+
+	/**
+	 * Convert a forward into a row ready for display in a table or list
+	 */
+	function forward_to_row($forward)
+	{
+		// Format the forward for display in the list
+		foreach ($forward->keys as $col) {
+			$row["vmail.$col"] = $forward->$col;
+		}
+		
+		// Use the Any Address text if this is a catch all
+		if ($forward->catchall) {
+			$row['vmail.source'] = $this->gettext('anyaddress');
+		}
+
+		// Set the forward id
+		$row['vmail.id'] = $forward->id;
+
+		return $row;
+	}
+
+	function update_forward($forward, $remove = false)
+	{
+		$this->fid = 0;
+
+		// Sort out the local forwards store now, potentially 
+		// having to remove the new forward.
+		$i = 1;
+		foreach ($this->forwards as $f) {
+			if ($f->source == $forward->source) {
+				if (!$remove) {
+					$forwards[$forward->id] = $forward;
+					$this->fid = $forward->id;
+					$i++;
+				} else {
+					$this->fid = -1;
+				}
+			} else {
+				$forwards[$f->id] = $f;
+			}
+		}
+
+		// This is a new forward so need to add it to the list
+		if (!$this->fid) {
+			$forward->id = $i++;
+			$forwards[$forward->id] = $forward;
+			$this->fid = $forward->id;
+		}
+
+		// Sort the list and then set it as the active one
+		uasort($forwards, 'fwd_cmp');
+		$this->forwards = $forwards;
+
+		return $this->fid;
 	}
 
 	function get_users($domain = null)
@@ -919,7 +990,6 @@ class vmail extends rcube_plugin
 			$table->add('title', sprintf("<b><u>%s</u></b>", $this->gettext('outofoffice')));
 			$table->add_row();
 
-
 			// autoreply enabled input
 			$input = new html_checkbox(array(
 				'id'    => '_autoreply_enabled',
@@ -1013,7 +1083,7 @@ class vmail extends rcube_plugin
 			'id' => 'forwardeditform',
 			'name' => 'forwardeditform',
 			'method' => 'post',
-			'action' => './?_task=settings&_action=plugin.forwards&_act=save'
+			'action' => './?_task=settings&_action=plugin.save-forward'
 		));
 		$this->rcmail->output->add_gui_object('forward_form', 'forwardeditform');
 		$hiddenfields = new html_hiddenfield(array(
@@ -1065,18 +1135,20 @@ class vmail extends rcube_plugin
 
 		// Loop over creating the form elements for them
 		foreach ($destinations as $destination) {
-			$table->set_row_attribs(array(
-				'class' => 'dst-row',
-				'id'    => "dst-row-$i"
-			));
+			$table->set_row_attribs(array('class' => 'dst-row'));
+
+			// Create the input field, the [] at the end is important for
+			// PHP to store the values as an array in the post-back.
 			$input = new html_inputfield(array(
-				'id'   => "_destination-$i",
-				'name' => "_destination",
+				'name' => "_destination[]",
 				'class' => 'dst-input',
 				'size' => 80
 			));
 			$table->add(array('colspan'=>2), $input->show($destination));
 
+			// Create the Delete button, need to disable this if there is
+			// only one destination otherwise silly users might
+			// accidentally destroy a forward.
 			$attribs = array(
 				'class' => 'button dst-delete-btn',
 				'style' => 'margin-right: 0.5em',

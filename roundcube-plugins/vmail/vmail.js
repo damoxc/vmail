@@ -31,6 +31,9 @@ var forwards = {
 			rcmail.goto_url('plugin.add-forward');
 		}, true);
 		rcmail.register_command('delete-forward', this.delete_forward, true);
+		rcmail.register_command('save-forward', function() {
+			rcmail.gui_objects.forward_form.submit();
+		}, true);
 
 		rcmail.env.forwards_path = rcmail.env.comm_path + '&_action=plugin.forwards';
 
@@ -116,7 +119,9 @@ var forwards = {
 		if (action == 'edit' && (!id || id == rcmail.env.fid))
 			return false;
 
-		if (action && (id || action == 'add')) this.goto_url(action, id);
+		if (action && (id || action == 'add')) {
+			rcmail.goto_url('plugin.edit-forward', '_fid='+id+'&_token='+rcmail.env.request_token, true);
+		}
 	},
 
 	delete_forward: function(id) {
@@ -200,9 +205,6 @@ var accounts = {
 			$(rcmail.gui_objects.del_account).click(function() {
 				if (!confirm('Are you sure you wish to delete this account?')) return;
 				accounts.goto_url('del', rcmail.env.aid);
-			});
-			$(rcmail.gui_objects.save_account).click(function() {
-				rcmail.gui_objects.account_form.submit();
 			});
 
 			var sel = $(rcmail.gui_objects.quota_input);
