@@ -1065,27 +1065,35 @@ class vmail extends rcube_plugin
 
 		// Loop over creating the form elements for them
 		foreach ($destinations as $destination) {
+			$table->set_row_attribs(array(
+				'class' => 'dst-row',
+				'id'    => "dst-row-$i"
+			));
 			$input = new html_inputfield(array(
 				'id'   => "_destination-$i",
-				'name' => "_destination-$i",
+				'name' => "_destination",
+				'class' => 'dst-input',
 				'size' => 80
 			));
 			$table->add(array('colspan'=>2), $input->show($destination));
 
-			$del_btn = new html_inputfield(array(
-				'id'    => "_delete_dst-$i",
-				'name'  => "_delete_dst-$i",
-				'class' => 'button dstdeletebtn',
+			$attribs = array(
+				'class' => 'button dst-delete-btn',
 				'style' => 'margin-right: 0.5em',
 				'type'  => 'button',
 				'value' => Q(rcube_label('delete'))
-			));
+			);
+
+			if (count($destinations) == 1) {
+				$attribs['class'] .= ' disabled';
+				$attribs['disabled'] = true;
+			}
+
+			$del_btn = new html_inputfield($attribs);
 			$table->add(null, $del_btn->show());
 
 			$add_btn = new html_inputfield(array(
-				'id'    => "_add_dst-$i",
-				'name'  => "_add_dst-$i",
-				'class' => 'button dstaddbtn',
+				'class' => 'button dst-add-btn',
 				'style' => 'margin-right: 0.5em',
 				'type'  => 'button',
 				'value' => Q(rcube_label('vmail.add'))

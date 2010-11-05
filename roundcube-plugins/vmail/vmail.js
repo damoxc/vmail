@@ -69,6 +69,11 @@ var forwards = {
 					rcmail.gui_objects.source_input.focus();
 				}
 			});
+
+			$('.dst-row').each(function() {
+				$(this).find('.dst-delete-btn').click(forwards.delete_destination);;
+				$(this).find('.dst-add-btn').click(forwards.add_destination);
+			});
 		}
 	},
 
@@ -125,6 +130,37 @@ var forwards = {
 		rcmail.goto_url('plugin.delete-forward', '_fid='+id+'&_token='+rcmail.env.request_token, true);
 
 		return true;
+	},
+
+	delete_destination: function() {
+		$(this).parent().parent().remove();
+		
+		// We want to disable the delete button for this row as there 
+		// must always be one destination.
+		if ($('.dst-row').length == 1) {
+			$('.dst-row').find('.dst-delete-btn')
+				.attr('disabled', true)
+				.addClass('disabled');
+		}
+	},
+
+	add_destination: function() {
+		var currentRow = $(this).parent().parent();
+
+		// Here we need to enable the disabled delete button for the single
+		// row as there are now 2, making it a valid target for deletion.
+		if ($('.dst-row').length == 1) {
+			currentRow.find('.dst-delete-btn')
+				.attr('disabled', false)
+				.removeClass('disabled');
+		}
+
+		// Lastly add the new row to the table
+		var newRow = currentRow.clone();
+		newRow.find('.dst-input').val('');
+		newRow.find('.dst-delete-btn').click(forwards.delete_destination);;
+		newRow.find('.dst-add-btn').click(forwards.add_destination);
+		currentRow.after(newRow);
 	}
 }
 
