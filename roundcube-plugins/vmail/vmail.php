@@ -519,7 +519,7 @@ class vmail extends rcube_plugin
 
 	function delete_forward_handler()
 	{
-		$this->fid = (int) get_input_value('_fid', RCUBE_INPUT_GET);
+		$this->fid = get_input_value('_fid', RCUBE_INPUT_GET);
 		if (!$this->fid) {
 			return;
 		}
@@ -540,7 +540,7 @@ class vmail extends rcube_plugin
 
 	function edit_forward_handler()
 	{
-		$this->fid = (int) get_input_value('_fid', RCUBE_INPUT_GET);
+		$this->fid = get_input_value('_fid', RCUBE_INPUT_GET);
 		$this->get_forwards();
 		$this->forward = $this->forwards[$this->fid];
 
@@ -636,7 +636,7 @@ class vmail extends rcube_plugin
 		$i = 1;
 		foreach ($_forwards as $forward) {
 			// Give the forward an id if it hasn't already got one
-			if (!$forward->id) $forward->id = $i++;
+			if (!$forward->id) $forward->id = md5($forward->source);
 
 			// Skip the forward if needs be
 			if ($this->skip_forward($forward)) {
@@ -696,7 +696,7 @@ class vmail extends rcube_plugin
 
 	function update_forward($forward, $remove = false)
 	{
-		$this->fid = 0;
+		$this->fid = null;
 
 		// Sort out the local forwards store now, potentially 
 		// having to remove the new forward.
@@ -706,7 +706,6 @@ class vmail extends rcube_plugin
 				if (!$remove) {
 					$forwards[$forward->id] = $forward;
 					$this->fid = $forward->id;
-					$i++;
 				} else {
 					$this->fid = -1;
 				}
@@ -717,7 +716,7 @@ class vmail extends rcube_plugin
 
 		// This is a new forward so need to add it to the list
 		if (!$this->fid) {
-			$forward->id = $i++;
+			$forward->id = md5($forward->source);
 			$forwards[$forward->id] = $forward;
 			$this->fid = $forward->id;
 		}
@@ -725,8 +724,6 @@ class vmail extends rcube_plugin
 		// Sort the list and then set it as the active one
 		uasort($forwards, 'fwd_cmp');
 		$this->forwards = $forwards;
-
-		return $this->fid;
 	}
 
 	function get_users($domain = null)
