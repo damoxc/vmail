@@ -309,7 +309,7 @@ class TestCoreManagement(test.DaemonUnitTest):
                 ).addCallback(self.assertEqual, destinations
                 ).addErrback(self.fail)
 
-        return self.client.core.save_forward(source, destinations
+        return self.client.core.save_forward(1, source, destinations
             ).addCallback(on_added_forward
             ).addErrback(self.fail)
 
@@ -321,6 +321,6 @@ class TestCoreManagement(test.DaemonUnitTest):
         source = 'yankeedoodle@higglepuddle.com'
         destinations = ['help@higglepuddle.com']
 
-        return self.client.core.save_forward(source, destinations
+        return self.client.core.save_forward(5, source, destinations
             ).addCallback(self.fail
             ).addErrback(self.assertIsInstance, Failure)

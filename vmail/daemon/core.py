@@ -461,11 +461,13 @@ class Core(object):
         return vacation
 
     @export
-    def save_forward(self, source, destinations):
+    def save_forward(self, domain_id, source, destinations):
         """
         Save a forwards details into the database and then trigger an
         update via the process_forwards procedure.
 
+        :param domain_id: The domain to associate this forward with
+        :type domain_id: int
         :param source: The forward to update
         :type source: str
         :param destinations: The forwards destinations
@@ -476,6 +478,16 @@ class Core(object):
         if not destinations:
             return
 
+        # Get the domain first to check that it is one that is hosted on
+        # our system.
+        domain = db.query(Domain).get(domain_id)
+        if not domain:
+            raise DomainNotFoundError("Couldn't find domain id %d" % domain_id)
+
+        # Double check the forward belongs to this domain.
+        if not source.endswith(domain.domain):
+            raise VmailCoreError('Unable to save forward for a different domain')
+
         # Due to the new table structure we merely delete the old forwards
         # if there are any.
         rw_db.query(Forward).filter_by(source=source).delete()
@@ -483,6 +495,7 @@ class Core(object):
         # Add all the new forwards as specified by the destinations list
         for destination in destinations:
             forward = Forward()
+            forward.domain_id = domain_id
             forward.source = source
             forward.destination = destination
             rw_db.add(forward)
