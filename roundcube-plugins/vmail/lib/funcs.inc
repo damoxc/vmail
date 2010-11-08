@@ -45,4 +45,13 @@ function getconfig($key) {
 	return $vmail_cfg[$key];
 }
 
+/**
+ * Comparison function for a list of forwards
+ * @param $a Forward
+ * @param $b Forward
+ */
+function fwdcmp($a, $b) {
+	return strcmp($a->source, $b->source);
+}
+
 ?>

@@ -21,10 +21,6 @@ require_once 'lib/forward.class.inc';
 require_once 'lib/user.class.inc';
 require_once 'lib/vacation.class.inc';
 
-function fwd_cmp($a, $b) {
-	return strcmp($a->source, $b->source);
-}
-
 class vmail extends rcube_plugin
 {
 	public $task = 'settings';
@@ -631,7 +627,7 @@ class vmail extends rcube_plugin
 			}
 		}
 
-		usort($_forwards, 'fwd_cmp');
+		usort($_forwards, 'fwdcmp');
 
 		$i = 1;
 		foreach ($_forwards as $forward) {
@@ -722,7 +718,7 @@ class vmail extends rcube_plugin
 		}
 
 		// Sort the list and then set it as the active one
-		uasort($forwards, 'fwd_cmp');
+		uasort($forwards, 'fwdcmp');
 		$this->forwards = $forwards;
 	}
 
