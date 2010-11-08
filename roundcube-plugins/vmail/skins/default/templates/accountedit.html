@@ -4,22 +4,43 @@
 		<title><roundcube:object name="pagetitle" /></title>
 		<roundcube:include file="/includes/links.html" />
 		<script type="text/javascript" src="/functions.js"></script>
+		<script type="text/javascript" src="/splitter.js"></script>
 	</head>
 	<body>
 		<roundcube:include file="/includes/taskbar.html" />
 		<roundcube:include file="/includes/header.html" />
 		<roundcube:include file="/includes/settingstabs.html" />
 
-		<div id="accounts-list">
-			<roundcube:object name="plugin.accountslist" id="accounts-table" summary="Accounts list" class="records-table" />
-		</div>
-		
-		<p id="listbuttons">
-			<roundcube:button command="plugin.account-new" type="input" label="vmail.newaccount" class="button" condition="env:account_create" />
-		</p>
-
-		<div id="accounts-detail">
-			<roundcube:object name="plugin.accounteditform" id="account-form" summary="Accounts form" />
+		<div id="mainscreen">
+			<div id="accounts-list">
+				<div id="forwards-title" class="boxtitle">
+					<roundcube:label name="vmail.accounts" />
+				</div>
+				<div class="boxlistcontent">
+					<roundcube:object name="plugin.accountslist"
+						id="accounts-table"
+						summary="Accounts list"
+						class="records-table"
+						cols="2"
+						cellspacing="0"
+						noheader="true" editIcon="" />
+				</div>
+				<div class="boxfooter">
+					<roundcube:button command="add-account" type="link"
+						title="vmail.newaccount"
+						class="buttonPas addgroup"
+						classAct="button addgroup"
+						condition="env:account_create"
+						content=" " />
+				</div>
+			</div>
+			<script type="text/javascript">
+				var accviewsplit = new rcube_splitter({id:'accviewsplitter', p1: 'accounts-list', p2: 'account-details', orientation: 'v', relative: true, start: 3350 });
+		  		rcmail.add_onload('accviewsplit.init()');
+			</script>
+			<div id="account-details">
+				<roundcube:object name="plugin.accounteditform" id="account-form" summary="Accounts form" />
+			</div>
 		</div>
 	</body>
 </html>

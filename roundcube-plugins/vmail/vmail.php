@@ -79,9 +79,19 @@ class vmail extends rcube_plugin
 		$this->include_script('vmail.js');
 		$this->include_stylesheet('vmail.css');
 
-		// Register the accounts section
+		// Register the accounts actions
 		$this->register_action('plugin.accounts',
 			array($this, 'accounts_handler'));
+		$this->register_action('plugin.add-account',
+			array($this, 'add_account_handler'));
+		$this->register_action('plugin.delete-account',
+			array($this, 'delete_account_handler'));
+		$this->register_action('plugin.edit-account',
+			array($this, 'edit_account_handler'));
+		$this->register_action('plugin.save-account',
+			array($this, 'save_account_handler'));
+
+		// Register the accounts handlers
 		$this->register_handler('plugin.accountslist',
 			array($this, 'accountslist_html'));
 		$this->register_handler('plugin.accounteditform',
@@ -766,7 +776,7 @@ class vmail extends rcube_plugin
 	/******************************************************************
 	 * HTML Handlers                                                  *
 	 ******************************************************************/
-	function accountslist_html()
+	function accountslist_html($attrib)
 	{
 		$users = $this->get_users();
 
@@ -780,13 +790,7 @@ class vmail extends rcube_plugin
 			'vmail.enabled'
 		);
 
-		$out = rcube_table_output(array(
-			'cols'        => 3,
-			'cellpadding' => 0,
-			'cellspacing' => 0,
-			'class'       => 'records-table',
-			'id'          => 'accounts-table'),
-			$users, $cols, 'vmail.id');
+		$out = rcube_table_output($attrib, $users, $cols, 'vmail.id');
 		$out .= '<div id="domain-quota">';
 		$out .= '<div id="domain-accounts">';
 		$out .= $this->gettext('accounts') . ': ' . count($users) . ' / ' . $limit;

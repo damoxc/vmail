@@ -3,53 +3,19 @@
 	default CSS last updated in version 2009-09-26
 */
 
-#accounts-list {
-	position: absolute;
-	overflow: auto;
-	top: 95px;
-	left: 20px;
-	bottom: 60px;
-	width: 420px;
-	border: 1px solid #999;
-}
-
-#accounts-detail {
-	position: absolute;
-	overflow: auto;
-	top: 95px;
-	right: 20px;
-	left: 450px;
-	bottom: 60px;
-	border: 1px solid #999;
-}
-
-#accounts-detail .disabled,
+#account-details .disabled,
 #forward-details .disabled {
 	color: #ccc;
 }
 
-#accounts-detail .disabled input,
+#account-details .disabled input,
 #forward-details .disabled input {
 	border: 1px solid #ccc;
 	background-color: #eee;
 }
 
-#accounts-details img {
-	margin: 0 auto;
-	width: 260px;
-	height: 228px;
-}
-
-#accounts-table {
-	width: 100%;
-	cursor: default;
-}
-
-#accounts-table .accounts.quota {
-	width: 15%;
-}
-
-#accounts-table .accounts.enabled {
+#accounts-table .vmail.quota,
+#accounts-table .vmail.enabled {
 	width: 15%;
 }
 
@@ -77,14 +43,13 @@
 }
 
 
-/********************
- * Forwards section *
- ********************/
+#accounts-table,
 #forwards-table {
 	width: 100%;
 	table-layout: fixed;
 }
 
+#accounts-table tbody td,
 #forwards-table tbody td {
 	cursor: default;
 	overflow: hidden;
@@ -92,6 +57,7 @@
 	-o-text-overflow: ellipsis;
 }
 
+#accounts-frame,
 #forwards-frame
 {
   position: relative;
@@ -99,6 +65,7 @@
   border: 1px solid #999999;
 }
 
+#account-details,
 #forward-details
 {
   position: absolute;
@@ -110,12 +77,14 @@
   background-color: #F2F2F2;
 }
 
+#account-details table td.title,
 #forward-details table td.title
 {
   font-weight: bold;
   text-align: right;
 }
 
+#accounts-list,
 #forwards-list
 {
   position: absolute;
