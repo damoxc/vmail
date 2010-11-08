@@ -69,4 +69,11 @@ $labels['autoreply_enabled'] = 'Enabled:';
 $labels['autoreply_subject'] = 'Subject:';
 $labels['autoreply_body'] = 'Body';
 
+
+// Help messages
+$labels['helpdestinations'] = <<<EOF
+A forward can be setup to deliver an email to multiple destinations, these destinations
+can be another user in your domain, another forward or to an external address.
+EOF;
+
 ?>

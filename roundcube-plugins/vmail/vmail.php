@@ -301,6 +301,10 @@ class vmail extends rcube_plugin
 		return $args;
 	}
 
+
+	/*************************************
+	 * Accounts Section          _       *
+	 *************************************/
 	function accounts_handler()
 	{
 		$this->rcmail->output->set_pagetitle('Accounts');
@@ -501,18 +505,34 @@ class vmail extends rcube_plugin
 		$this->template = 'accountedit';
 	}
 
+	/****************************************
+	 * Forwards Section                     *
+	 ****************************************/
+	
+	/**
+	 * The main forwards handler that displays the forwards list
+	 * and the watermark.
+	 */
 	function forwards_handler()
 	{
 		$this->rcmail->output->set_pagetitle('Forwards');
 		$this->rcmail->output->send('vmail.forwards');
 	}
 
+	/**
+	 * The handler that displays an empty forwards form ready for
+	 * adding a new forward to the domain.
+	 */
 	function add_forward_handler()
 	{
 		$this->rcmail->output->set_pagetitle('New Forward');
 		$this->rcmail->output->send('vmail.forwardedit');
 	}
 
+	/**
+	 * The handler that deletes a forward and the returns to the
+	 * main forwards handler
+	 */
 	function delete_forward_handler()
 	{
 		$this->fid = get_input_value('_fid', RCUBE_INPUT_GET);
@@ -578,8 +598,7 @@ class vmail extends rcube_plugin
 		// TODO: make this RFC compliant
 		if (strpos($source, '@') !== false) {
 			$this->error_message('vmail.errbadsource');
-			$this->rcmail->output->set_env('focus_field', '_source');
-			$this->rcmail->output->send('vmail.forwardedit');
+			$this->edit_forward_handler();
 			return;
 		}
 
@@ -652,6 +671,7 @@ class vmail extends rcube_plugin
 	/**
 	 * See if a Forward should be skipped from being displayed in the
 	 * forwards list.
+	 * @param forward The forward to check to see if it should be skipped
 	 */
 	function skip_forward($forward)
 	{
@@ -1117,7 +1137,11 @@ class vmail extends rcube_plugin
 		$table->add_row();
 
 		// Add a header
-		$table->add('title', sprintf("<b><u>%s</u></b>", $this->gettext('destinations')));
+		$table->add('title', sprintf("<u>%s</u>", $this->gettext('destinations')));
+		$table->add_row();
+
+		// Add the help message
+		$table->add(array('colspan'=>3), '<p style="width: 600px">' . $this->gettext('helpdestinations') . '</p>');
 		$table->add_row();
 		
 		// Set up the destinations to display.
