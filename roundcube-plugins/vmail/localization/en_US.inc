@@ -73,7 +73,8 @@ $labels['autoreply_body'] = 'Body';
 // Help messages
 $labels['helpdestinations'] = <<<EOF
 A forward can be setup to deliver an email to multiple destinations, these destinations
-can be another user in your domain, another forward or to an external address.
+can be another user in your domain, another forward or to an external address. All
+destinations should be a complete and valid email address. e.g. info@example.com
 EOF;
 
 ?>

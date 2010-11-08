@@ -1141,7 +1141,7 @@ class vmail extends rcube_plugin
 		$table->add_row();
 
 		// Add the help message
-		$table->add(array('colspan'=>3), '<p style="width: 600px">' . $this->gettext('helpdestinations') . '</p>');
+		$table->add(array('colspan'=>3), '<p style="width: 600px; font-style: italic">' . $this->gettext('helpdestinations') . '</p>');
 		$table->add_row();
 		
 		// Set up the destinations to display.
