@@ -1,5 +1,4 @@
-/* Show user_settings plugin script */
-
+/* Vmail plugin script */
 function create_tab(name, label) {
 	var tab = $('<span>')
 		.attr('id', 'settingstabplugin' + name)
@@ -8,22 +7,22 @@ function create_tab(name, label) {
 	var button = $('<a>')
 		.attr('href', rcmail.env.comm_path + '&_action=plugin.' + name)
 		.html(rcmail.gettext(label, 'vmail'))
-		.appendTo(tab);
-
-	return {'tab': tab, 'button': button};
+		.appendTo(tab)
+		.click(function() {
+			return rcmail.command('plugin.' + name);
+		});
+	
+	return tab;
 }
 
 var forwards = {
 	
 	init: function() {
-		var elms = create_tab('forwards', 'Forwards');
-		this.tab = elms.tab;
-		this.button = elms.button;
-		this.button.bind('click', function(e) {
-			return rcmail.command('plugin.forwards', this);
-		});
-
+		// Create our tab
+		this.tab = create_tab('forwards', 'Forwards');
 		rcmail.add_element(this.tab, 'tabs');
+
+		// Configure the various commands
 		rcmail.register_command('plugin.forwards', function() {
 			rcmail.goto_url('plugin.forwards');
 		}, true);
@@ -35,44 +34,40 @@ var forwards = {
 			rcmail.gui_objects.forward_form.submit();
 		}, true);
 
-		rcmail.env.forwards_path = rcmail.env.comm_path + '&_action=plugin.forwards';
-
+		// Initialize the forwards list if it exists
 		if (rcmail.gui_objects.forwards_list) {
 			this.init_forwards_list();
 			this.tab.addClass('tablink-selected');
 		}
 
+		// Focus the source input if it exists
 		if (!rcmail.env.fid && rcmail.gui_objects.source_input) {
 			rcmail.gui_objects.source_input.focus();
 		}
 
 		// These are valid for edit/creating forwards.
 		if (rcmail.gui_objects.forward_form) {
-			$(rcmail.gui_objects.del_forward).click(function() {
-				if (!confirm('Are you sure you wish to delete this forward?')) return;
-				forwards.goto_url('del', rcmail.env.fid);
-			});
-
-			$(rcmail.gui_objects.save_forward).click(function() {
-				rcmail.gui_objects.forward_form.submit();
-			});
-
+			// Disable the source input if catchall is enabled
 			if (rcmail.gui_objects.catchall_input.checked) {
-				rcmail.gui_objects.source_input.disabled = true;
-				$(rcmail.gui_objects.source_input.parentNode).addClass('disabled');
+				$(rcmail.gui_objects.source_input)
+					.attr('disabled', true)
+					.parent().addClass('disabled');
 			}
 
+			// Add the event handler to listen for this and act accordinly
 			$(rcmail.gui_objects.catchall_input).click(function() {
 				if (rcmail.gui_objects.catchall_input.checked) {
-					rcmail.gui_objects.source_input.disabled = true;
-					$(rcmail.gui_objects.source_input.parentNode).addClass('disabled');
+					$(rcmail.gui_objects.source_input)
+						.attr('disabled', true)
+						.parent().addClass('disabled');
 				} else {
-					rcmail.gui_objects.source_input.disabled = false;
-					$(rcmail.gui_objects.source_input.parentNode).removeClass('disabled');
-					rcmail.gui_objects.source_input.focus();
+					$(rcmail.gui_objects.source_input)
+						.attr('disabled', false)
+						.parent().removeClass('disabled');
 				}
 			});
 
+			// Add the event handlers to the buttons next to destinations
 			$('.dst-row').each(function() {
 				$(this).find('.dst-delete-btn').click(forwards.delete_destination);;
 				$(this).find('.dst-add-btn').click(forwards.add_destination);
@@ -101,20 +96,6 @@ var forwards = {
 		forwards.load_forward(id, 'edit');
 	},
 
-	goto_url: function(action, fid) {
-		var add_url = '&_act=' + action;
-		var target = window;
-		if (rcmail.env.contentframe && window.frames && window.frames[rcmail.env.contentframe]) {
-			add_url += '&_framed=1';
-			target = window.frames[rcmail.env.contentframe];
-			document.getElementById(rcmail.env.contentframe).style.visibility = 'inherit';
-		}
-		if (fid > 0) add_url += '&_fid=' + fid;
-
-		rcmail.set_busy(true);
-		target.location.href = rcmail.env.forwards_path + add_url;
-	},
-
 	load_forward: function(id, action) {
 		if (action == 'edit' && (!id || id == rcmail.env.fid))
 			return false;
@@ -127,6 +108,9 @@ var forwards = {
 	delete_forward: function(id) {
 		var selection = rcmail.forwards_list.get_selection();
 		if (!(selection.length || rcmail.env.fid))
+			return;
+
+		if (!confirm('Are you sure you wish to delete this forward?'))
 			return;
 
 		if (!id)
@@ -172,16 +156,11 @@ var forwards = {
 var accounts = {
 	
 	init: function() {
-		var elms = create_tab('accounts', 'Accounts');
-		this.tab = elms.tab;
-		this.button = elms.button;
-		this.button.bind('click', function(e) {
-			return rcmail.command('plugin.accounts', this)
-		});
-
+		// Add our tab to the page
+		this.tab = create_tab('accounts', 'Accounts');
+		rcmail.add_element(this.tab, 'tabs');
 
 		// add button and register command
-		rcmail.add_element(this.tab, 'tabs');
 		rcmail.register_command('plugin.accounts', function() {
 			rcmail.goto_url('plugin.accounts');
 		}, true);
