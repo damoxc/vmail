@@ -1091,7 +1091,8 @@ class vmail extends rcube_plugin
 			'type'  => 'button',
 			'value' => Q(rcube_label('delete'))
 		);
-		if (!$this->aid || get_user_part($account->email) == 'postmaster') {
+
+		if (!$this->aid || get_user_part($account->email) == 'postmaster' || $this->aid == $this->user->id) {
 			$attr['disabled'] = true;
 			$attr['style'] .= '; color: gray;';
 		}
