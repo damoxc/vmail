@@ -23,9 +23,12 @@
 }
 
 #accounts-count {
-	padding-top: 1px;
 	float: right;
+	margin-top: 1px;
 	font-size: 0.8em;
+	height: 40px;
+	width: 100px;
+	text-align: right;
 }
 
 #accounts-table,
