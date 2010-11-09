@@ -182,10 +182,6 @@ var accounts = {
 
 		// These are valid for edit/creating accounts.
 		if (rcmail.gui_objects.account_form) {
-			$(rcmail.gui_objects.del_account).click(function() {
-				if (!confirm('Are you sure you wish to delete this account?')) return;
-				accounts.goto_url('del', rcmail.env.aid);
-			});
 
 			var sel = $(rcmail.gui_objects.quota_input);
 			var after = sel.parent().parent();
@@ -219,31 +215,9 @@ var accounts = {
 		rcmail.accountslist.init();
 		rcmail.accountslist.focus();
 
-		for (var i = 1; i < rcmail.accountslist.rowcount; i++) {
-			var row = rcmail.accountslist.rows[i];
-			if (!row) continue;
-			if ($(row.obj.firstChild).text() == rcmail.env.user) {
-				$(row.obj).addClass('current-user');
-			}
-		}
-
 		if (rcmail.env.aid) {
 			rcmail.accountslist.select(rcmail.env.aid);
 		}
-	},
-
-	goto_url: function(action, aid) {
-		var add_url = '&_act=' + action;
-		var target = window;
-		if (rcmail.env.contentframe && window.frames && window.frames[rcmail.env.contentframe]) {
-			add_url += '&_framed=1';
-			target = window.frames[rcmail.env.contentframe];
-			document.getElementById(rcmail.env.contentframe).style.visibility = 'inherit';
-		}
-		if (aid > 0) add_url += '&_aid=' + aid;
-
-		rcmail.set_busy(true);
-		target.location.href = rcmail.env.accounts_path + add_url;
 	},
 
 	switch_quota_image: function(id) {
@@ -277,6 +251,22 @@ var accounts = {
 		accounts.selected = id;
 
 		accounts.load_account(id, 'edit');
+	},
+
+	delete_account: function(id) {
+		var selection = rcmail.forwards_list.get_selection();
+		if (!(selection.length || rcmail.env.aid))
+			return;
+
+		if (!confirm('Are you sure you wish to delete this account?'))
+			return;
+
+		if (!id)
+			id = rcmail.env.aid ? rcmail.env.aid : selection[0];
+
+		rcmail.goto_url('plugin.delete-account', '_aid='+id+'&_token='+rcmail.env.request_token, true);
+
+		return true;
 	},
 
 	load_account: function(id, action) {

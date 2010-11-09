@@ -798,12 +798,15 @@ class vmail extends rcube_plugin
 	function user_to_row($user)
 	{
 		$quota = ($this->aid == $user->id) ? 'quota_sel' : 'quota';
+		$class = ($user->id == $this->user->id) ? 'current-user' : '';
+		$class .= (!$user->enabled) ? ' disabled' : '';
+
 		return array(
 			'user_id'    => $user->id,
 			'user_email' => $user->email,
 			'user_quota' => html::div('quota_wrapper',
 				quota_bar($user->usage, $user->quota, "plugins/vmail/skins/default/quota.gif")),
-			'class'      => (!$user->enabled) ? 'disabled' : ''
+			'class'      => $class
 		);
 	}
 
