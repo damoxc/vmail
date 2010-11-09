@@ -182,7 +182,6 @@ var accounts = {
 
 		// These are valid for edit/creating accounts.
 		if (rcmail.gui_objects.account_form) {
-
 			var sel = $(rcmail.gui_objects.quota_input);
 			var after = sel.parent().parent();
 			var row = $(rcmail.gui_objects.quotaother_input).parent().parent();
@@ -197,6 +196,12 @@ var accounts = {
 			}
 			sel.change(on_sel_change);
 			sel.blur(on_sel_change);
+
+			// Set the forwarding disabled state
+			accounts.set_forwarding_state($('input[name=_forwarding][checked=checked]').val() == 'std');
+			$('input[name=_forwarding]').click(function() {
+				accounts.set_forwarding_state(($(this).val() == 'std'));
+			});
 		}
 
 		if (rcmail.env.focus_field) {
@@ -217,6 +222,15 @@ var accounts = {
 
 		if (rcmail.env.aid) {
 			rcmail.accountslist.select(rcmail.env.aid);
+		}
+	},
+
+	set_forwarding_state: function(enabled) {
+		if (enabled) {
+			$('input[name=_forwardto],input[name=_savecopy]').attr('disabled', true).addClass('disabled');
+		} else {
+			$('#_forwardto').attr('disabled', false).removeClass('disabled');
+			$('input[name=_savecopy]').attr('disabled', false).removeClass('disabled');
 		}
 	},
 

@@ -9,6 +9,7 @@
 }
 
 #account-details .disabled input,
+#account-details input.disabled,
 #forward-details .disabled input {
 	border: 1px solid #ccc;
 	background-color: #eee;
