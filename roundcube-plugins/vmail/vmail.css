@@ -15,6 +15,14 @@
 	background-color: #eee;
 }
 
+#account-details .header,
+#forward-details .header {
+	font-weight: bold;
+	text-decoration: underline;
+	text-align: left;
+	color: #666;
+}
+
 #accounts-table .acc_quota {
 	width: 140px;
 }

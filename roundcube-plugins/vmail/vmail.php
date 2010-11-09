@@ -992,7 +992,7 @@ class vmail extends rcube_plugin
 		$table->add(null, '&nbsp;');
 		$table->add(null, '&nbsp;');
 
-		$table->add('title', sprintf("<b><u>%s</u></b>", $this->gettext('forwarding')));
+		$table->add('header', $this->gettext('forwarding'));
 		$table->add_row();
 
 		$tmp = '<label>';
@@ -1048,7 +1048,7 @@ class vmail extends rcube_plugin
 
 			$vacation = $account->vacation;
 
-			$table->add('title', sprintf("<b><u>%s</u></b>", $this->gettext('outofoffice')));
+			$table->add('header', $this->gettext('outofoffice'));
 			$table->add_row();
 
 			// autoreply enabled input
@@ -1185,7 +1185,7 @@ class vmail extends rcube_plugin
 		$table->add_row();
 
 		// Add a header
-		$table->add('title', sprintf("<u>%s</u>", $this->gettext('destinations')));
+		$table->add('header', $this->gettext('destinations'));
 		$table->add_row();
 
 		// Add the help message
