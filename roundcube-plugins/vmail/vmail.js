@@ -164,14 +164,15 @@ var accounts = {
 		rcmail.register_command('plugin.accounts', function() {
 			rcmail.goto_url('plugin.accounts');
 		}, true);
-		rcmail.register_command('plugin.account-new', function() {
-			accounts.goto_url('new');
+		rcmail.register_command('add-account', function() {
+			rcmail.goto_url('plugin.add-account');
 		}, true);
 
 		rcmail.env.accounts_path = rcmail.env.comm_path + '&_action=plugin.accounts';
 
 		if (rcmail.gui_objects.accountslist) {
 			this.init_accountslist();
+			this.tab.addClass('tablink-selected');
 		}
 
 		// This is valid when a new account is being created.
@@ -259,7 +260,8 @@ var accounts = {
 		if (action == 'edit' && (!id || id == rcmail.env.aid))
 			return false;
 
-		if (action && (id || action == 'add')) this.goto_url(action, id);
+		if (action && (id || action == 'add'))
+			rcmail.goto_url('plugin.edit-account', '_aid='+id+'&_token='+rcmail.env.request_token, true);
 	}
 };
 

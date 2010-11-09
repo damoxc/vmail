@@ -94,6 +94,10 @@ class vmail extends rcube_plugin
 		// Register the accounts handlers
 		$this->register_handler('plugin.accountslist',
 			array($this, 'accountslist_html'));
+		$this->register_handler('plugin.accounts-count',
+			array($this, 'accounts_count_html'));
+		$this->register_handler('plugin.accountsquota',
+			array($this, 'accountsquota_html'));
 		$this->register_handler('plugin.accounteditform',
 			array($this, 'accounteditform_html'));
 
@@ -318,47 +322,55 @@ class vmail extends rcube_plugin
 	function accounts_handler()
 	{
 		$this->rcmail->output->set_pagetitle('Accounts');
-		$this->template = 'accounts';
-		if ($action = get_input_value('_act', RCUBE_INPUT_GPC)) {
-			$this->aid = (int) get_input_value('_aid', RCUBE_INPUT_GET);
-
-			if ($action == 'del') {
-				$this->get_users();
-
-				if ($this->aid > 0 && !in_array($this->aid, array_keys($this->users))) {
-					// Show no permission error.
-					$this->rcmail->output->show_message('vmail.erracclimit','error');
-					return;
-				}
-
-				$this->users[$this->aid]->delete();
-				unset($this->users[$this->aid]);
-				$this->rcmail->output->show_message('vmail.accountdeleted', 'confirmation');
-
-			} else if ($action == 'edit') {
-				if ($this->aid >= 1) {
-					$this->rcmail->output->set_pagetitle('Edit Account');
-					$this->template = 'accountedit';
-				} else {
-					$this->rcmail->output->show_message('vmail.errnoaid', 'error');
-				}
-
-			} else if ($action == 'new') {
-				$this->aid = 0;
-				if ($this->domain->can_create_account()) {
-					$this->rcmail->output->set_pagetitle('New Account');
-					$this->template = 'accountedit';
-				} else {
-					$this->rcmail->output->show_message('vmail.erracclimit', 'error');
-				}
-
-			} else if ($action == 'save') {
-				$this->accountsave_handler();
-			}
-		}
 		$this->rcmail->output->set_env('aid', $this->aid);
 		$this->rcmail->output->set_env('account_create', $this->domain->can_create_account());
-		$this->rcmail->output->send('vmail.' . $this->template);
+		$this->rcmail->output->send('vmail.accounts');
+	}
+
+	function add_account_handler()
+	{
+		$this->aid = 0;
+		$this->rcmail->output->set_env('account_create', $this->domain->can_create_account());
+		if ($this->domain->can_create_account()) {
+			$this->rcmail->output->set_pagetitle('New Account');
+			$this->rcmail->output->send('vmail.accountedit');
+		} else {
+			$this->error_message('vmail.erracclimit');
+			$this->accounts_handler();
+		}
+	}
+
+	function delete_account_handler()
+	{
+		$this->aid = (int)get_input_value('_aid', RCUBE_INPUT_GET);
+		$this->get_users();
+
+		if ($this->aid > 0 && !in_array($this->aid, array_keys($this->users))) {
+			// Show no permission error.
+			$this->error_message('vmail.erracclimit');
+			return $this->accounts_handler();
+		}
+
+		$this->users[$this->aid]->delete();
+		unset($this->users[$this->aid]);
+		$this->rcmail->output->show_message('vmail.accountdeleted', 'confirmation');
+	}
+
+	function edit_account_handler()
+	{
+		$this->aid = (int)get_input_value('_aid', RCUBE_INPUT_GET);
+
+		if ($this->aid >= 1) {
+			$this->rcmail->output->set_pagetitle('Edit Account');
+			$this->template = 'accountedit';
+		} else {
+			$this->rcmail->output->show_message('vmail.errnoaid', 'error');
+			$this->accounts_handler();
+		}
+	}
+
+	function save_account_handler()
+	{
 	}
 
 	function accountsave_handler()
@@ -576,9 +588,9 @@ class vmail extends rcube_plugin
 			$this->forwards_handler();
 		}
 
-		$this->rcmail->output->set_env('fid', $this->fid);
+		$this->set_env('fid', $this->fid);
 		$this->rcmail->output->set_pagetitle('Edit Forward');
-		$this->rcmail->output->send('vmail.forwardedit');
+		$this->send_template('vmail.forwardedit');
 	}
 
 	function save_forward_handler()
@@ -628,8 +640,8 @@ class vmail extends rcube_plugin
 		$this->confirmation_message('vmail.forwardsaved');
 
 		// Display the edit page again
-		$this->rcmail->output->set_env('fid', $this->fid);
-		$this->rcmail->output->send('vmail.forwardedit');
+		$this->set_env('fid', $this->fid);
+		$this->send_template('vmail.forwardedit');
 	}
 
 	/******************************************************************
@@ -643,6 +655,21 @@ class vmail extends rcube_plugin
 	function error_message($message)
 	{
 		$this->rcmail->output->show_message($message, 'error');
+	}
+
+	function send_template($template)
+	{
+		$this->rcmail->output->send($template);
+	}
+
+	function set_env($key, $value)
+	{
+		$this->rcmail->output->set_env($key, $value);
+	}
+
+	function set_pagetitle($title)
+	{
+		$this->rcmail->output->set_pagetitle($title);
 	}
 
 	function get_forwards($domain = null)
@@ -763,11 +790,11 @@ class vmail extends rcube_plugin
 				$this->users[$user->id] = $user;
 			}
 
-			$row['vmail.id'] = $user->id;
+			$row['acc_id'] = $user->id;
 			foreach ($user->keys as $col) {
-				$row["vmail.$col"] = $user->fget($col);
+				$row["acc_$col"] = $user->fget($col);
 			}
-			$row['vmail.quota'] = $row['vmail.usage'] . ' / ' . $row['vmail.quota'];
+			$row['acc_quota'] = $row['acc_usage'] . ' / ' . $row['acc_quota'];
 			$users[] = $row;
 		}
 		return $users;
@@ -785,22 +812,29 @@ class vmail extends rcube_plugin
 
 		// Set up the columns to display.
 		$cols = array(
-			'vmail.email',
-			'vmail.quota',
-			'vmail.enabled'
+			'acc_email',
+			'acc_quota'
 		);
 
-		$out = rcube_table_output($attrib, $users, $cols, 'vmail.id');
-		$out .= '<div id="domain-quota">';
-		$out .= '<div id="domain-accounts">';
-		$out .= $this->gettext('accounts') . ': ' . count($users) . ' / ' . $limit;
-		$out .= '</div>';
-		$out .= '<div id="domain-usage">';
-		$out .= $this->gettext('quota') . ': ' . show_bytes($this->domain->usage) . ' / ' . show_bytes($this->domain->quota);
-		$out .= '</div>';
-		$out .= '</div>';
 		$this->rcmail->output->include_script('list.js');
 		$this->rcmail->output->add_gui_object('accountslist', 'accounts-table');
+		return rcube_table_output($attrib, $users, $cols, 'acc_id');
+	}
+
+	function accountsquota_html()
+	{
+		return quota_bar($this->domain->usage, $this->domain->quota);
+	}
+
+	function accounts_count_html()
+	{
+		$user_count =  count($this->get_users());
+		$limit = $this->domain->account_limit;
+		$limit = ($limit > 0) ? $limit : $this->gettext('unlimited');
+
+		$out = '<span id="accounts-count">(';
+		$out .= $user_count .' / ' . $limit;
+		$out .= ')</span>';
 		return $out;
 	}
 
@@ -1087,10 +1121,9 @@ class vmail extends rcube_plugin
 		// Set up the columns to display.
 		$cols = array('vmail.source');
 
-		$out = rcube_table_output($attrib, $forwards, $cols, 'vmail.id');
 		$this->rcmail->output->include_script('list.js');
 		$this->rcmail->output->add_gui_object('forwards_list', 'forwards-table');
-		return $out;
+		return rcube_table_output($attrib, $forwards, $cols, 'vmail.id');
 	}
 
 	function forwardeditform_html()

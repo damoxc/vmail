@@ -14,34 +14,19 @@
 	background-color: #eee;
 }
 
-#accounts-table .vmail.quota,
-#accounts-table .vmail.enabled {
-	width: 15%;
+#accounts-table .acc_quota {
+	width: 140px;
 }
 
 #accounts-table .current-user {
 	font-weight: bold;
 }
 
-#domain-quota {
-	position: absolute;
-	width: 416px;
-	padding: 2px;
-
-	border-top: 1px solid #999;
-	bottom: 0px;
-}
-
-#domain-accounts {
-	float: left;
-	font-size: 11px;
-}
-
-#domain-usage {
+#accounts-count {
+	padding-top: 1px;
 	float: right;
-	font-size: 11px;
+	font-size: 0.8em;
 }
-
 
 #accounts-table,
 #forwards-table {
@@ -95,3 +80,36 @@
   background-color: #F9F9F9;
   overflow: hidden;
 }
+
+/** quota indicator */
+
+.quota
+{
+  position: absolute;
+  top: 3px;
+  right: 8px;
+  width: 100px;
+}
+
+.quotaimg
+{
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  z-index: 101;
+}
+
+.quota_text {
+  text-align: center;
+  font-size: 10px;
+  color: #666;
+  border: 1px solid #999;
+  cursor: default;
+}
+.quota_bg { background-color: white; }
+.quota_high { background-color: #F33131; }
+.quota_mid { background-color: #F5AD3C; }
+.quota_low { background-color: #91E164; }
+.quota_text_high { color: white; }
+.quota_text_mid { color: #666; }
+.quota_text_low { color: #666; }
