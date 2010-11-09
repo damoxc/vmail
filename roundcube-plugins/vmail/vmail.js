@@ -246,13 +246,36 @@ var accounts = {
 		target.location.href = rcmail.env.accounts_path + add_url;
 	},
 
-	post_url: function(action, aid, data) {
-		rcmail.set_busy(true);
+	switch_quota_image: function(id) {
+		var src = $('#rcmrow' + id + ' .user_quota img').attr('src');
+		if (src.indexOf('quota_sel') >= 0) {
+			src = src.split('/').slice(0, -1);
+			src.push('quota.gif');
+			src = src.join('/');
+		} else {
+			src = src.split('/').slice(0, -1);
+			src.push('quota_sel.gif');
+			src = src.join('/');
+		}
+		$('#rcmrow' + id + ' .user_quota img').attr('src', src);
 	},
 
 	on_account_select: function(list) {
 		var id = list.get_single_selection();
-		if (id == null) return;
+
+		// If there's no selection for whatever reason, return
+		if (id == null)
+			return;
+
+		// Change the quota image on the old selection if there is one
+		if (accounts.selected) {
+			accounts.switch_quota_image(accounts.selected);
+		}
+
+		// Change the quota image on the new selection
+		accounts.switch_quota_image(id);
+		accounts.selected = id;
+
 		accounts.load_account(id, 'edit');
 	},
 

@@ -73,19 +73,19 @@ function style_string($attrib) {
  * @param  int    $quota The total quota in bytes
  * @return string        The HTML for the quota bar.
  */
-function quota_bar($usage, $quota) {
+function quota_bar($usage, $quota, $bar_img = 'skins/default/images/quota.gif') {
 
-	$percent = intval(($usage / $quota) * 100);
+	$percent = intval(ceil(($usage / $quota) * 100));
 	$title = rcube_label('quota') . ': ';
 	$title .= sprintf('%s / %s (%.0f%%)',
 		show_bytes($usage), show_bytes($quota), $percent);
 	
 
 	// Make the quota background image
-	$out = '<div id="accounts-quota">';
+	$out = '<div>';
 	$out .= html::img(array(
 		'class' => 'quotaimg',
-		'src'   => 'skins/default/images/quota.gif',
+		'src'   => $bar_img,
 		'alt'   => '',
 		'title' => $title));
 	$out .= '</div>';
@@ -148,4 +148,57 @@ function quota_bar($usage, $quota) {
 	return $out;
 }
 
+/**
+ * Create a HTML table based on the given data, with no output escaping, this is
+ * effectively a verbatim copy of rcube_table_output().
+ *
+ * @param  array  Named table attributes
+ * @param  mixed  Table row data. Either a two-dimensional array or a valid SQL result set
+ * @param  array  List of cols to show
+ * @param  string Name of the identifier col
+ * @return string HTML table code
+ */
+function raw_table_output($attrib, $table_data, $a_show_cols, $id_col) {
+	global $RCMAIL;
+	
+	$table = new html_table();
+    
+	// add table header
+	if (!$attrib['noheader'])
+		foreach ($a_show_cols as $col)
+			$table->add_header($col, Q(rcube_label($col)));
+
+	$c = 0; 
+	if (!is_array($table_data)) {
+		$db = $RCMAIL->get_dbh();
+		while ($table_data && ($sql_arr = $db->fetch_assoc($table_data))) {
+			$zebra_class = $c % 2 ? 'even' : 'odd';
+			$table->add_row(array('id' => 'rcmrow' . $sql_arr[$id_col], 'class' => $zebra_class));
+
+			// format each col
+			foreach ($a_show_cols as $col)
+				$table->add($col, $sql_arr[$col]);
+
+			$c++;
+		}    
+	}
+	else 
+	{
+		foreach ($table_data as $row_data)
+		{    
+			$zebra_class = $c % 2 ? 'even' : 'odd';
+			if (!empty($row_data['class']))
+				$zebra_class .= ' '.$row_data['class'];
+
+			$table->add_row(array('id' => 'rcmrow' . $row_data[$id_col], 'class' => $zebra_class));
+
+			// format each col
+			foreach ($a_show_cols as $col)
+				$table->add($col, $row_data[$col]);
+	
+			$c++;
+		}
+	}
+	return $table->show($attrib);
+}
 ?>

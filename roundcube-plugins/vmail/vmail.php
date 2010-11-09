@@ -35,7 +35,6 @@ class vmail extends rcube_plugin
 			'dburi'    => getconfig('rwdburi'),
 			'autohost' => getconfig('autohost')
 		);
-
 		// Configure the base class
 		Base::$vmail = $this;
 
@@ -321,19 +320,18 @@ class vmail extends rcube_plugin
 	 *************************************/
 	function accounts_handler()
 	{
-		$this->rcmail->output->set_pagetitle('Accounts');
-		$this->rcmail->output->set_env('aid', $this->aid);
-		$this->rcmail->output->set_env('account_create', $this->domain->can_create_account());
-		$this->rcmail->output->send('vmail.accounts');
+		$this->set_pagetitle('Accounts');
+		$this->set_env('account_create', $this->domain->can_create_account());
+		$this->send_template('accounts');
 	}
 
 	function add_account_handler()
 	{
 		$this->aid = 0;
-		$this->rcmail->output->set_env('account_create', $this->domain->can_create_account());
+		$this->set_env('account_create', $this->domain->can_create_account());
 		if ($this->domain->can_create_account()) {
-			$this->rcmail->output->set_pagetitle('New Account');
-			$this->rcmail->output->send('vmail.accountedit');
+			$this->set_pagetitle('New Account');
+			$this->send_template('accountedit');
 		} else {
 			$this->error_message('vmail.erracclimit');
 			$this->accounts_handler();
@@ -354,17 +352,20 @@ class vmail extends rcube_plugin
 		$this->users[$this->aid]->delete();
 		unset($this->users[$this->aid]);
 		$this->rcmail->output->show_message('vmail.accountdeleted', 'confirmation');
+		return $this->accounts_handler();
 	}
 
 	function edit_account_handler()
 	{
 		$this->aid = (int)get_input_value('_aid', RCUBE_INPUT_GET);
+		$this->set_env('aid', $this->aid);
+		$this->set_env('account_create', $this->domain->can_create_account());
 
 		if ($this->aid >= 1) {
-			$this->rcmail->output->set_pagetitle('Edit Account');
-			$this->template = 'accountedit';
+			$this->set_pagetitle('Edit Account');
+			$this->send_template('accountedit');
 		} else {
-			$this->rcmail->output->show_message('vmail.errnoaid', 'error');
+			$this->error_message('vmail.errnoaid');
 			$this->accounts_handler();
 		}
 	}
@@ -537,8 +538,8 @@ class vmail extends rcube_plugin
 	 */
 	function forwards_handler()
 	{
-		$this->rcmail->output->set_pagetitle('Forwards');
-		$this->rcmail->output->send('vmail.forwards');
+		$this->set_pagetitle('Forwards');
+		$this->send_template('forwards');
 	}
 
 	/**
@@ -547,8 +548,8 @@ class vmail extends rcube_plugin
 	 */
 	function add_forward_handler()
 	{
-		$this->rcmail->output->set_pagetitle('New Forward');
-		$this->rcmail->output->send('vmail.forwardedit');
+		$this->set_pagetitle('New Forward');
+		$this->send_template('forwardedit');
 	}
 
 	/**
@@ -589,8 +590,8 @@ class vmail extends rcube_plugin
 		}
 
 		$this->set_env('fid', $this->fid);
-		$this->rcmail->output->set_pagetitle('Edit Forward');
-		$this->send_template('vmail.forwardedit');
+		$this->set_pagetitle('Edit Forward');
+		$this->send_template('forwardedit');
 	}
 
 	function save_forward_handler()
@@ -641,7 +642,7 @@ class vmail extends rcube_plugin
 
 		// Display the edit page again
 		$this->set_env('fid', $this->fid);
-		$this->send_template('vmail.forwardedit');
+		$this->send_template('forwardedit');
 	}
 
 	/******************************************************************
@@ -659,7 +660,7 @@ class vmail extends rcube_plugin
 
 	function send_template($template)
 	{
-		$this->rcmail->output->send($template);
+		$this->rcmail->output->send("vmail.$template");
 	}
 
 	function set_env($key, $value)
@@ -789,15 +790,21 @@ class vmail extends rcube_plugin
 				$this->usernames[] = $user->email;
 				$this->users[$user->id] = $user;
 			}
-
-			$row['acc_id'] = $user->id;
-			foreach ($user->keys as $col) {
-				$row["acc_$col"] = $user->fget($col);
-			}
-			$row['acc_quota'] = $row['acc_usage'] . ' / ' . $row['acc_quota'];
-			$users[] = $row;
+			$users[] = $this->user_to_row($user);
 		}
 		return $users;
+	}
+
+	function user_to_row($user)
+	{
+		$quota = ($this->aid == $user->id) ? 'quota_sel' : 'quota';
+		return array(
+			'user_id'    => $user->id,
+			'user_email' => $user->email,
+			'user_quota' => html::div('quota_wrapper',
+				quota_bar($user->usage, $user->quota, "plugins/vmail/skins/default/quota.gif")),
+			'class'      => (!$user->enabled) ? 'disabled' : ''
+		);
 	}
 
 	/******************************************************************
@@ -812,13 +819,13 @@ class vmail extends rcube_plugin
 
 		// Set up the columns to display.
 		$cols = array(
-			'acc_email',
-			'acc_quota'
+			'user_email',
+			'user_quota'
 		);
 
 		$this->rcmail->output->include_script('list.js');
 		$this->rcmail->output->add_gui_object('accountslist', 'accounts-table');
-		return rcube_table_output($attrib, $users, $cols, 'acc_id');
+		return raw_table_output($attrib, $users, $cols, 'user_id');
 	}
 
 	function accountsquota_html()
