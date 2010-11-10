@@ -73,11 +73,18 @@ class vmail extends rcube_plugin
 
 		$pos = strrpos($user->data['username'], '@');
 		$this->username = substr($user->data['username'], 0, $pos);
-		$this->rcmail->output->set_env('user', $this->user->email);
+		$this->set_env('user', $this->user->email);
 
 		// Finish setting up the plugin
 		$this->include_script('vmail.js');
 		$this->include_stylesheet('vmail.css');
+
+		if ($this->rcmail->output->browser->ie && $this->rcmail->output->browser->ver <= 6) {
+			$this->include_stylesheet('iehacks.css');
+		}
+
+		//if ($this->rcmail->output->browser->ie
+
 
 		// Register the accounts actions
 		$this->register_action('plugin.accounts',

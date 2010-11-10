@@ -1,0 +1,6 @@
+#forwards-list,
+#forward-details,
+#accounts-list,
+#account-details {
+  height: expression(parseInt(this.parentNode.offsetHeight)+'px');
+}
