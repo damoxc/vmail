@@ -1026,7 +1026,8 @@ class vmail extends rcube_plugin
 		$tmp = '<label style="margin-left: 20px;">';
 		$input = new html_checkbox(array(
 			'name' => '_savecopy',
-			'value' => '1'
+			'value' => '1',
+			'class' => 'check'
 		));
 		$tmp .= $input->show($account->savecopy);
 		$tmp .= $this->gettext('savecopy');
