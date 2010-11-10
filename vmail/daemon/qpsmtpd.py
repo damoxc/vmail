@@ -101,7 +101,14 @@ class Qpsmtpd(object):
         log.debug('Logging log entries')
 
         # Add all the log entries 
-        for (tnx, level, hook, plugin, message) in logs:
+        for log_entry in logs:
+            try:
+                (tnx, level, hook, plugin, message) = log_entry
+            except Exception as e:
+                log.exception(e)
+                log.error('Entry: %r\n\nRemote IP: %s', log_entry, connection.remote_addr)
+                continue
+
             log.debug('Logging entry (tnx=%s, hook=%s, plugin=%s, level=%s, message=%s', tnx, hook, plugin, level, message)
             try:
                 entry = QpsmtpdLog()
