@@ -358,7 +358,9 @@ class vmail extends rcube_plugin
 
 	function edit_account_handler()
 	{
-		$this->aid = (int)get_input_value('_aid', RCUBE_INPUT_GET);
+		if (!$this->aid)
+			$this->aid = (int)get_input_value('_aid', RCUBE_INPUT_GET);
+
 		$this->set_env('aid', $this->aid);
 		$this->set_env('account_create', $this->domain->can_create_account());
 
@@ -378,8 +380,8 @@ class vmail extends rcube_plugin
 
 		if ($this->aid > 0 && !in_array($this->aid, array_keys($this->users))) {
 			// Show no permission error.
-			$this->error_message('vmail.erracclimit','error');
-			return;
+			$this->error_message('vmail.erracclimit');
+			return $this->accounts_handler();
 		}
 
 		// Handle getting all the input values from the POST
@@ -415,11 +417,6 @@ class vmail extends rcube_plugin
 		$subject = get_input_value('_autoreply_subject', RCUBE_INPUT_POST);
 		$body = get_input_value('_autoreply_body', RCUBE_INPUT_POST);
 
-	}
-
-	function accountsave_handler()
-	{
-
 		if ($this->aid > 0) {
 			$user = $this->users[$this->aid];
 		} else {
@@ -435,33 +432,25 @@ class vmail extends rcube_plugin
 		$this->user = $user;
 
 		if (strpos($email, '@') !== false) {
-			$this->rcmail->output->show_message('vmail.errbademail', 'error');
-			$this->rcmail->output->set_pagetitle('Edit Account');
-			$this->rcmail->output->set_env('focus_field', '_email');
-			$this->template = 'accountedit';
-			return;
+			$this->error_message('vmail.errbademail');
+			$this->set_env('focus_field', '_email');
+			return $this->edit_account_handler();
 		}
 
 		if ($quota > $this->domain->quota) {
-			$this->rcmail->output->show_message('vmail.errbadquota', 'error');
-			$this->rcmail->output->set_pagetitle('Edit Account');
-			$this->rcmail->output->set_env('focus_field', '_quota');
-			$this->template = 'accountedit';
-			return;
+			$this->error_message('vmail.errbadquota');
+			$this->set_env('focus_field', '_quota');
+			return $this->edit_account_handler();
 		}
 
 		if (!$this->aid && !$newpasswd) {
-			$this->rcmail->output->show_message('vmail.nopasswd', 'error');
-			$this->rcmail->output->set_pagetitle('Edit Account');
-			$this->template = 'accountedit';
-			return;
+			$this->error__message('vmail.nopasswd');
+			return $this->edit_account_handler();
 		}
 
 		if ($newpasswd && $newpasswd != $confpasswd) {
-			$this->rcmail->output->show_message('vmail.passwdnomatch', 'error');
-			$this->rcmail->output->set_pagetitle('Edit Account');
-			$this->template = 'accountedit';
-			return;
+			$this->error__message('vmail.passwdnomatch');
+			return $this->edit_account_handler();
 		}
 
 		if ($newpasswd) $this->user->password = $newpasswd;
@@ -482,19 +471,18 @@ class vmail extends rcube_plugin
 				$users[$uid] = $this->users[$uid];
 			}
 			$this->users = $users;
-
-			$this->rcmail->output->show_message('vmail.accountcreated', 'confirmation');
-		} else {
-			$this->rcmail->output->show_message('vmail.accountsaved', 'confirmation');
 		}
+
+		$this->confirmation_message('vmail.accountsaved');
 
 		$vacation = $this->user->vacation;
 		$vacation->active = $autoreply;
 		$vacation->subject = $subject;
 		$vacation->body = $body;
+		$vacation->save();
 
 		// calculate the forward destination for the user, if any
-		$destinations = array();
+		/*$destinations = array();
 
 		// this means autoreply forwarding must be setup
 		if ($autoreply) {
@@ -514,7 +502,6 @@ class vmail extends rcube_plugin
 		} else if ($autoreply) {
 			$destinations = array_merge(array($this->user->email), $destinations);
 		}
-		$vacation->save();
 
 		// Update the forward for the user
 		$forward = $this->user->forward;
@@ -528,7 +515,8 @@ class vmail extends rcube_plugin
 			$forward->save();
 		}
 
-		$this->template = 'accountedit';
+		$this->template = 'accountedit';*/
+		return $this->edit_account_handler();
 	}
 
 	/****************************************
