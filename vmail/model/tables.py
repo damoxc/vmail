@@ -118,7 +118,7 @@ qpsmtpd_connections = Table('qpsmtpd_connections', meta,
     Column('user', String(100)),
     Column('relay_client', Boolean, default=False),
     Column('tls', Boolean, default=False),
-    Column('date', DateTime, default=datetime.datetime.now()),
+    Column('date', DateTime, default=datetime.datetime.now),
     PrimaryKeyConstraint('id')
 )
 
@@ -130,7 +130,7 @@ qpsmtpd_log = Table('qpsmtpd_log', meta,
     Column('plugin', String(40)),
     Column('level', Integer),
     Column('message', String(255)),
-    Column('date', DateTime, default=datetime.datetime.now()),
+    Column('date', DateTime, default=datetime.datetime.now),
     PrimaryKeyConstraint('id'),
     ForeignKeyConstraint(['connection_id'], ['qpsmtpd_connections.id'])
 )
@@ -138,7 +138,7 @@ qpsmtpd_log = Table('qpsmtpd_log', meta,
 qpsmtpd_transactions = Table('qpsmtpd_transactions', meta,
     Column('connection_id', Integer),
     Column('transaction', Integer),
-    Column('date', DateTime, default=datetime.datetime.now()),
+    Column('date', DateTime, default=datetime.datetime.now),
     Column('sender', String(100)),
     Column('size', Integer),
     Column('subject', String(255)),
