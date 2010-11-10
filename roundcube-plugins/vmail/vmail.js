@@ -167,6 +167,10 @@ var accounts = {
 		rcmail.register_command('add-account', function() {
 			rcmail.goto_url('plugin.add-account');
 		}, true);
+		rcmail.register_command('delete-account', accounts.delete_account, true);
+		rcmail.register_command('save-account', function() {
+			rcmail.gui_objects.account_form.submit();
+		}, true);
 
 		rcmail.env.accounts_path = rcmail.env.comm_path + '&_action=plugin.accounts';
 

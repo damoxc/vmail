@@ -63,6 +63,7 @@ class vmail extends rcube_plugin
 		//$this->domain = $this->client->core->get_domain($this->user->domain_id);
 		$this->domain_id = $this->domain->id;
 		$this->domain_name = $this->domain->domain;
+		$this->set_env('uid', $this->user->id);
 
 		// If the user isn't an admin we can't continue.
 		if (!$this->user->admin) return;
@@ -351,7 +352,7 @@ class vmail extends rcube_plugin
 
 		$this->users[$this->aid]->delete();
 		unset($this->users[$this->aid]);
-		$this->rcmail->output->show_message('vmail.accountdeleted', 'confirmation');
+		$this->confirmation_message('vmail.accountdeleted', 'confirmation');
 		return $this->accounts_handler();
 	}
 
@@ -372,19 +373,16 @@ class vmail extends rcube_plugin
 
 	function save_account_handler()
 	{
-	}
-
-	function accountsave_handler()
-	{
 		$this->aid = (int)get_input_value('_aid', RCUBE_INPUT_POST);
 		$this->get_users();
 
 		if ($this->aid > 0 && !in_array($this->aid, array_keys($this->users))) {
 			// Show no permission error.
-			$this->rcmail->output->show_message('vmail.erracclimit','error');
+			$this->error_message('vmail.erracclimit','error');
 			return;
 		}
 
+		// Handle getting all the input values from the POST
 		$email = strtolower(get_input_value('_email', RCUBE_INPUT_POST));
 		$secondmail = strtolower(get_input_value('_secondmail', RCUBE_INPUT_POST));
 		$name = get_input_value('_name', RCUBE_INPUT_POST);
@@ -416,6 +414,11 @@ class vmail extends rcube_plugin
 		$autoreply = isset($_POST['_autoreply_enabled']);
 		$subject = get_input_value('_autoreply_subject', RCUBE_INPUT_POST);
 		$body = get_input_value('_autoreply_body', RCUBE_INPUT_POST);
+
+	}
+
+	function accountsave_handler()
+	{
 
 		if ($this->aid > 0) {
 			$user = $this->users[$this->aid];
@@ -850,14 +853,11 @@ class vmail extends rcube_plugin
 
 	function accounteditform_html()
 	{
-		$title = Q($this->gettext(($this->aid) ? 'editaccount' : 'newaccount'));
-		$out = '<div id="account-title" class="boxtitle">' . $title . '</div>';
-		$out .= '<div class="boxcontent">';
-		$out .= $this->rcmail->output->form_tag(array(
+		$out = $this->rcmail->output->form_tag(array(
 			'id' => 'accounteditform',
 			'name' => 'accounteditform',
 			'method' => 'post',
-			'action' => './?_task=settings&_action=plugin.accounts&_act=save'
+			'action' => './?_task=settings&_action=plugin.save-account'
 		));
 		$this->rcmail->output->add_gui_object('account_form', 'accounteditform');
 		$hiddenfields = new html_hiddenfield(array(
@@ -1083,7 +1083,6 @@ class vmail extends rcube_plugin
 
 		$out .= $table->show();
 		$out .= '</form>';
-		$out .= '<p>';
 
 		// delete button
 		$attr =  array(
@@ -1095,27 +1094,11 @@ class vmail extends rcube_plugin
 			'value' => Q(rcube_label('delete'))
 		);
 
-		if (!$this->aid || get_user_part($account->email) == 'postmaster' || $this->aid == $this->user->id) {
-			$attr['disabled'] = true;
-			$attr['style'] .= '; color: gray;';
+		if ($this->aid != null && get_user_part($account->email) != 'postmaster' && $this->aid != $this->user->id) {
+			$this->set_env('can_delete_user', true);
+		} else {
+			$this->set_env('can_delete_user', false);
 		}
-		$input = new html_inputfield($attr);
-		$out .= $input->show();
-		$this->rcmail->output->add_gui_object('del_account', '_delete_acc');
-
-		// save button
-		$input = new html_inputfield(array(
-			'id'    => '_save_acc',
-			'class' => 'button mainaction',
-			'name'  => '_action',
-			'type'  => 'button',
-			'value' => Q(rcube_label('save'))
-		));
-		$out .= $input->show();
-		$this->rcmail->output->add_gui_object('save_account', '_save_acc');
-
-		$out .= '</p>';
-		$out .= '</div>';
 		return $out;
 	}
 
