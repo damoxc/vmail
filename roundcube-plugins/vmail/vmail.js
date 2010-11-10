@@ -272,7 +272,7 @@ var accounts = {
 	},
 
 	delete_account: function(id) {
-		var selection = rcmail.forwards_list.get_selection();
+		var selection = rcmail.accountslist.get_selection();
 		if (!(selection.length || rcmail.env.aid))
 			return;
 
