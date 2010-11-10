@@ -5,6 +5,12 @@
 		<roundcube:include file="/includes/links.html" />
 		<script type="text/javascript" src="/functions.js"></script>
 		<script type="text/javascript" src="/splitter.js"></script>
+		<style type="text/css">
+		#accounts-list { width: <roundcube:exp expression="!empty(cookie:accviewsplitter) ? cookie:accviewsplitter-5 : 295" />px; }
+		#account-details { left: <roundcube:exp expression="!empty(cookie:accviewsplitter) ? cookie:accviewsplitter+5 : 305" />px;
+		  <roundcube:exp expression="browser:ie ? ('width:expression((parseInt(this.parentNode.offsetWidth)-'.(!empty(cookie:accviewsplitter) ? cookie:accviewsplitter+5 : 305).')+\\'px\\');') : ''" />
+		}
+		</style>
 	</head>
 	<body>
 		<roundcube:include file="/includes/taskbar.html" />
@@ -13,7 +19,7 @@
 
 		<div id="mainscreen">
 			<div id="accounts-list">
-				<div id="forwards-title" class="boxtitle">
+				<div id="accounts-title" class="boxtitle">
 					<div style="float: left; width: 100px;">
                         <roundcube:label name="vmail.accounts" />
                     </div>
