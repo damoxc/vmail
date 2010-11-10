@@ -11,12 +11,12 @@
 #account-details .disabled input,
 #account-details input.disabled,
 #forward-details .disabled input {
-	border: 1px solid #ccc;
-	background-color: #eee;
+	border: 1px solid #ccc !important;
+	background-color: #eee !important;
 }
 
 #account-details input.disabled.check {
-	border: none;
+	border: none !important;
 }
 
 #account-details .header,

@@ -202,7 +202,15 @@ var accounts = {
 			sel.blur(on_sel_change);
 
 			// Set the forwarding disabled state
-			accounts.set_forwarding_state($('input[name=_forwarding][checked=checked]').val() == 'std');
+			var setState = false;
+			$('input[name=_forwarding]').each(function() {
+				if ($(this).val() == 'std' && $(this).attr('checked')) {
+					setState = true;
+				}
+			});
+			accounts.set_forwarding_state(setState);
+
+			// Add the event handler to change it on each click
 			$('input[name=_forwarding]').click(function() {
 				accounts.set_forwarding_state(($(this).val() == 'std'));
 			});
