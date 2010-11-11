@@ -171,6 +171,7 @@ def init_model(dbengine):
     engine._set_wrapped(dbengine)
     pool._set_wrapped(SessionPool(dbengine))
     db._set_wrapped(pool.checkout())
+    procs.db = db
 
 def init_rw_model(dbengine):
     global rw_db, rw_engine, rw_pool
@@ -178,6 +179,7 @@ def init_rw_model(dbengine):
     rw_engine._set_wrapped(dbengine)
     rw_pool._set_wrapped(SessionPool(dbengine))
     rw_db._set_wrapped(rw_pool.checkout())
+    procs.rw_db = rw_db
 
 engine = ObjectProxy()
 db = DBObjectProxy(connect, engine)
