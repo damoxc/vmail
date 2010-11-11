@@ -135,6 +135,9 @@ class QpsmtpdTransaction(object):
 class QpsmtpdRecipient(object):
     pass
 
+class ResolvedForward(object):
+    pass
+
 class Transport(object):
     pass
 
@@ -240,6 +243,8 @@ mapper(QpsmtpdRecipient, qpsmtpd_rcpts, properties = {
     'transaction': relation(QpsmtpdTransaction, backref='recipients'),
     '_transaction': qpsmtpd_rcpts.c.transaction
 })
+
+mapper(ResolvedForward, resolved_forwards)
 
 mapper(Transport, transport)
 
