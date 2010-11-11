@@ -50,7 +50,7 @@ sub hook_logging {
 	my $cnx = $self->qp->connection;
 	my $tnx = ($cnx->{_transactions}) ? scalar @{$cnx->{_transactions}} : 0;
 
-	push @{ $cnx->{_log} }, [$tnx, $trace, $hook, $plugin, @log];
+	push @{ $cnx->{_log} }, [$tnx, $trace, $hook, $plugin, join(' ', @log)];
 
 	return DECLINED;
 }
