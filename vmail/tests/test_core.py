@@ -212,6 +212,23 @@ class TestCoreManagement(test.DaemonUnitTest):
             ).addCallback(self.fail
             ).addErrback(self.assertIsInstance, Failure)
 
+    def test_get_forward(self):
+        """
+        Test getting the forward for the specified address.
+        """
+        forwards = ['help@example.com']
+        return self.client.core.get_forward('info@example.com',
+            ).addCallback(self.assertEqual, forwards
+            ).addErrback(self.fail)
+
+    def test_get_forward_unknown(self):
+        """
+        Test getting the forward for an unknown address.
+        """
+        return self.client.core.get_forward('yankeedoodle@higglepuddle.com',
+            ).addCallback(self.fail
+            ).addErrback(self.assertIsInstance, Failure)
+
     def test_get_forwards(self):
         """
         Test getting the forwards for a domain
