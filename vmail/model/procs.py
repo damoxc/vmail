@@ -32,9 +32,12 @@ However using server side procedures will allow for a large performance
 boost for the larger data processing functions.
 """
 import sys
+import logging
 
 from vmail.error import UserNotFoundError, VmailError
 from vmail.model import *
+
+log = logging.getLogger(__name__)
 
 # is_validrcptto return codes
 VALID = 0
@@ -66,6 +69,12 @@ def use_procedures(mode):
     if mode not in ('py', 'mysql', 'pgsql'):
         raise VmailError('Invalid procedure mode specified')
     _MODE = mode
+
+    log.debug('Switching procedure mode to %s', mode)
+    
+    # Reflect the change in the procedures
+    for procedure in _procedures:
+        getattr(_module, procedure).update_mode()
 
 class ProcedureProxy(object):
     """
