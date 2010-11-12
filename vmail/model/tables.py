@@ -50,11 +50,10 @@ domains = Table('domains', meta,
 )
 
 forwardings = Table('forwardings', meta,
-    Column('id', Integer),
-    Column('domain_id', Integer),
     Column('source', String(80)),
     Column('destination', Text),
-    PrimaryKeyConstraint('id'),
+    Column('domain_id', Integer),
+    PrimaryKeyConstraint('source'),
     ForeignKeyConstraint(['domain_id'], ['domains.id'], ondelete='CASCADE')
 )
 
