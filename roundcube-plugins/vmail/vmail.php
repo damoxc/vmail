@@ -751,11 +751,12 @@ class vmail extends rcube_plugin
 		$this->fid = null;
 
 		// Sort out the local forwards store now, potentially 
-		// having to remove the new forward.
+		// having to remove or add a forward.
 		$i = 1;
 		foreach ($this->forwards as $f) {
 			if ($f->source == $forward->source) {
 				if (!$remove) {
+					$forward->id = md5($forward->source);
 					$forwards[$forward->id] = $forward;
 					$this->fid = $forward->id;
 				} else {
