@@ -500,8 +500,12 @@ class Core(object):
             forward.destination = destination
             rw_db.add(forward)
 
-        # Finnally commit the changes to the forwards table
+        # Commit the changes to the forwards table
         rw_db.commit()
+
+        # Finally run the process forwards procedure to update the 
+        # other forwards tables.
+        procs.process_forwards()
 
         # Return the forwards source
         return source
