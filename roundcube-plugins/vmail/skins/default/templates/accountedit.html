@@ -35,7 +35,8 @@
 						noheader="true" editIcon="" />
 				</div>
 				<div class="boxfooter">
-					<roundcube:button command="add-account" type="link"
+					<roundcube:button command="vmail-add" type="link"
+						prop="account"
 						title="vmail.newaccount"
 						class="buttonPas addgroup"
 						classAct="button addgroup"
@@ -57,12 +58,14 @@
 						id="account-form"
 						summary="Accounts form" />
 					<p>
-						<roundcube:button command="delete-account" type="input"
+						<roundcube:button command="vmail-delete" type="input"
+							prop="account"
 							class="button"
 							label="delete"
 							condition="env:can_delete_user"
 							style="margin-right:0.5em" />
-						<roundcube:button command="save-account" type="input"
+						<roundcube:button command="vmail-save" type="input"
+							prop="account"
 							class="button mainaction"
 							label="save" />
 					</p>

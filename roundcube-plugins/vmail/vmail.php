@@ -83,9 +83,6 @@ class vmail extends rcube_plugin
 			$this->include_stylesheet('iehacks.css');
 		}
 
-		//if ($this->rcmail->output->browser->ie
-
-
 		// Register the accounts actions
 		$this->register_action('plugin.accounts',
 			array($this, 'accounts_handler'));
@@ -826,7 +823,7 @@ class vmail extends rcube_plugin
 		);
 
 		$this->rcmail->output->include_script('list.js');
-		$this->rcmail->output->add_gui_object('accountslist', 'accounts-table');
+		$this->rcmail->output->add_gui_object('accounts_list', 'accounts-table');
 		return raw_table_output($attrib, $users, $cols, 'user_id');
 	}
 
@@ -862,7 +859,7 @@ class vmail extends rcube_plugin
 		));
 		$out .= $hiddenfields->show();
 
-		$table = new html_table(array('cols' => 2));
+		$table = new html_table(array('cols' => 4));
 
 		if (!$this->aid) {
 			$account = new User();
@@ -874,6 +871,7 @@ class vmail extends rcube_plugin
 			));
 			$table->add('title', $this->form_label('_email', 'email'));
 			$table->add(null, $input->show($account->email) . '@' . $this->domain_name);
+			$table->add_row();
 			$this->rcmail->output->add_gui_object('email_input', '_email');
 		} else {
 			$account = ($this->user->id == $this->aid) ? $this->user : $this->users[$this->aid];
@@ -887,6 +885,7 @@ class vmail extends rcube_plugin
 		));
 		$table->add('title', $this->form_label('_name', 'name'));
 		$table->add(null, $input->show($account->name));
+		$table->add_row();
 
 		// account secondary email input
 		$input = new html_inputfield(array(
@@ -896,6 +895,7 @@ class vmail extends rcube_plugin
 		));
 		$table->add('title', $this->form_label('_secondmail', 'secondmail'));
 		$table->add(null, $input->show($account->secondary_email));
+		$table->add_row();
 
 		// account new password input
 		$input = new html_passwordfield(array(
@@ -905,6 +905,7 @@ class vmail extends rcube_plugin
 		));
 		$table->add('title', $this->form_label('_newpasswd', 'newpasswd'));
 		$table->add(null, $input->show());
+		$table->add_row();
 
 		// account confirm password input
 		$input = new html_passwordfield(array(
@@ -914,6 +915,7 @@ class vmail extends rcube_plugin
 		));
 		$table->add('title', $this->form_label('_confpasswd', 'confpasswd'));
 		$table->add(null, $input->show());
+		$table->add_row();
 
 		// account quota input
 		$input = new html_select(array(
@@ -946,6 +948,7 @@ class vmail extends rcube_plugin
 			$quota = $this->gettext('other');
 		}
 		$table->add(null, $input->show($quota));
+		$table->add_row();
 		$this->rcmail->output->add_gui_object('quota_input', '_quota');
 
 		// account other quota input
@@ -956,6 +959,7 @@ class vmail extends rcube_plugin
 			'size' => 50
 		));
 		$table->add(null, $input->show($quotaother));
+		$table->add_row();
 		$this->rcmail->output->add_gui_object('quotaother_input', '_quotaother');
 
 		// account enabled input
@@ -966,6 +970,7 @@ class vmail extends rcube_plugin
 		));
 		$table->add('title', $this->form_label('_enabled', 'enabled'));
 		$table->add(null, $input->show(($account->id) ? $account->enabled : true));
+		$table->add_row();
 		
 		// account admin input
 		$attr = array(
@@ -984,9 +989,10 @@ class vmail extends rcube_plugin
 		$input = new html_checkbox($attr);
 		$table->add('title', $this->form_label('_admin', 'admin'));
 		$table->add(null, $input->show($account->admin));
+		$table->add_row();
 
 		$table->add(null, '&nbsp;');
-		$table->add(null, '&nbsp;');
+		$table->add_row();
 
 		$table->add('header', $this->gettext('forwarding'));
 		$table->add_row();
@@ -1012,15 +1018,13 @@ class vmail extends rcube_plugin
 		));
 		$tmp .= $input->show($account->forwarding);
 		$tmp .= $this->gettext('fwdforward');
-		$input = new html_inputfield(array(
-			'id'   => '_forwardto',
-			'name' => '_forwardto',
-			'size' => 50
-		));
-		$tmp .= $input->show($account->forwardto);
 		$tmp .= '</label>';
-		$table->add(array('colspan' => 2), $tmp);
+		$table->add(array('colspan' => 3), $tmp);
 		$table->add_row();
+
+		// Add the destinations block
+		$this->forward_destinations($table, $account->forwards);
+
 		$this->rcmail->output->add_gui_object('fwdforward_input', '_fwdforward');
 		$this->rcmail->output->add_gui_object('forwardto_input', '_forwardto');
 
@@ -1039,7 +1043,7 @@ class vmail extends rcube_plugin
 		$table->add_row();
 
 		$table->add(null, '&nbsp;');
-		$table->add(null, '&nbsp;');
+		$table->add_row();
 
 		if (get_user_part($account->email) != 'postmaster') {
 
@@ -1056,6 +1060,7 @@ class vmail extends rcube_plugin
 			));
 			$table->add('title', $this->form_label('_autoreply_enabled', 'enabled'));
 			$table->add(null, $input->show($vacation->active));
+			$table->add_row();
 
 			// autoreply subject input
 			$input = new html_inputfield(array(
@@ -1065,6 +1070,7 @@ class vmail extends rcube_plugin
 			));
 			$table->add('title', $this->form_label('_autoreply_subject', 'subject'));
 			$table->add(null, $input->show($vacation->subject));
+			$table->add_row();
 
 			// autoreply subject input
 			$input = new html_textarea(array(
@@ -1075,7 +1081,7 @@ class vmail extends rcube_plugin
 			));
 			$table->add('title', $this->form_label('_autoreply_body', 'autoreply_body'));
 			$table->add(null, $input->show($vacation->body));
-
+			$table->add_row();
 		}
 
 		$out .= $table->show();
@@ -1168,15 +1174,32 @@ class vmail extends rcube_plugin
 		$table->add('header', $this->gettext('destinations'));
 		$table->add_row();
 
+		// Create the destinations
+		$destinations = ($forward->destinations) ? $forward->destinations : array('');
+		$this->forward_destinations($table, $destinations);
+
+		$out .= $table->show();
+		$out .= '</form>';
+		return $out;
+	}
+
+	function forward_destinations($table, $destinations)
+	{
+		// Give a default single empty destination if there aren't 
+		// any destinations
+		if (!$destinations || count($destinations) == 0) {
+			$destinations = array('');
+		}
+
 		// Add the help message
-		$table->add(array('colspan'=>3), '<p style="width: 600px; font-style: italic">' . $this->gettext('helpdestinations') . '</p>');
+		$table->add(array('colspan'=>3),
+			html::p(array(
+				'style' => 'width: 600px; font-style: italic'),
+				$this->gettext('helpdestinations')));
 		$table->add_row();
 		
 		// Set up the destinations to display.
 		$i = 0;
-
-		// Create the destinations
-		$destinations = ($forward->destinations) ? $forward->destinations : array('');
 
 		// Loop over creating the form elements for them
 		foreach ($destinations as $destination) {
@@ -1218,10 +1241,6 @@ class vmail extends rcube_plugin
 			$table->add(null, $add_btn->show());
 			$table->add_row();
 		}
-
-		$out .= $table->show();
-		$out .= '</form>';
-		return $out;
 	}
 }
 ?>
