@@ -26,7 +26,10 @@
 """
 This module is supposed to act as an interface to any stored procedures on
 the database server, falling back to the procedure implemented in Python
-application side if needs be.
+using SQLAlchemy application side if needs be.
+
+However using server side procedures will allow for a large performance
+boost for the larger data processing functions.
 """
 import sys
 
@@ -100,8 +103,8 @@ def _py_get_quotas(email):
     if not result:
         raise UserNotFoundError(email)
     
-    # Return if everything went okay
-    return result
+    # Return if everything went okay, converting the values to long
+    return (long(result[0]), long(result[1]))
 
 def _py_is_validrcptto(email):
     """
@@ -177,13 +180,64 @@ def _py_log_rotate():
     raise NotImplementedError('log_rotate')
 
 def _py_process_forwards():
-    raise NotImplementedError('process_forwards')
+    """
+    Updates the forwardings and resolved_forwards table with the new
+    data available in the forwards table.
+    """
+    # Get the forwards and their destinations
+    fwds = {}
+    fwds_order = []
+
+    for forward in db.query(Forward).order_by(Forward.source):
+        # Make sure the order stays the same
+        if fwds.get(forward.source, None) is None:
+            fwds_order.append(forward.source)
+
+        # Store the destinations in a list
+        fwd = fwds.setdefault(forward.source, {
+            'destinations': [],
+            'domain_id': -1
+        })
+
+        fwd['domain_id'] = forward.domain_id
+        fwd['destinations'].append(forward.destination)
+
+    # Loop over the forwards adding and updating
+    for source in fwds_order:
+        fwd = rw_db.query(Forwards).filter_by(source=source).first()
+        forward = fwds[source]
+        if not fwd:
+            fwd = Forwards()
+            fwd.source = source
+            fwd.destination = ','.join(forward['destinations'])
+            fwd.domain_id = forward['domain_id']
+            rw_db.add(fwd)
+        else:
+            fwd.destination = ','.join(forward['destinations'])
+
+    # Remove all the forwards that no longer exist in the forwards table
+    # from the forwardings table.
+    rw_db.query(Forwards
+        ).filter(not_(exists(['NULL']
+            ).where(Forward.source==Forwards.source))
+        ).delete(False)
+
+    # Commit the changes and make them live
+    rw_db.commit()
+
+    # Now we need to resolve the forwards for fast lookup action
+    resolve_forwards()
 
 def _py_process_logins():
-    raise NotImplementedError('process_logins')
+    raise NotImplementedError('is_local')
 
 def _py_resolve_forwards():
-    raise NotImplementedError('resolve_forwards')
+    """
+    The procedure that processes the forwards table resolving them to
+    their local destinations to improve the performance of the is_local
+    procedure.
+    """
+    pass
 
 def _py_is_local():
     raise NotImplementedError('is_local')
@@ -215,6 +269,21 @@ def _mysql_is_validrcptto(email):
     row = result.fetchone()
     result.close()
     return (row[0], row[1], row[2])
+
+def _mysql_process_forwards():
+    """
+    Updates the forwardings and resolved_forwards table with the new
+    data available in the forwards table.
+    """
+    return rw_db.execute('CALL process_forwards()').close()
+
+def _mysql_resolve_forwards():
+    """
+    The procedure that processes the forwards table resolving them to
+    their local destinations to improve the performance of the is_local
+    procedure.
+    """
+    return rw_db.execute('CALL resolve_forwards()').close()
 
 # Create the procedure proxies
 for proc in _procedures:
