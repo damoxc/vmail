@@ -103,6 +103,11 @@
   overflow: hidden;
 }
 
+.dst-help {
+	width: 600px;
+	font-style: italic;
+}
+
 /** quota indicator */
 
 .quota

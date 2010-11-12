@@ -1192,10 +1192,8 @@ class vmail extends rcube_plugin
 		}
 
 		// Add the help message
-		$table->add(array('colspan'=>3),
-			html::p(array(
-				'style' => 'width: 600px; font-style: italic'),
-				$this->gettext('helpdestinations')));
+		$table->add(array('colspan' => 3),
+			html::p(array('class' => 'dst-help'), $this->gettext('helpdestinations')));
 		$table->add_row();
 		
 		// Set up the destinations to display.

@@ -280,10 +280,14 @@ var vmail = {
 			$('.dst-row input')
 				.attr('disabled', true)
 				.addClass('disabled');
+			$('.dst-help')
+				.addClass('disabled');
 		} else {
 			$('input[name=_savecopy]').attr('disabled', false).removeClass('disabled');
 			$('.dst-row input')
 				.attr('disabled', false)
+				.removeClass('disabled');
+			$('.dst-help')
 				.removeClass('disabled');
 
 			// Disable the delete button if needs be afterwards
