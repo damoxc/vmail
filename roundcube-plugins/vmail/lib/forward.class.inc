@@ -31,8 +31,8 @@ class Forward extends Base
 	public static function get_forward($source)
 	{
 		$fwd = new Forward();
-		$data = $fwd->client->core->get_forward($source);
-		$fwd->load($data);
+		$destinations = $fwd->client->core->get_forward($source);
+		$fwd->load(array('source' => $source, 'destinations' => $destinations));
 		return $fwd;
 	}
 

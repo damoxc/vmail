@@ -411,10 +411,17 @@ class vmail extends rcube_plugin
 			$quota = $this->rcmail->config->get('default_quota');
 		}
 
-		// forwarding
+		// Grab the forwarding details from the POST
 		$forwarding = get_input_value('_forwarding', RCUBE_INPUT_POST);
-		$forward_to = strtolower(get_input_value('_forwardto', RCUBE_INPUT_POST));
 		$save_copy = isset($_POST['_savecopy']);
+		$_destination = get_input_value('_destination', RCUBE_INPUT_POST);
+		if ($_destination) {
+			foreach (get_input_value('_destination', RCUBE_INPUT_POST) as $d) {
+				$destinations[] = strtolower($d);
+			}
+		} else {
+			$destinations = array();
+		}
 
 		// autoreply 
 		$autoreply = isset($_POST['_autoreply_enabled']);
@@ -485,41 +492,27 @@ class vmail extends rcube_plugin
 		$vacation->body = $body;
 		$vacation->save();
 
-		// calculate the forward destination for the user, if any
-		/*$destinations = array();
-
-		// this means autoreply forwarding must be setup
-		if ($autoreply) {
-			$autoreply_email = str_replace('@', '#', $this->user->email);
-			$autoreply_email .= '@' . $this->config['autohost'];
-			array_push($destinations, $autoreply_email);
-		}
-		
+		// See if we need to add any additional addresses to the forward
 		if ($forwarding == 'fwd') {
-			$forward_to = array_map("trim", explode(',', $forward_to));
+			// Add the users email address to the forwardings
 			if ($save_copy) {
-				$destinations = array_merge(array($this->user->email), $destinations);
-				$destinations = array_merge($destinations, $forward_to);
-			} else {
-				$destinations = array_merge($destinations, $forward_to);
+				array_unshift($destinations, $this->user->email);
 			}
-		} else if ($autoreply) {
-			$destinations = array_merge(array($this->user->email), $destinations);
 		}
 
-		// Update the forward for the user
 		$forward = $this->user->forward;
 
-		if (count($destinations) == 0) {
-			$forward->delete();
-		} else {
-			$forward->domain_id = $this->domain_id;
-			$forward->source = $this->user->email;
-			$forward->destination = implode(',', $destinations);
-			$forward->save();
+		if ($forward) {
+			if (count($destinations) == 0) {
+				$forward->delete();
+			} else {
+				$forward->domain_id = $this->domain_id;
+				$forward->source = $this->user->email;
+				$forward->destinations = $destinations;
+				$forward->save();
+			}
 		}
 
-		$this->template = 'accountedit';*/
 		return $this->edit_account_handler();
 	}
 
@@ -1023,7 +1016,7 @@ class vmail extends rcube_plugin
 		$table->add_row();
 
 		// Add the destinations block
-		$this->forward_destinations($table, $account->forwards);
+		$this->forward_destinations($table, $account->forward->destinations);
 
 		$this->rcmail->output->add_gui_object('fwdforward_input', '_fwdforward');
 		$this->rcmail->output->add_gui_object('forwardto_input', '_forwardto');
