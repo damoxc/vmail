@@ -110,3 +110,63 @@ class TestSessionPool(test.ThreadedDatabaseUnitTest):
 
         threads.deferToThread(get_vacation)
         return threads.deferToThread(get_user)
+
+class TestProcedures(test.DatabaseUnitTest):
+
+    def setUp(self):
+        super(TestProcedures, self).setUp()
+        from vmail.model import procs
+        procs.db = self.db
+        procs.rw_db = self.rw_db
+        self.procs = procs
+    
+    def test_get_quotas(self):
+        self.assertEqual(self.procs.get_quotas('dave@example.com'
+            ), (52428800L, 52428800L))
+    
+    def test_is_validrcptto(self):
+        self.assertEqual(self.procs.is_validrcptto('dave@example.com'
+            ), (0, 'dave@example.com', 'local'))
+    
+    def test_process_forwards(self):
+        """
+        Tests adding a new forward to model and then processing
+        """
+        # Firstly add a new forward to the model
+        forward = Forward()
+        forward.domain_id = 1
+        forward.source = 'info@example.com'
+        forward.destination = 'postmaster@example.com'
+        self.rw_db.add(forward)
+        self.rw_db.commit()
+
+        # Process the forwards
+        self.procs.process_forwards()
+
+        # Make sure that the forwardings table contains the new forward
+        # destination
+        fwd = self.rw_db.query(Forwards
+            ).filter_by(source=forward.source
+            ).first()
+
+        self.assertEqual(len(fwd.destination.split(',')), 2)
+
+    def test_resolve_forwards(self):
+        # Firstly add a new forward to the model
+        forward = Forward()
+        forward.domain_id = 1
+        forward.source = 'info@example.com'
+        forward.destination = 'postmaster@example.com'
+        self.rw_db.add(forward)
+        self.rw_db.commit()
+
+        # Process the forwards
+        self.procs.resolve_forwards()
+
+        # Make sure that the forwardings table contains the new forward
+        # destination
+        fwd = self.rw_db.query(Forwards
+            ).filter_by(source=forward.source
+            ).first()
+
+        self.assertEqual(len(fwd.destination.split(',')), 2)
