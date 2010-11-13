@@ -210,10 +210,7 @@ class Core(object):
         """
         log.debug('checking rcpt to for %s', email)
         try:
-            result = db.execute('CALL is_validrcptto(:email)',
-                {'email': email})
-            row = result.fetchone()
-            result.close()
+            row = procs.is_validrcptto(email)
         except Exception, e:
             log.error('error checking database')
             log.exception(e)
@@ -520,8 +517,6 @@ class Core(object):
                     params['_cleartext'] = params['password']
                     del params['password']
 
-                update_quota = 'quota' in params
-
                 params = dict([(getattr(User, k), params[k]) for k in params])
                 if isinstance(user, (int, long)):
                     rw_db.query(User).filter_by(id=user).update(params)
@@ -529,13 +524,6 @@ class Core(object):
                     rw_db.query(User).filter_by(email=user).update(params)
                 rw_db.commit()
 
-                if update_quota:
-                    if isinstance(user, (int, long)):
-                        u = rw_db.query(User).get(user)
-                    else:
-                        u = rw_db.query(User).filter_by(email=user).one()
-                    threads.deferToThread(self.update_quotafile, u.maildir,
-                        u.email, u.password)
             else:
                 user = User()
                 for k, v in params.iteritems():
@@ -543,8 +531,6 @@ class Core(object):
                 rw_db.add(user)
                 rw_db.commit()
                 send_welcome_message(user.email)
-                if self.daemon.monitor:
-                    self.daemon.monitor.add_watch(user.maildir)
                 return user.id
         except Exception, e:
             log.exception(e)
@@ -563,22 +549,6 @@ class Core(object):
         except Exception, e:
             log.exception(e)
 
-    @export
-    def update_quotafile(self, maildir, username, password):
-        log.info('Updating quota file for %s', username)
-        maildirsize = os.path.join(maildir, 'maildirsize')
-        if os.path.exists(maildirsize):
-            os.remove(maildirsize)
-        try:
-            imap = imaplib.IMAP4('localhost')
-            imap.login(username, password)
-            imap.getquotaroot('INBOX')
-            imap.logout()
-            del imap
-        except Exception, e:
-            log.error('Unable to update quota file for %s', username)
-            log.exception(e)
-    
     # Setup and tear down methods
     def __before__(self, method):
         func = method.im_func
