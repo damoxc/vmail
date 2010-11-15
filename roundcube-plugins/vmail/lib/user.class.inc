@@ -22,22 +22,25 @@ class User extends Base
 
 				case 'forwarding':
 					$forward = $this->forward;
+					$destinations = $this->forward->destinations;
 
-					if (count($forward->destinations) == 0) {
+					if (count($destinations) == 0) {
 						$this->cache['forwarding'] = 'std';
 						$this->cache['savecopy'] = false;
 						break;
 					}
 
-					$index = array_search($this->email, $forward->destinations);
-					if ($index && count($forward->destinations) >= 2) {
-						unset($forward->destinations[$i]);
+					$index = array_search($this->email, $destinations);
+					if ($index !== false && count($destinations) >= 2) {
+						unset($destinations[$index]);
 						$this->cache['savecopy'] = true;
 						$this->cache['forwarding'] = 'fwd';
-					} else if (count($forward->destinations) >= 1) {
+					} else if (count($destinations) >= 1) {
 						$this->cache['savecopy'] = false;
 						$this->cache['forwarding'] = 'fwd';
 					}
+
+					$forward->destinations = $destinations;
 					break;
 
 				case 'vacation':
