@@ -83,6 +83,9 @@ class Daemon(object):
         connect()
         rw_connect()
 
+        # Set the threadpool size
+        reactor.suggestThreadPoolSize(self.config['thread_pool_size'])
+
         # Quaid, start the reactor
         reactor.run()
 
