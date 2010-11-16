@@ -24,7 +24,6 @@
 --
 
 CREATE TABLE IF NOT EXISTS `qpsmtpd_log_archive` (
-	`id`             int(11)      NOT NULL,
 	`connection_id`  int(11)      NOT NULL,
 	`transaction`    int(11)      DEFAULT NULL,
 	`hook`           varchar(20)  DEFAULT NULL,
