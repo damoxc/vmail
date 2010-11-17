@@ -93,7 +93,7 @@ class ProcedureProxy(object):
     def __call__(self, *args, **kwargs):
         return self.proc(*args, **kwargs)
 
-def _py_get_quotas(email):
+def _py_get_quotas(email, db=None):
     """
     Return the domain and user quotas for the email address specified.
 
@@ -102,6 +102,9 @@ def _py_get_quotas(email):
     :returns: The domain and user quotas in a tuple
     :rtype: tuple
     """
+    if db is None:
+        db = ro_db
+
     # Attempt to grab a tuple containing quotas, (user, domain)
     result = db.query(User.quota, Domain.quota
         ).join(Domain
@@ -115,7 +118,7 @@ def _py_get_quotas(email):
     # Return if everything went okay, converting the values to long
     return (long(result[0]), long(result[1]))
 
-def _py_is_validrcptto(email):
+def _py_is_validrcptto(email, db=None):
     """
     Checks to see a recipient is valid.
 
@@ -124,6 +127,10 @@ def _py_is_validrcptto(email):
     :returns: A tuple with information about the address
     :rtype: tuple
     """
+
+    if db is None:
+        db = ro_db
+
     # Lower the email as we only deal in lowercase
     email = email.lower()
 
@@ -185,14 +192,21 @@ def _py_is_validrcptto(email):
     # Unable to match anything in the system
     return (NOT_FOUND, email, 'denied')
 
-def _py_log_rotate():
+def _py_log_rotate(db=None):
+
+    if db is None:
+        db = ro_db
     raise NotImplementedError('log_rotate')
 
-def _py_process_forwards():
+def _py_process_forwards(db=None):
     """
     Updates the forwardings and resolved_forwards table with the new
     data available in the forwards table.
     """
+
+    if db is None:
+        db = rw_db
+
     # Get the forwards and their destinations
     fwds = {}
     fwds_order = []
@@ -213,7 +227,7 @@ def _py_process_forwards():
 
     # Loop over the forwards adding and updating
     for source in fwds_order:
-        fwd = rw_db.query(Forwards).filter_by(source=source).first()
+        fwd = db.query(Forwards).filter_by(source=source).first()
         forward = fwds[source]
         if not fwd:
             fwd = Forwards()
@@ -226,32 +240,34 @@ def _py_process_forwards():
 
     # Remove all the forwards that no longer exist in the forwards table
     # from the forwardings table.
-    rw_db.query(Forwards
+    db.query(Forwards
         ).filter(not_(exists(['NULL']
             ).where(Forward.source==Forwards.source))
         ).delete(False)
 
     # Commit the changes and make them live
-    rw_db.commit()
+    db.commit()
 
     # Now we need to resolve the forwards for fast lookup action
     resolve_forwards()
 
-def _py_process_logins():
+def _py_process_logins(db=None):
     raise NotImplementedError('is_local')
 
-def _py_resolve_forwards():
+def _py_resolve_forwards(db=None):
     """
     The procedure that processes the forwards table resolving them to
     their local destinations to improve the performance of the is_local
     procedure.
     """
-    pass
 
-def _py_is_local():
+    if db is None:
+        db = ro_db
+
+def _py_is_local(db=None):
     raise NotImplementedError('is_local')
 
-def _mysql_get_quotas(email):
+def _mysql_get_quotas(email, db=None):
     """
     Return the domain and user quotas for the email address specified.
 
@@ -260,12 +276,15 @@ def _mysql_get_quotas(email):
     :returns: The domain and user quotas in a tuple
     :rtype: tuple
     """
+    if db is None:
+        db = ro_db
+
     result = db.execute('CALL get_quotas(:email', {'email': email})
     row = result.fetchone()
     result.close()
     return (row[0], row[1])
 
-def _mysql_is_validrcptto(email):
+def _mysql_is_validrcptto(email, db=None):
     """
     Checks to see a recipient is valid.
 
@@ -274,25 +293,32 @@ def _mysql_is_validrcptto(email):
     :returns: A tuple with information about the address
     :rtype: tuple
     """
+    if db is None:
+        db = ro_db
+
     result = db.execute('CALL is_validrcptto(:email', {'email': email})
     row = result.fetchone()
     result.close()
     return (row[0], row[1], row[2])
 
-def _mysql_process_forwards():
+def _mysql_process_forwards(db=None):
     """
     Updates the forwardings and resolved_forwards table with the new
     data available in the forwards table.
     """
-    return rw_db.execute('CALL process_forwards()').close()
+    if db is None:
+        db = rw_db
+    return db.execute('CALL process_forwards()').close()
 
-def _mysql_resolve_forwards():
+def _mysql_resolve_forwards(db=None):
     """
     The procedure that processes the forwards table resolving them to
     their local destinations to improve the performance of the is_local
     procedure.
     """
-    return rw_db.execute('CALL resolve_forwards()').close()
+    if db is None:
+        db = rw_db
+    return db.execute('CALL resolve_forwards()').close()
 
 # Create the procedure proxies
 for proc in _procedures:

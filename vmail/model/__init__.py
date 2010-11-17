@@ -171,7 +171,7 @@ def init_model(dbengine):
     engine._set_wrapped(dbengine)
     pool._set_wrapped(SessionPool(dbengine))
     db._set_wrapped(pool.checkout())
-    procs.db = db
+    procs.ro_db = db
 
 def init_rw_model(dbengine):
     global rw_db, rw_engine, rw_pool
