@@ -205,30 +205,11 @@ class Core(object):
 
         :param email: The email address to check.
         :type email: string
-        :returns: An integer value representing the result
-        :rtype: int
+        :returns: An tuple containing (result, destination, type)
+        :rtype: tuple
         """
         log.debug('checking rcpt to for %s', email)
-        try:
-            row = procs.is_validrcptto(email)
-        except Exception, e:
-            log.error('error checking database')
-            log.exception(e)
-            return 255
-
-        log.debug(row)
-
-        if not row:
-            log.critical('is_validrcptto() call failed with no result')
-            return 1
-
-        elif row[0] > 0:
-            log.debug('returning %d for %s', row[0], email)
-            # we have a return code greater than zero so we should return
-            # it.
-            return row[0]
-
-        return 0
+        return procs.is_validrcptto(email, db)
 
     @export
     def last_login(self, email, method, remote_addr=None):
@@ -266,34 +247,27 @@ class Core(object):
         return True
 
     @export
-    def send_vacation(self, user, destination):
+    def send_vacation(self, email, destination):
         """
         Sends a vacation message to the destination address unless they have
         already been notified.
 
-        :param user: The email or user_id of the user to send the message
-            for
-        :type user: str or int
+        :param user: The email of the user to send the message for
+        :type user: str
         :param destination: The email address of the remote address
         :type destination: str
         """
 
-        try:
-            if isinstance(user, (int, long)):
-                user = rw_db.query(User).get(user)
-            else:
-                user = rw_db.query(User).filter_by(email=user).one()
-        except Exception, e:
-            log.warning("Unable to find user '%s'", user)
-            log.exception(e)
-            return False
+        user = rw_db.query(User).filter_by(email = email).first()
+        if not user:
+            raise UserNotFoundError(email)
 
         if not user.vacation:
-            log.warning('User has no vacation message')
+            log.debug('User has no vacation message')
             return False
 
         if not user.vacation.active:
-            log.info('Vacation message is not active')
+            log.debug('Vacation message is not active')
             return False
 
         recipient = Address.parse(destination)
@@ -502,7 +476,7 @@ class Core(object):
 
         # Finally run the process forwards procedure to update the 
         # other forwards tables.
-        procs.process_forwards()
+        procs.process_forwards(rw_db)
 
         # Return the forwards source
         return source

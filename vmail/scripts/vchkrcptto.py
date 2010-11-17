@@ -34,8 +34,8 @@ class VChkRcptTo(DaemonScriptBase):
             self.on_got_result_err
         )
 
-    def on_got_result(self, result):
-        return result
+    def on_got_result(self, (code, destination, rcpt_type)):
+        return code
 
     def on_got_result_err(self, result):
         return 1
