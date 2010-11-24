@@ -163,10 +163,12 @@ class TestProcedures(test.DatabaseUnitTest):
         # Process the forwards
         self.procs.resolve_forwards()
 
-        # Make sure that the forwardings table contains the new forward
+        # Make sure that the resolved_forwards table contains the new forward
         # destination
-        fwd = self.rw_db.query(Forwards
+        forwards = self.rw_db.query(ResolvedForward
             ).filter_by(source=forward.source
-            ).first()
+            ).all()
+        self.assertEqual(len(forwards), 2)
 
-        self.assertEqual(len(fwd.destination.split(',')), 2)
+        self.assertEqual(forwards[0].destination, 'dave@example.com')
+        self.assertEqual(forwards[1].destination, 'postmaster@example.com')

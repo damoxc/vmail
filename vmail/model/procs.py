@@ -264,6 +264,47 @@ def _py_resolve_forwards(db=None):
     if db is None:
         db = ro_db
 
+    # Empty the resolved forwards table
+    db.query(ResolvedForward).delete()
+
+    processed = {}
+
+    # Loop over the forwards resolving them all
+    for forward in db.query(Forward):
+        destination = _py_resolve_forward(forward, db)
+        
+        # This is not a local destination
+        if not destination:
+            continue
+        
+        # This is a duplicate
+        if destination in processed.get(forward.source, []):
+            continue
+
+        # Add the resolved forward
+        resolved = ResolvedForward()
+        resolved.source = forward.source
+        resolved.destination = destination
+        db.add(resolved)
+
+        # Store it for checking in the processed list
+        destinations = processed.setdefault(forward.source, [])
+        destinations.append(destination)
+
+    db.commit()
+
+def _py_resolve_forward(forward, db=None):
+    """
+    This handles resolving individual forwards within the system. This
+    method is not geared for speed, a lazy implementation at best.
+    """
+    if db.query(User).filter_by(email=forward.destination).count():
+        return forward.destination
+
+    f2 = db.query(Forward).filter_by(source=forward.destination).first()
+    if f2:
+        return _py_resolve_forward(f2, db)
+
 def _py_is_local(db=None):
     raise NotImplementedError('is_local')
 
