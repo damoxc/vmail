@@ -6,23 +6,6 @@ case "$1" in
 	configure)
 		# ensure that the sudoers file has the correct perms
 		chmod 440 /etc/sudoers.d/vmail-smtp
-
-		# add a vacation user
-		adduser --system --home /var/spool/vacation --no-create-home \
-			--group vacation | cat
-
-		# ensure that vacation:vacation owns the spool directory.
-		chown -R vacation:vacation /var/spool/vacation
-
-		# add the vacation transport to the postfix master.cf if it isn't
-		# there already.
-		grep vacation /etc/postfix/master.cf 2>&1 > /dev/null || {
-			echo "Adding vacation transport to postfix master.cf"
-			cat >> /etc/postfix/master.cf << EOF
-vacation	unix	-	n	n	-	-	pipe
-	flags=Rq user=vacation argv=/var/spool/vacation/vacation.pl -f \${sender} -- \${recipient}
-EOF
-		}
 	;;
 
 	abort-upgrade|abort-remove|abort-deconfigure)
