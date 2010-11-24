@@ -44,10 +44,10 @@ class vmail extends rcube_plugin
 		// This means we aren't logged in
 		if (!$username) return;
 
-		$this->user = User::get_user($username);
+		$this->current_user = User::get_user($username);
 
 		// This means that there is some issue with vmaild
-		if (!$this->user->id) return;
+		if (!$this->current_user->id) return;
 
 		// Set up modifying the out of office message via the preferences
 		// tab in settings and changing passwords.
@@ -58,22 +58,22 @@ class vmail extends rcube_plugin
 		$this->include_script('vmail_passwd.js');
 
 		// Get the domain information from the database.
-		$this->domain = $this->user->domain;
+		$this->domain = $this->current_user->domain;
 	
 		//$this->domain = $this->client->core->get_domain($this->user->domain_id);
 		$this->domain_id = $this->domain->id;
 		$this->domain_name = $this->domain->domain;
-		$this->set_env('uid', $this->user->id);
+		$this->set_env('uid', $this->current_user->id);
 
 		// If the user isn't an admin we can't continue.
-		if (!$this->user->admin) return;
+		if (!$this->current_user->admin) return;
 
 		// Set the id of the current account being editing to 0.
 		$this->aid = 0;
 
-		$pos = strrpos($user->data['username'], '@');
-		$this->username = substr($user->data['username'], 0, $pos);
-		$this->set_env('user', $this->user->email);
+		$pos = strrpos($this->current_user->data['username'], '@');
+		$this->username = substr($this->current_user->data['username'], 0, $pos);
+		$this->set_env('user', $this->current_user->email);
 
 		// Finish setting up the plugin
 		$this->include_script('vmail.js');
@@ -149,7 +149,7 @@ class vmail extends rcube_plugin
 				)
 			);
 
-			$vacation = $this->user->vacation;
+			$vacation = $this->current_user->vacation;
 
 			$input = new html_checkbox(array(
 				'id'    => '_autoreply_enabled',
@@ -242,12 +242,11 @@ class vmail extends rcube_plugin
 			$body = get_input_value('_autoreply_body', RCUBE_INPUT_POST);
 
 			// Update the vacation and save
-			$vacation = $this->user->vacation;
+			$vacation = $this->current_user->vacation;
 			$vacation->active = $autoreply;
 			$vacation->subject = $subject;
 			$vacation->body = $body;
 			$vacation->save();
-
 
 		} else if ($args['section'] == 'password') {
 			
@@ -270,8 +269,8 @@ class vmail extends rcube_plugin
 				return $args;
 			}
 
-			$this->user->password = $newpasswd;
-			$this->user->save();
+			$this->current_user->password = $newpasswd;
+			$this->current_user->save();
 
 			$this->rcmail->output->show_message('vmail.passwdchanged', 'confirmation');
 		}
@@ -393,7 +392,7 @@ class vmail extends rcube_plugin
 		} else {
 			$user = new User();
 			$user->domain_id = $this->domain_id;
-			$user->email = $email . '@' . $this->domain_name;
+			$user->email = $email;
 		}
 		$user->name = $name;
 		$user->secondary_email = $secondmail;
@@ -402,34 +401,66 @@ class vmail extends rcube_plugin
 		$user->admin = $admin;
 		$this->user = $user;
 
+		if (!check_email($user->email . '@' . $this->domain_name)) {
+			$this->error_message('vmail.errbademail');
+			$this->set_env('focus_field', '_email');
+			if ($this->aid > 0) {
+				return $this->edit_account_handler();
+			} else {
+				return $this->add_account_handler();
+			}
+		}
+
 		if (strpos($email, '@') !== false) {
 			$this->error_message('vmail.errbademail');
 			$this->set_env('focus_field', '_email');
-			return $this->edit_account_handler();
+			if ($this->aid > 0) {
+				return $this->edit_account_handler();
+			} else {
+				return $this->add_account_handler();
+			}
 		}
 
 		if ($quota > $this->domain->quota) {
 			$this->error_message('vmail.errbadquota');
 			$this->set_env('focus_field', '_quota');
-			return $this->edit_account_handler();
+			if ($this->aid > 0) {
+				return $this->edit_account_handler();
+			} else {
+				return $this->add_account_handler();
+			}
 		}
 
 		if (!$this->aid && !$newpasswd) {
-			$this->error__message('vmail.nopasswd');
-			return $this->edit_account_handler();
+			$this->error_message('vmail.nopasswd');
+			if ($this->aid > 0) {
+				return $this->edit_account_handler();
+			} else {
+				return $this->add_account_handler();
+			}
 		}
 
 		if ($newpasswd && $newpasswd != $confpasswd) {
-			$this->error__message('vmail.passwdnomatch');
-			return $this->edit_account_handler();
+			$this->error_message('vmail.passwdnomatch');
+			if ($this->aid > 0) {
+				return $this->edit_account_handler();
+			} else {
+				return $this->add_account_handler();
+			}
 		}
 
 		if ($newpasswd) $this->user->password = $newpasswd;
+
+		# Add the domain to the email address finally
+		if ($this->aid == 0) {
+			$user->email .= '@' . $this->domain_name;
+		}
 		$this->user->save();
 
 		if (!$this->aid) {
 			$this->aid = $this->user->id;
 			$this->users[$this->aid] = $this->user;
+			$this->set_env('aid', $this->aid);
 
 			// Build uid => email mapping
 			foreach ($this->users as $uid => $usr) {
@@ -566,19 +597,38 @@ class vmail extends rcube_plugin
 
 		// We want to make sure there aren't any invalid characters
 		// in the forward source local-part.
-		// TODO: make this RFC compliant
-		if (strpos($source, '@') !== false) {
+		if (!$catchall && !check_email($this->forward->source)) {
 			$this->error_message('vmail.errbadsource');
-			$this->edit_forward_handler();
-			return;
+			if ($this->fid > 0) {
+				return $this->edit_forward_handler();
+			} else {
+				return $this->add_forward_handler();
+			}
+		}
+
+		// Loop over checking each of the destinations is valid
+		foreach ($destinations as $destination) {
+			if (!check_email($destination)) {
+				$this->error_message('vmail.errbaddest');
+				if ($this->fid > 0) {
+					return $this->edit_forward_handler();
+				} else {
+					return $this->add_forward_handler();
+				}
+			}
 		}
 
 		// Get the forwards and the users
 		$this->get_forwards();
 
 		// Check to see if the forward clashes with a user name or not
-		if (in_array($forward->source, $this->usernames)) {
+		if (in_array($this->forward->source, $this->usernames)) {
 			$this->error_message('vmail.erraccexists');
+			if ($this->fid > 0) {
+				return $this->edit_forward_handler();
+			} else {
+				return $this->add_forward_handler();
+			}
 		}
 
 		// We are good to save
@@ -815,7 +865,7 @@ class vmail extends rcube_plugin
 		$table = new html_table(array('cols' => 4));
 
 		if (!$this->aid) {
-			$account = new User();
+			$account = ($this->user) ? $this->user : new User();
 			// account email input
 			$input = new html_inputfield(array(
 				'id'   => '_email',

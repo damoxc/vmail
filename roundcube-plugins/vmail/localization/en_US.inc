@@ -22,6 +22,7 @@ $labels['erraccnoedit'] = 'Cannot edit account';
 $labels['errbadquota'] = 'The quota you have chosen is larger than your domain quota';
 $labels['errbademail'] = 'The email address you have chosen is invalid';
 $labels['errbadsource'] = 'The forward source address is invalid';
+$labels['errbaddest'] = 'One or more of your destinations is not valid';
 $labels['errbadpasswd'] = 'The current password does not match';
 $labels['errnoforward'] = 'There is no forward with that id';
 $labels['errdeleteforward'] = 'Unable to delete the forward';
