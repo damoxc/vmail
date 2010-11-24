@@ -65,10 +65,10 @@ def use_procedures(mode):
     :param mode: The desired mode
     :type mode: str
     """
-    global _MODE
+    global _mode
     if mode not in ('py', 'mysql', 'pgsql'):
         raise VmailError('Invalid procedure mode specified')
-    _MODE = mode
+    _mode = mode
 
     log.debug('Switching procedure mode to %s', mode)
     
@@ -249,7 +249,7 @@ def _py_process_forwards(db=None):
     db.commit()
 
     # Now we need to resolve the forwards for fast lookup action
-    resolve_forwards()
+    resolve_forwards(db)
 
 def _py_process_logins(db=None):
     raise NotImplementedError('is_local')
