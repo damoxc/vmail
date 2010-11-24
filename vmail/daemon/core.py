@@ -334,6 +334,10 @@ class Core(object):
         rw_db.query(Forward).filter_by(source=source).delete()
         rw_db.commit()
 
+        # Finally run the process forwards procedure to update the 
+        # other forwards tables.
+        procs.process_forwards(rw_db)
+
     @export
     def delete_user(self, email):
         """
