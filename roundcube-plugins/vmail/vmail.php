@@ -339,6 +339,7 @@ class vmail extends rcube_plugin
 	function save_account_handler()
 	{
 		$this->aid = (int)get_input_value('_aid', RCUBE_INPUT_POST);
+		$this->set_env('aid', $this->aid);
 		$this->get_users();
 
 		if ($this->aid > 0 && !in_array($this->aid, array_keys($this->users))) {
@@ -401,17 +402,8 @@ class vmail extends rcube_plugin
 		$user->admin = $admin;
 		$this->user = $user;
 
-		if (!check_email($user->email . '@' . $this->domain_name)) {
-			$this->error_message('vmail.errbademail');
-			$this->set_env('focus_field', '_email');
-			if ($this->aid > 0) {
-				return $this->edit_account_handler();
-			} else {
-				return $this->add_account_handler();
-			}
-		}
-
-		if (strpos($email, '@') !== false) {
+		
+		if ($this->aid == 0 && !check_email($user->email . '@' . $this->domain_name)) {
 			$this->error_message('vmail.errbademail');
 			$this->set_env('focus_field', '_email');
 			if ($this->aid > 0) {
