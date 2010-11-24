@@ -1,0 +1,134 @@
+=head1 NAME vmail/vacation
+
+vmail/vacation - vacation plugin for qpsmtpd/vmail
+
+=head1 VERSION 0.4
+
+=head1 DESCRIPTION
+
+Sends out any active vacation messages configured for accounts.
+
+=cut
+
+my %CONFIG_FIELDS = map { $_ => 1 } qw(
+);
+
+my %CONFIG_FIELDS_EMPTY = map { $_ => 1 } qw(
+);
+
+my %CONFIG_FIELDS_DEFAULT = (
+);
+
+sub init {
+	my ($self, $qp) = @_;
+	$self->isa_plugin("vmail/common");
+	$self->vm_debug;
+	$self->SUPER::init($qp);
+}
+
+sub vm_init_config {
+	my ($self, $config_fields, $config_fields_empty, $config_fields_default) = @_;
+	%$config_fields         = %CONFIG_FIELDS;
+	%$config_fields_empty   = %CONFIG_FIELDS_EMPTY;
+	%$config_fields_default = %CONFIG_FIELDS_DEFAULT;
+}
+
+sub vm_valid_config {
+	my ($self) = @_;
+	my $config  = $self->vm_config();
+}
+
+sub hook_queue_pre {
+	my ($self, $transaction) = @_;
+
+	# We need to go through and store all the my addresses
+	my @local_destinations;
+	my $message_id = '';
+
+	# Check the headers of the message to see if it should be ignored.
+	my $headers = $transaction->header();
+	foreach my $header ($headers->tags) {
+		if ($header =~ /^Message\-Id$/i) {
+			$message_id = $headers->get('Message-Id');
+		} elsif ($header =~ /^(X\-Spam\-(Flag|Status))$/i) {
+			my $spam_msg = $1;
+			if ($headers->get($1) =~ /yes/i) { 
+				return $self->ignore_message("$spam_msg yes found");
+			}
+		} elsif ($header =~ /^X\-Facebook\-Notify$/i) {
+			return $self->ignore_message("mail from facebook");
+		} elsif ($header =~ /^Precedence$/i) {
+			if ($headers->get('Precedence') =~ /(bulk|list|junk)/i) {
+				return $self->ignore_message("precedence is $1");
+			}
+		} elsif ($header =~ /^X\-Loop$/i) {
+			if ($headers->get('X-Loop') =~ /postfix\ admin\ virtual\ vacation/i) {
+				return $self->ignore_message("x-loop: postfix admin virtual vacation");
+			}
+		} elsif ($header =~ /^Auto\-Submitted$/i) {
+			if ($headers->get('Auto-Submitted') !~ /no/i) {
+				return $self->ignore_message("Auto-Submitted found");
+			}
+		} elsif ($header =~ /^List\-(Id|Post)$/i) {
+			return $self->ignore_message("List-$1 found");
+		} elsif ($header =~ /^(x\-(barracuda\-)?spam\-status)$/i) {
+			if ($headers->get($1) =~ /yes/i) {
+				return $self->ignore_message("x-barracuda-spam-status is yes");
+			}
+		} elsif ($header =~ /^(x\-dspam\-result)$/i) {
+			if ($headers->get($1) =~ /(spam|bl[ao]cklisted)/i) {
+				return $self->ignore_message("x-dspam-result: $1");
+			}
+		} elsif ($header =~ /^(x\-(anti|avas\-)?virus\-status)$/i) { 
+			if ($headers->get($1) =~ /infected/i) {
+				return $self->ignore_message("$1 result: infected");
+			}
+		} elsif ($header =~ /^(x\-(avas\-spam|spamtest|crm114|razor|pyzor)\-status)$/i) { 
+			if ($headers->get($1) =~ /spam/i) {
+				return $self->ignore_message("$1: spam");
+			}
+		} elsif ($header =~ /^(x\-osbf\-lua\-score)$/i) {
+			if ($headers->get($1) =~ /[0-9\/\.\-\+]+\s+\[([-S])\]/i) {
+				return $self->ignore_message("x-ssbf-lua-score: $1");
+			}
+		}
+	}
+
+	# Loop over each of the recipients that this message is for
+	foreach my $rcpt ($transaction->recipients) {
+		my $user = lc $rcpt->user;
+		my $host = lc $rcpt->host;
+		my $delivery = "$user\@$host";
+
+		# Call vmaild to get the my destinations for this address
+		$self->vm_exec("core.get_local_destinations", $delivery);
+		my $destinations = $self->vm_result();
+		push @local_destinations, @$destinations;
+	}
+
+	# Strip out any duplicate values
+	my %dests = map { $_ => 1 } @local_destinations;
+	my @unique_destinations = keys %dests;
+
+	# Get the sender of this message
+	my $user = lc $transaction->sender->user;
+	my $host = lc $transaction->sender->host;
+	my $delivery = "$user\@$host";
+
+	# Loop over sending any possible vacation messages out for the destinations
+	foreach my $destination (@unique_destinations) {
+		$self->vm_exec("core.send_vacation", $destination, $delivery);
+	}
+	
+	# We don't want to impact upon the rest of the message process
+	return (DECLINED);
+}
+
+sub ignore_message
+{
+	my ($self, $message) = @_;
+	$self->log(LOGINFO, "[vacation] skipping message: $message");
+	return (DECLINED);
+}
+
+# vim: ft=perl
