@@ -23,18 +23,17 @@ sub hook_rcpt {
 	my $delivery    = "$user\@$host";
 
 	# This means that it is either a local address or has auth'd.
-	#if ($self->qp->connection->relay_client) {
-	#	return (OK);
-	#}
+	if ($self->qp->connection->relay_client) {
+		return (OK);
+	}
 
 	$self->vm_exec("core.is_validrcptto", $delivery);
 	$self->vm_last_error and return $self->vm_denysoft_error();
 
 	# Grab the variables from the result.
-	# FIXME: Why is this is a nested array?
-	my @result = $self->vm_result();
-	my $exit_code = $result[0][0];
-	my $rcpt_type = $result[0][2];
+	my $result = $self->vm_result();
+	my $exit_code = @$result[0];
+	my $rcpt_type = @$result[2];
 
 	$self->log(LOGINFO, "Receipient type: $rcpt_type");
 
