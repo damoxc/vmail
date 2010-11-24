@@ -161,6 +161,20 @@ class Core(object):
         return bool(db.query(Whitelist).get(address))
 
     @export
+    def get_local_destinations(self, forward):
+        """
+        Gets the resolved local destinations for the specified forward.
+
+        :param forward: The forward to check
+        :type forward: string
+        :returns: The resolved local destinations
+        :rtype: list
+        """
+        return [r[0] for r in db.query(ResolvedForward.destination
+            ).filter_by(source=forward
+            ).all()]
+
+    @export
     def get_usage(self, domain, user=None):
         """
         Get the total quota usage for the specified domain or account.

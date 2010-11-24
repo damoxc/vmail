@@ -144,7 +144,12 @@ class QpsmtpdRecipient(object):
     pass
 
 class ResolvedForward(object):
-    pass
+    
+    def __json__(self):
+        return {
+            'source': self.source,
+            'destination': self.destination
+        }
 
 class Transport(object):
     pass
