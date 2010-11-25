@@ -320,7 +320,7 @@ def _mysql_get_quotas(email, db=None):
     if db is None:
         db = ro_db
 
-    result = db.execute('CALL get_quotas(:email', {'email': email})
+    result = db.execute('CALL get_quotas(:email)', {'email': email})
     row = result.fetchone()
     result.close()
     return (row[0], row[1])
@@ -335,7 +335,7 @@ def _mysql_is_local(email, db=None):
     if db is None:
         db = ro_db
 
-    result = db.execute('SELECT is_local(:email', {'email': email})
+    result = db.execute('SELECT is_local(:email)', {'email': email})
     row = result.fetchone()
     result.close()
     return bool(row[0])
@@ -353,7 +353,7 @@ def _mysql_is_validrcptto(email, db=None):
     if db is None:
         db = ro_db
 
-    result = db.execute('CALL is_validrcptto(:email', {'email': email})
+    result = db.execute('CALL is_validrcptto(:email)', {'email': email})
     row = result.fetchone()
     result.close()
     return (row[0], row[1], row[2])
