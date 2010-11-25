@@ -325,6 +325,22 @@ def _mysql_get_quotas(email, db=None):
     result.close()
     return (row[0], row[1])
 
+def _mysql_is_local(email, db=None):
+    """
+    Check if the specified email is local.
+
+    :param email: The email to check
+    :type email: str
+    """
+    if db is None:
+        db = ro_db
+
+    result = db.execute('SELECT is_local(:email', {'email': email})
+    row = result.fetchone()
+    result.close()
+    return bool(row[0])
+
+
 def _mysql_is_validrcptto(email, db=None):
     """
     Checks to see a recipient is valid.
@@ -342,6 +358,12 @@ def _mysql_is_validrcptto(email, db=None):
     result.close()
     return (row[0], row[1], row[2])
 
+def _mysql_log_rotate(db=None):
+
+    if db is None:
+        db = rw_db
+    return db.execute('CALL log_rotate()').close()
+
 def _mysql_process_forwards(db=None):
     """
     Updates the forwardings and resolved_forwards table with the new
@@ -350,6 +372,11 @@ def _mysql_process_forwards(db=None):
     if db is None:
         db = rw_db
     return db.execute('CALL process_forwards()').close()
+
+def _mysql_process_logins(db=None):
+    if db is None:
+        db = rw_db
+    return db.execute('CALL process_logins()').close()
 
 def _mysql_resolve_forwards(db=None):
     """
