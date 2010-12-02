@@ -529,14 +529,41 @@ class Core(object):
 
     @export
     def save_vacation(self, vacation, params):
+        """
+        Save or create a vacation message.
+
+        :param vacation: vacation id or email of the user
+        :type vacation: int or str
+        :param params: dictionary of the vacation parameters
+        :type params: dict
+        """
+
+        # If there aren't any parameters can just return
         if not params:
             return
+
+        # Get the email and active parameters, if there are any.
+        email = params.get('email')
+        active = params.get('active')
+
+        # Convert the parameter keys into their corresponding properties on
+        # the Vacation object.
+        params = dict([
+            (getattr(Vacation, k), params[k])
+            for k in params if hasattr(Vacation, k)])
+
+        # Attempt to save/create the vacation message
         try:
-            params = dict([(getattr(Vacation, k), params[k]) for k in params])
             if isinstance(vacation, (int, long)):
                 rw_db.query(Vacation).filter_by(id=vacation).update(params)
             else:
                 rw_db.query(Vacation).filter_by(email=vacation).update(params)
+
+            # Remove any notifications if the active state has changed and
+            # we have an email address to filter with.
+            if email and active is not None:
+                rw_db.query(VacationNotification).filter_by(on_vacation=email).delete()
+
             rw_db.commit()
         except Exception, e:
             log.exception(e)
