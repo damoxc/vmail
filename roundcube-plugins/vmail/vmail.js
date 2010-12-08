@@ -315,26 +315,6 @@ var vmail = {
 	}
 }
 
-var accounts = {
-	
-	delete_account: function(id) {
-		var selection = rcmail.accountslist.get_selection();
-		if (!(selection.length || rcmail.env.aid))
-			return;
-
-		if (!confirm('Are you sure you wish to delete this account?'))
-			return;
-
-		if (!id)
-			id = rcmail.env.aid ? rcmail.env.aid : selection[0];
-
-		rcmail.goto_url('plugin.delete-account', '_aid='+id+'&_token='+rcmail.env.request_token, true);
-
-		return true;
-	},
-
-};
-
 if (window.rcmail) {
 	rcmail.addEventListener('init', function(env) {
 		vmail.init.call(vmail);
