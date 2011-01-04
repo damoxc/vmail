@@ -45,6 +45,8 @@ sub hook_queue_pre {
 	my @local_destinations;
 	my $message_id = '';
 
+	$self->log(LOGDEBUG, "[vacation] checking message");
+
 	# Check the headers of the message to see if it should be ignored.
 	my $headers = $transaction->header();
 	foreach my $header ($headers->tags) {
@@ -117,6 +119,7 @@ sub hook_queue_pre {
 
 	# Loop over sending any possible vacation messages out for the destinations
 	foreach my $destination (@unique_destinations) {
+		$self->log(LOGINFO, "[vacation] sending message to: $delivery");
 		$self->vm_exec("core.send_vacation", $destination, $delivery);
 	}
 	
