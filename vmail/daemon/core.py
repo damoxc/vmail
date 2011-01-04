@@ -170,9 +170,21 @@ class Core(object):
         :returns: The resolved local destinations
         :rtype: list
         """
-        return [r[0] for r in db.query(ResolvedForward.destination
+
+        # Retrieve the local destinations that a forward may resolve to
+        destinations = [r[0] for r in db.query(ResolvedForward.destination
             ).filter_by(source=forward
             ).all()]
+
+        # Return if there are destinations to return
+        if destinations:
+            return destinations
+
+        # If there are no resolved destinations then check for a user
+        if db.query(User).filter_by(email=forward).count():
+            return [forward]
+        else:
+            return []
 
     @export
     def get_usage(self, domain, user=None):
