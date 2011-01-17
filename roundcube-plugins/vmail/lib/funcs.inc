@@ -1,5 +1,7 @@
 <?php
 
+define('PASSWORD_REGEX', '/(?!^[0-9]*$)(?!^[a-zA-Z!?,.]*$)^([a-zA-Z0-9!?,.]{7,100})$/');
+
 $vmail_cfg = array();
 
 function array_insert($array, $index, $value) {
@@ -52,6 +54,15 @@ function getconfig($key) {
  */
 function fwdcmp($a, $b) {
 	return strcmp($a->source, $b->source);
+}
+
+/**
+ * Checks to see if a password meets the minimum
+ * requirements for the webmail system.
+ * @param string $pwd The password to check
+ */
+function check_password($pwd) {
+	return (preg_match(PASSWORD_REGEX, $pwd)) ? true : false;
 }
 
 /**
