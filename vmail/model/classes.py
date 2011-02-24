@@ -36,7 +36,14 @@ class Blacklist(object):
     pass
 
 class Package(object):
-    pass
+    
+    def __json__(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'quota': self.quota,
+            'account_limit': self.account_limit
+        }
 
 class Domain(object):
     
