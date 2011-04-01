@@ -52,6 +52,7 @@ $labels['forwardcreated'] = 'Forward successfully created';
 $labels['forwardexists'] = 'Forward already exists';
 $labels['forwarddeleted'] = 'Forward successfully deleted';
 
+$labels['badpasswd'] = "The password you have entered doesn't contain a mix of letters of numbers";
 $labels['passwdnomatch'] = "The passwords you have entered don't match";
 $labels['nopasswd'] = "You haven't entered a password";
 $labels['noperms'] = 'You do not have permission to modify this account';
