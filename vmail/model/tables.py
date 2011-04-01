@@ -102,6 +102,10 @@ logins_hourly = Table('logins_hourly', meta,
     PrimaryKeyConstraint('date', 'hour', 'method')
 )
 
+mysql_sucks = Table('mysql_sucks', meta
+    Column('test', Integer, default=1)
+)
+
 packages = Table('packages', meta,
     Column('id', Integer),
     Column('name', String(100)),
