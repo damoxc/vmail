@@ -29,6 +29,7 @@ import socket
 import imaplib
 import logging
 import datetime
+
 from email.message import Message
 from email.utils import formatdate
 
@@ -40,6 +41,109 @@ from vmail.error import *
 from vmail.model import *
 
 log = logging.getLogger(__name__)
+
+def update_resolved_forwards(db, source, sources=None):
+    """
+    This method resolves the destination of any forwards before or
+    after the source's position in the chain.
+
+    :param db: The database connection to use
+    :type db: ScopedSession
+    :param source: The forwards source
+    :type source: str
+    """
+
+    # Ensure we don't get ourselves into a loop
+    sources = sources or []
+    if source in sources:
+        return
+
+    # We need to make sure we don't resolve this forward twice.
+    sources.append(source)
+
+    # Firstly grab all the destinations for this forward
+    destinations = resolve_forward(db, source)
+
+    # Secondly remove all the previously resolved forwards for this forward
+    db.query(ResolvedForward).filter_by(source=source).delete()
+
+    # Add back the new destinations
+    for destination in destinations:
+        db.add(ResolvedForward(source=source, destination=destination))
+
+    # We now need to do a reverse resolve and see which forwards point
+    # to this one and update their resolved destinations.
+    for forward in reverse_resolve_forward(db, source):
+        if source == forward:
+            continue
+        update_resolved_forwards(db, forward, sources)
+
+    # Finally we must commit all these changes to the database
+    db.commit()
+
+def resolve_forward(db, source, destinations=None):
+    """
+    Returns a list of the final destinations of the specified
+    forward source.
+
+    :param db: The database connection to use
+    :type db: ScopedSession
+    :param source: The forwards source
+    :type source: str
+    :keyword destinations: A list of already checked destinations, mostly 
+        used internally to prevent looping.
+    :type sources: list
+    """
+    users = []
+
+    destinations = destinations or []
+
+    # Performing a NOT IN can be expensive if you don't need to, so
+    # lets adjust the query accordingly depending on destinations.
+    if destinations:
+        query = db.query(Forward
+            ).filter(and_(
+                Forward.source == source,
+                ~ Forward.destination.in_(destinations)))
+    else:
+        query = db.query(Forward
+            ).filter(Forward.source == source)
+
+    # Loop over the query results recursively resolving as required.
+    for forward in query:
+        if db.execute(User.exists(forward.destination)).scalar():
+            users.append(forward.destination)
+
+        if not db.execute(Forward.exists(forward.destination)).scalar():
+            continue
+
+        destinations.append(forward.destination)
+        users += resolve_forward(db, forward.destination, destinations)
+
+    return set(users)
+
+def reverse_resolve_forward(db, source, sources=[]):
+    """
+    Returns a list of any forwards that forward to this forward.
+
+    :param db: The database connection to use
+    :type db: ScopedSession
+    :param source: The forwards source
+    :type source: str
+    :keyword sources: A list of already checked sources, mostly used
+        internally to prevent looping.
+    :type sources: list
+    """
+    sources = sources or []
+
+    for forward in db.query(Forward).filter_by(destination=source):
+        # It's quite probable we're looping at this point
+        if forward.source in sources:
+            break
+
+        sources.append(forward.source)
+        reverse_resolve_forward(db, forward.source, sources)
+    return sources
 
 class Core(object):
 
@@ -579,6 +683,7 @@ class Core(object):
             rw_db.commit()
         except Exception, e:
             log.exception(e)
+
 
     # Setup and tear down methods
     def __before__(self, method):
