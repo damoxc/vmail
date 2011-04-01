@@ -102,7 +102,7 @@ logins_hourly = Table('logins_hourly', meta,
     PrimaryKeyConstraint('date', 'hour', 'method')
 )
 
-mysql_sucks = Table('mysql_sucks', meta
+mysql_sucks = Table('mysql_sucks', meta,
     Column('test', Integer, default=1)
 )
 

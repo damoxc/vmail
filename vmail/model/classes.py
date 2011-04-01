@@ -26,7 +26,7 @@
 import crypt
 import hashlib
 
-from sqlalchemy import and_, join, desc, text
+from sqlalchemy import and_, join, desc, text, exists, select
 from sqlalchemy.orm import mapper, backref, relation
 
 from vmail.common import get_mail_dir
@@ -96,6 +96,12 @@ class Domain(object):
 
 class Forward(object):
 
+    @staticmethod
+    def exists(source):
+        return select([mysql_sucks.c.test],
+            exists(['NULL']
+                ).where(Forward.source==source))
+
     def __json__(self):
         return {
             'source': self.source,
@@ -104,6 +110,12 @@ class Forward(object):
 
 class Forwards(object):
     
+    @staticmethod
+    def exists(source):
+        return select([mysql_sucks.c.test],
+            exists(['NULL']
+                ).where(Forwards.source==source))
+
     def __json__(self):
         return {
             'id': self.id,
@@ -151,6 +163,10 @@ class QpsmtpdRecipient(object):
     pass
 
 class ResolvedForward(object):
+
+    def __init__(self, source=None, destination=None):
+        self.source = source
+        self.destination = destination
     
     def __json__(self):
         return {
@@ -176,6 +192,12 @@ class User(object):
         self._password = hashlib.md5(password).hexdigest()
 
     password = property(__get_password, __set_password)
+
+    @staticmethod
+    def exists(email):
+        return select([mysql_sucks.c.test],
+            exists(['NULL']
+                ).where(User.email==email))
 
     def __json__(self):
         return {
