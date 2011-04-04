@@ -144,6 +144,8 @@ class DatabaseUnitTest(BaseUnitTest):
         for address in testdata.whitelist:
             whitelist.insert().values(address=address).execute()
 
+        mysql_sucks.insert().values(test=1).execute()
+
         # Initialize the sessions
         init_model(engine)
         init_rw_model(engine)

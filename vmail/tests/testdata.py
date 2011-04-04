@@ -14,6 +14,9 @@ domains = [
 forwards = [
     (1, 'help@example.com', 'dave@example.com'),
     (1, 'info@example.com', 'help@example.com'),
+    (1, 'dave@example.com', 'webmaster@example.com'),
+    (1, 'webmaster@example.com', 'postmaster@example.com'),
+    (1, 'postmaster@example.com', 'dave@example.com'),
     (2, 'webmaster@testing.com', 'fred@testing.com')
 ]
 

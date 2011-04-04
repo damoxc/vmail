@@ -235,7 +235,10 @@ class TestCoreManagement(test.DaemonUnitTest):
         """
         forwards = {
             u'help@example.com': [u'dave@example.com'],
-            u'info@example.com': [u'help@example.com']
+            u'info@example.com': [u'help@example.com'],
+            u'dave@example.com': [u'webmaster@example.com'],
+            u'webmaster@example.com': [u'postmaster@example.com'],
+            u'postmaster@example.com': [u'dave@example.com']
         }
         return self.client.core.get_forwards('example.com'
             ).addCallback(self.assertEqual, forwards
