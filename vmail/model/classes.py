@@ -82,6 +82,12 @@ class Domain(object):
 
         return d
 
+    @staticmethod
+    def exists(domain):
+        return select([mysql_sucks.c.test],
+            exists(['NULL']
+                ).where(Domain.domain==domain))
+
     def __json__(self):
         return {
             'id': self.id,
