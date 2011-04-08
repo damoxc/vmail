@@ -65,3 +65,16 @@ class TestForwards(test.DatabaseUnitTest):
             resolved.append(forward.destination)
 
         self.assertEqual(resolved, ['dave@example.com', 'postmaster@example.com'])
+
+    def test_delete_resolve(self):
+        # Delete a forward that points at a forward
+        self.db.query(Forward
+            ).filter_by(source='dave@example.com'
+            ).delete()
+
+        # Resolve the remaining forwards
+        update_resolved_forwards(self.db, 'dave@example.com')
+
+        resolved = [r.destination for r in self.db.query(ResolvedForward
+            ).filter_by(source='info@example.com')]
+        self.assertEqual(resolved, ['dave@example.com'])
