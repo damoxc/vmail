@@ -454,6 +454,9 @@ class Core(object):
         # other forwards tables.
         procs.process_forwards(rw_db)
 
+        # Update the resolved forwards as well.
+        update_resolved_forwards(rw_db, source)
+
     @export
     def delete_user(self, email):
         """
@@ -611,6 +614,9 @@ class Core(object):
         # Finally run the process forwards procedure to update the 
         # other forwards tables.
         procs.process_forwards(rw_db)
+
+        # Update the resolved forwards as well.
+        update_resolved_forwards(rw_db, source)
 
         # Return the forwards source
         return source
