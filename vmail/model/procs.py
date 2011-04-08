@@ -248,9 +248,6 @@ def _py_process_forwards(db=None):
     # Commit the changes and make them live
     db.commit()
 
-    # Now we need to resolve the forwards for fast lookup action
-    resolve_forwards(db)
-
 def _py_process_logins(db=None):
     raise NotImplementedError('is_local')
 
