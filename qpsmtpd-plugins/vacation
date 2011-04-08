@@ -55,7 +55,7 @@ sub hook_queue_pre {
 		} elsif ($header =~ /^(X\-Spam\-(Flag|Status))$/i) {
 			my $spam_msg = $1;
 			if ($headers->get($spam_msg) =~ /(yes)/i) { 
-				$hdr = $headers->get($spam_msg);
+				my $hdr = $headers->get($spam_msg);
 				$self->log(LOGINFO, "[vacation] $hdr");
 				return $self->ignore_message("$spam_msg $1 found");
 			}
