@@ -54,10 +54,8 @@ sub hook_queue_pre {
 			$message_id = $headers->get('Message-Id');
 		} elsif ($header =~ /^(X\-Spam\-(Flag|Status))$/i) {
 			my $spam_msg = $1;
-			if ($headers->get($spam_msg) =~ /(yes)/i) { 
-				my $hdr = $headers->get($spam_msg);
-				$self->log(LOGINFO, "[vacation] $hdr");
-				return $self->ignore_message("$spam_msg $1 found");
+			if ($headers->get($spam_msg) =~ /^\s*(yes)/i) { 
+				return $self->ignore_message("$spam_msg yes found");
 			}
 		} elsif ($header =~ /^X\-Facebook\-Notify$/i) {
 			return $self->ignore_message("mail from facebook");
