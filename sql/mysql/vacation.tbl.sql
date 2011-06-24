@@ -23,7 +23,7 @@
 --   Boston, MA    02110-1301, USA.
 --
 
-CREATE TABLE `IF NOT EXISTS vacation` (
+CREATE TABLE IF NOT EXISTS `vacation` (
 	`id`      int(11)      NOT NULL AUTO_INCREMENT,
 	`email`   varchar(255) NOT NULL,
 	`subject` varchar(255) NOT NULL,

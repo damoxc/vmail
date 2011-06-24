@@ -29,5 +29,5 @@ CREATE TABLE IF NOT EXISTS `logins_archive` (
 	`method`      varchar(10)  NOT NULL,
 	`local_addr`  varchar(50)  NOT NULL,
 	`remote_addr` varchar(15)  NOT NULL,
-	`date`        datetime     NOT NULL,
+	`date`        datetime     NOT NULL
 ) ENGINE=ARCHIVE DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
