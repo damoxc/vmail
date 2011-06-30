@@ -51,9 +51,9 @@ class vmail extends rcube_plugin
 
 		// Set up modifying the out of office message via the preferences
 		// tab in settings and changing passwords.
-		$this->add_hook('list_prefs_sections', array($this, 'listprefs_handler'));
-		$this->add_hook('user_preferences', array($this, 'prefs_handler'));
-		$this->add_hook('save_preferences', array($this, 'prefs_save_handler'));
+		$this->add_hook('preferences_sections_list', array($this, 'listprefs_handler'));
+		$this->add_hook('preferences_list', array($this, 'prefs_handler'));
+		$this->add_hook('preferences_save', array($this, 'prefs_save_handler'));
 
 		$this->include_script('vmail_passwd.js');
 
