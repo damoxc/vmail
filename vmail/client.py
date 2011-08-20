@@ -1,10 +1,10 @@
 #
 # vmail/client.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ class VmailRequest(object):
         return {
             'id'     : self.request_id,
             'method' : self.method,
-            'args'   : self.args,
+            'params' : self.args,
             'kwargs' : self.kwargs
         }
 
@@ -100,7 +100,7 @@ class VmailClientProtocol(Protocol):
         """
         self.__rpc_requests[request.request_id] = request
         data = json.dumps(request.format_message())
-        self.transport.write(data)
+        self.transport.write(data + '\r\n')
 
 class VmailClientFactory(ClientFactory):
 
@@ -216,7 +216,7 @@ class Client(object):
 
     def disconnect(self):
         return self.proxy.disconnect()
-    
+
     def __getattr__(self, method):
         return DottedObject(self.proxy, method)
 
