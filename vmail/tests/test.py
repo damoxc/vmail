@@ -1,6 +1,6 @@
 import logging
+import unittest
 
-from twisted.trial import unittest
 from vmail.tests import testdata
 from vmail.model.tables import *
 
@@ -10,7 +10,7 @@ logging.basicConfig(
 )
 
 class BaseUnitTest(unittest.TestCase):
-    
+
     def failUnlessNone(self, expr, msg=None):
         """
         Fail the test unless the expression is None.
@@ -99,7 +99,7 @@ class DatabaseUnitTest(BaseUnitTest):
                 notified    = notified,
                 notified_at = notified_at
             ).execute()
-        
+
         for (domain_id, source, destination) in testdata.forwardings:
             forwardings.insert().values(
                 domain_id     = domain_id,
@@ -140,7 +140,7 @@ class DatabaseUnitTest(BaseUnitTest):
 
         for address in testdata.blacklist:
             blacklist.insert().values(address=address).execute()
-        
+
         for address in testdata.whitelist:
             whitelist.insert().values(address=address).execute()
 
@@ -176,13 +176,14 @@ class DaemonUnitTest(DatabaseUnitTest):
     def setUp(self):
         super(DaemonUnitTest, self).setUp()
         from vmail.client import Client
-        from vmail.daemon.rpcserver import RpcServer
+        from vmail.daemon.rpcserver import RPCServer, JSONReceiver
         from vmail.daemon.core import Core
         from vmail.daemon.qpsmtpd import Qpsmtpd
 
-        self.rpcserver = RpcServer('vmaild.sock', False)
+        self.rpcserver = RPCServer()
         self.rpcserver.register_object(Core(None))
         self.rpcserver.register_object(Qpsmtpd())
+        self.rpcserver.add_receiver(JSONReceiver('vmaild.sock'))
         self.rpcserver.start()
 
         self.client = Client('vmaild.sock')
