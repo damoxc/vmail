@@ -4,7 +4,7 @@
 # Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,14 +26,13 @@
 import os
 import grp
 import pwd
+import gevent
 import logging
-
-from twisted.internet import reactor
 
 from vmail.common import get_config
 from vmail.daemon.core import Core
 from vmail.daemon.qpsmtpd import Qpsmtpd
-from vmail.daemon.rpcserver import RpcServer
+from vmail.daemon.rpcserver import RPCServer, JSONReceiver
 from vmail.model import connect, rw_connect
 
 log = logging.getLogger(__name__)
@@ -42,7 +41,7 @@ class Daemon(object):
 
     def __init__(self):
         self.config = get_config()
-        self.rpcserver = RpcServer()
+        self.rpcserver = RPCServer()
         self.core = Core(self)
 
         if self.config['monitor']:
@@ -51,8 +50,12 @@ class Daemon(object):
         else:
             self.monitor = None
 
+        self.rpcserver.add_receiver(JSONReceiver())
+
         self.rpcserver.register_object(self.core)
         self.rpcserver.register_object(Qpsmtpd())
+
+        self.running = False
 
     def start(self):
         # Get the uid and gid we want to run as
@@ -72,26 +75,18 @@ class Daemon(object):
         os.setgid(gid)
         os.setuid(uid)
 
-        # Start the RPC server
-        self.rpcserver.start()
-
-        # Start the monitor, if we need to
-        if self.monitor:
-            self.monitor.start()
-
         # Setup database connections
         connect()
         rw_connect()
 
-        # Set the threadpool size
-        reactor.suggestThreadPoolSize(self.config['thread_pool_size'])
+        # Start the RPC server
+        self.rpcserver.start()
 
-        # Quaid, start the reactor
-        reactor.run()
+        # Start this greenlet blocking
+        self.running = True
+        while self.running:
+            gevent.sleep(0.1)
 
     def stop(self):
-        if self.monitor:
-            self.monitor.stop()
+        self.running = False
         self.rpcserver.stop()
-        if reactor.running:
-            reactor.stop()
