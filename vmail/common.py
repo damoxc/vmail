@@ -1,10 +1,10 @@
 #
 # vmail/common.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -160,7 +160,7 @@ def read_maildirsize(maildir_path, with_quota=False):
     if not os.path.isfile(path):
         raise Exception('Cannot find maildirsize: %s',
             os.path.basename(maildir_path))
-    
+
     if with_quota:
         fp = open(path)
         quota = fp.readline()
@@ -230,7 +230,7 @@ def send_welcome_message(address, smtphost=None):
     # Make the subsitutions
     for key, value in params.iteritems():
         message = message.replace(':' + key, value)
-    
+
     # Send the welcome messsage.
     smtp = smtplib.SMTP(smtphost or 'localhost')
     smtp.sendmail('postmaster@' + get_config().get('defaulthost'), address, message)

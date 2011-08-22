@@ -29,5 +29,5 @@ CREATE TABLE IF NOT EXISTS `qpsmtpd_rcpts` (
   `email_addr`     varchar(255) NOT NULL,
   `success`        tinyint(1)   NOT NULL,
   `message`        varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`transaction_id`,`email_addr`)
+  PRIMARY KEY (`connection_id`,`transaction`,`email_addr`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

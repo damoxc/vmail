@@ -1,10 +1,10 @@
 #
 # vmail/model/procs.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,9 +50,9 @@ _mode = 'py'
 _module = sys.modules[__name__]
 _procedures = [
     'get_quotas',
-    'is_local',   
+    'is_local',
     'is_validrcptto',
-    'log_rotate', 
+    'log_rotate',
     'process_forwards',
     'process_logins',
     'resolve_forwards'
@@ -71,7 +71,7 @@ def use_procedures(mode):
     _mode = mode
 
     log.debug('Switching procedure mode to %s', mode)
-    
+
     # Reflect the change in the procedures
     for procedure in _procedures:
         getattr(_module, procedure).update_mode()
@@ -114,7 +114,7 @@ def _py_get_quotas(email, db=None):
     # If we have no result then raise an error
     if not result:
         raise UserNotFoundError(email)
-    
+
     # Return if everything went okay, converting the values to long
     return (long(result[0]), long(result[1]))
 
@@ -136,7 +136,7 @@ def _py_is_validrcptto(email, db=None):
 
     # Check to see if we have a user by that name
     user = db.query(User).filter_by(email=email).first()
-    
+
     # Ensure we have a valid user
     if user:
         # Check if the user is enabled and return if not
@@ -269,11 +269,11 @@ def _py_resolve_forwards(db=None):
     # Loop over the forwards resolving them all
     for forward in db.query(Forward):
         destination = _py_resolve_forward(forward, db)
-        
+
         # This is not a local destination
         if not destination:
             continue
-        
+
         # This is a duplicate
         if destination in processed.get(forward.source, []):
             continue

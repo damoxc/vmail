@@ -1,10 +1,10 @@
 #
 # vmail/daemon/main.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # Based off rpcserver.py found in Deluge, written by Andrew Resch.
 #
@@ -27,29 +27,20 @@
 
 import os
 import sys
+import json
 import stat
+import errno
 import fcntl
+import gevent
 import logging
-import datetime
-import traceback
 
-from twisted.internet.protocol import Protocol, Factory
-from twisted.internet import reactor, defer, threads
-from twisted.python.failure import Failure
+from gevent import socket
+from gevent.server import StreamServer
 
-import vmail.common
+from vmail import common
 from vmail.error import VmailError, RPCException, RPCError
 
 log = logging.getLogger(__name__)
-json = vmail.common.json
-
-def export(func, *args, **kwargs):
-    func._rpcserver_export = True
-    doc = func.__doc__
-    func.__doc__ = "**RPC Exported Function** \n\n"
-    if doc:
-        func.__doc__ += doc
-    return func
 
 def encode_object(obj):
     if isinstance(obj, datetime.datetime):
@@ -62,144 +53,215 @@ def encode_object(obj):
         raise TypeError(repr(obj) + " is not JSON serializable")
     return __json__()
 
-class VmailProtocol(Protocol):
+def export(func, *args ,**kwargs):
+    func._rpcserver_export = True
+    doc = func.__doc__
+    func.__doc__ = '**RPC Exported Function** \n\n'
+    if doc:
+        func.__doc__ += doc
+    return func
 
-    __buffer =  None
+class Receiver(object):
 
-    def dataReceived(self, data):
+    server = None
+
+    def set_server(self, server):
         """
-        Handle receiving requests from a vmail script or another source.
+        Set the server instance this receiver is receiving for.
 
-        :param data: The string representation of the method call
-        :type data: string
+        :param server: The server instance
+        :type server: `RPCServer`
         """
+        self.server = server
+
+    def start(self):
+        raise NotImplementedError
+
+    def stop(self):
+        raise NotImplementedError
+
+class JSONReceiver(Receiver):
+    """
+    This receiver implements the standard JSON-RPC api into Vmail.
+    """
+
+    def __init__(self, socket_path=None):
+        self.config = common.get_config()
+        self.lockfile = None
+        self.socket_path = socket_path
+        if self.socket_path:
+            self.socket_path = os.path.abspath(self.socket_path)
+        self._server = None
+
+    def handle(self, sock, addr):
+        """
+        Handler for the gevent StreamServer.
+
+        :param sock: The client socket
+        :type sock: `gevent.socket.socket`
+        :param addr: The address of the remote client
+        :type addr: `tuple`
+        """
+        fobj = sock.makefile()
+        buf = ''
+
+        # Enter the mainloop for this connection
+        while True:
+            try:
+                data = fobj.readline()
+                if not data:
+                    break # Client has disconnected
+            except socket.error:
+                break # there's been an error
+
+            try:
+                buf += data
+                request = json.loads(buf)
+            except ValueError as e:
+                log.exception(e)
+                continue
+
+            if type(request) is not dict:
+                log.info('Received invalid message: type is not dict')
+                continue
+
+            if 'method' not in request:
+                log.debug('Received invalid request: missing method name')
+                continue
+
+            json_version = request.get('jsonrpc')
+            if json_version == '2.0':
+                self.handle_json2(request, fobj)
+            else:
+                self.handle_json1(request, fobj)
+
+        # Shutdown the socket
+        log.info('client has disconnected')
         try:
-            request = json.loads(data)
-        except Exception, e:
-            log.info("Received invalid message (%r): %s", data, e)
-            return
+            sock.shutdown(socket.SHUT_RDWR)
+            sock.close()
+        except socket.error as e:
+            if e.errno != errno.ENOTCONN:
+                raise
 
-        log.debug('request: %r', request)
+    def handle_json1(self, request, fobj):
+        # Get the required parameters for our method call
+        method     = request['method']
+        request_id = request.get('id')
+        params     = request.get('params')
 
-        if type(request) is not dict:
-            log.info('Received invalid message: type is not dict')
-            return
+        # Dispatch the call
+        g = gevent.spawn(self.server.dispatch, method, params)
+        g.link(self.respond_json1)
+        self.requests[g] = (request_id, fobj)
 
-        if 'method' not in request or 'id' not in request:
-            log.info('Received invalid request: missed method or id')
-            return
+    def handle_json2(self, request, fobj):
+        # Get the required parameters for our method call
+        method     = request['method']
+        request_id = request.get('id')
+        params     = request.get('params')
 
-        request_id = request['id']
-        method = request['method']
-        args = request.get('args', ())
-        kwargs = request.get('kwargs', {})
-        reactor.callLater(0, self._dispatch, request_id, method, args,
-            kwargs)
+        if type(params) is list:
+            args   = params
+            kwargs = {}
+        elif type(params) is dict:
+            args   = []
+            kwargs = params
 
-    def sendData(self, data):
-        self.transport.write(json.dumps(data, default=encode_object))
+        # Dispatch the call
+        g = gevent.spawn(self.server.dispatch, method, args, kwargs)
+        g.link(self.respond_json2)
+        self.requests[g] = (request_id, fobj)
 
-    def sendResponse(self, request_id, result):
-        response = {
+    def respond_json1(self, response):
+        """
+        Handles the result of a JSON-RPCv1 call.
+
+        :param response: The finished Greenlet containing the response.
+        :type response: Greenlet
+        """
+        # Retrieve and remove the request id
+        request_id, sock = self.requests.pop(response)
+
+        # Get the correct return value
+        result = None
+        error  = None
+        try:
+            result = response.get()
+        except Exception as e:
+            #log.exception(e)
+            error = {
+                'name': e.__class__.__name__,
+                'message': ''
+            }
+
+        # Create the json encoded response string
+        data = json.dumps({
             'id': request_id,
             'result': result,
-            'error': None
-        }
-        self.sendData(response)
+            'error': error
+        }, default=encode_object)
 
-    def _on_err_response(self, failure, request_id):
-        """
-        Sends an error response with the contents of the exception
-        that was raised.
-        """
-        self.sendData({
-            'id':     request_id,
-            'result': None,
-            'error': {
-                'name': failure.type.__name__,
-                'value': (failure.value.args[0] if failure.value.args else ''),
-                'traceback': ''.join(traceback.format_tb(failure.tb))
-            }
-        })
+        sock.write(data + '\r\n')
+        sock.flush()
 
-    def _on_got_response(self, result, request_id):
-        self.sendResponse(request_id, result)
+    def respond_json2(self):
+        pass
 
-    def _dispatch(self, request_id, method, args, kwargs):
-        """
-        This method is run when a RPC request is made. It will run the
-        local method and will send either a RPC response or RPC error
-        back to the client.
-        """
+    def start(self):
+        self.requests = {}
+        socket_path = self.socket_path or self.config['socket']
 
-        if method in self.factory.methods:
-            meth = self.factory.methods[method]
-            try:
-                self._on_got_response(self._callMethod(meth, args, kwargs), request_id)
-            except Exception:
-                self._on_err_response(Failure(), request_id)
-        else:
-            error = VmailError('No method by that name')
-            failure = Failure(error, VmailError)
-            self._on_err_response(failure, request_id)
+        if not os.path.isdir(os.path.dirname(socket_path)):
+            log.fatal('Cannot create socket: directory missing')
+            exit(1)
 
-    def _callMethod(self, method, args, kwargs):
-        """
-        This method handles calling the method and any __before__
-        or __after__ methods within a thread to ensure further connections
-        aren't blocked.
-        """
-        if method.im_before:
-            try:
-                method.im_before(method)
-            except Exception, e:
-                log.error('running __before__() failed')
-                log.exception(e)
-
+        # We want to check if another instance is running
+        self.lockfile = open(socket_path + '.lck', 'a+')
         try:
-            return method(*args, **kwargs)
-        finally:
-            if method.im_after:
-                try:
-                    method.im_after(method)
-                except Exception, e:
-                    log.error('running __after__() failed')
-                    log.exception(e)
-
-class VmailProtocolThreaded(VmailProtocol):
-    """
-    This is a subclass of the VmailProtocol that executes the RPC methods
-    in their own thread to improve concurrency.
-    """
-
-    def _dispatch(self, request_id, method, args, kwargs):
-        """
-        This method is run when a RPC request is made. It will run the
-        local method and will send either a RPC response or RPC error
-        back to the client.
-        """
-
-        if method in self.factory.methods:
-            meth = self.factory.methods[method]
-            d = threads.deferToThread(self._callMethod, meth, args, kwargs)
-            d.addCallback(self._on_got_response, request_id)
-            d.addErrback(self._on_err_response, request_id)
+            fcntl.flock(self.lockfile.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except IOError as e:
+            if e.errno == errno.EAGAIN:
+                log.fatal('Another instance of vmaild is already running')
+                exit(1)
+            elif e.errno == errno.EACCES:
+                log.fatal('Permission denied checking the lock file')
+                exit(1)
+            else:
+                raise
         else:
-            error = VmailError('No method by that name')
-            failure = Failure(error, VmailError)
-            self._on_err_response(failure, request_id)
+            if os.path.exists(socket_path):
+                os.remove(socket_path)
 
-class RpcMethod(object):
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.setblocking(0)
+        sock.bind(socket_path)
+        sock.listen(100)
+
+        os.chmod(socket_path,
+            stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO | stat.S_ISGID)
+
+        self._server = StreamServer(sock, self.handle)
+        self._server.serve_forever()
+
+    def stop(self):
+        self._server.stop()
+
+        if self.lockfile:
+            os.remove(self.lockfile.name)
+            fcntl.flock(self.lockfile.fileno(), fcntl.LOCK_UN)
+
+class RPCMethod(object):
     """
-    This class acts as a wrapper around methods that checks for before and
-    after methods when its created to save having to do it for every
-    RPC request.
+    Wrapped around exported methods that allows to run checks before and
+    after a method is executed, without having to perform a lookup upon
+    each execution.
     """
 
     def __init__(self, method):
         self.__method = method
         self.im_before = getattr(method.im_self, '__before__', None)
-        self.im_after = getattr(method.im_self, '__after__', None)
+        self.im_after  = getattr(method.im_self, '__after__', None)
 
     def __getattr__(self, key):
         return getattr(self.__method, key)
@@ -209,85 +271,128 @@ class RpcMethod(object):
             return self.__method(*args, **kwargs)
         except RPCError:
             raise
-        except Exception, e:
+        except Exception as e:
             log.exception(e)
             raise
 
-class RpcServer(object):
-    
+class RPCServer(object):
+    """
+
+    """
+
     def __init__(self, socket_path=None, threaded=True):
-        self.factory = Factory()
-        if threaded:
-            self.factory.protocol = VmailProtocolThreaded
-        else:
-            self.factory.protocol = VmailProtocol
-        self.factory.methods = {}
-        self.config = vmail.common.get_config()
-        self.socket_path = socket_path
-        self.port = None
-        self.lockfile = None
-        if self.socket_path:
-            self.socket_path = os.path.abspath(self.socket_path)
+        self.config = common.get_config()
+        self.jobs = []
+        self.methods = {}
+        self.receivers = []
+        self.running = False
+
+    def add_receiver(self, receiver):
+        """
+        Adds a receiver to the RPC server.
+
+        :param receiver: the receiver to add
+        :type receiver: Receiver
+        """
+        receiver.set_server(self)
+        self.receivers.append(receiver)
+
+        if self.running:
+            self.jobs.append(gevent.spawn(receiver.start))
+
+    def dispatch(self, name, args=None, kwargs=None):
+        """
+        Dispatch a method call into the Vmail core.
+
+        :param name: the method's name
+        :type name: str
+        :param args: the positional arguments for the method call
+        :type args: sequence
+        :param kwargs: the named arguments for the method call
+        :type kwargs: dict
+        """
+
+        # Ensure that args is iterable and kwargs is a dict, so we don't
+        # bugger up our method call.
+        try:
+            args = tuple(args)
+        except TypeError:
+            args = {}
+
+        try:
+            kwargs = dict(kwargs)
+        except (TypeError, ValueError):
+            kwargs = {}
+
+        # Call the method
+        return self.methods[name](*args, **kwargs)
+
+    def emit(self, event):
+        """
+        Emits an event to the subscribed clients.
+
+        :param event: the event to emit
+        :type event: Event
+        """
+
+    def get_method_list(self):
+        """
+        Returns a list of the exported methods.
+
+        :returns: the exported methods
+        :rtype: list
+        """
+        return self.methods.keys()
+
+    def get_object_method(self, name):
+        """
+        Returns a registered method.
+
+        :param name: the name of the method
+        :type name: str
+
+        :returns: the registered method
+        :rtype: method
+        :raises KeyError: if `:param:name` is not registered
+        """
+        return self.methods[name]
 
     def register_object(self, obj, name=None):
         """
-        Registers an object to export it's RPC methods. These methods should
-        be exported with the export decorator prior to registering the
+        Register an object to export it's rpc methods. These methods should
+        be exported using the export decorator prior to registering the
         object.
 
-        :param obj: the object we want to export
+        :param obj: the object to scan for exported methods
         :type obj: object
-        :param name: the name to use, if None, it will be the class name
-        of the object
+        :keyword name: the name to use for the object else the object name
         :type name: str
         """
+
         if not name:
             name = obj.__class__.__name__.lower()
 
         for d in dir(obj):
-            if d[0] == "_":
+            if d[0] == '_':
                 continue
-            if getattr(getattr(obj, d), '_rpcserver_export', False):
-                log.debug("Registering method: %s.%s", name, d)
-                self.factory.methods[name + "." + d] = RpcMethod(getattr(obj, d))
+            m = getattr(obj, d)
+            if getattr(m, '_rpcserver_export', False):
+                log.debug('Registering methood: %s.%s', name, d)
+                self.methods[name + '.' + d] = getattr(obj, d)
 
     def start(self):
-        sock_path = self.socket_path or self.config['socket']
-        if not os.path.isdir(os.path.dirname(sock_path)):
-            log.fatal('Cannot create socket: directory missing')
-            exit(1)
+        """
+        Start the RPC server, setup the incoming socket.
+        """
+        self.running = True
+        self.jobs = [gevent.spawn(r.start) for r in self.receivers]
 
-        # We want to check if another instance is running now
-        self.lockfile = open(sock_path + '.lock', 'a+')
-        try:
-            fcntl.flock(self.lockfile.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except IOError as e:
-            # We only care about other instances holding a lock
-            if e.errno == 11:
-                log.fatal('Another instance of vmaild is already running')
-                exit(1)
-            elif e.errno == 13:
-                log.fatal('Permission denied checking lock file')
-                exit(1)
-            else:
-                raise
-        else:
-            # Remove the socket file if it exists
-            if os.path.exists(sock_path):
-                os.remove(sock_path)
+    def stop(self, force=False):
+        """
+        Stop the RPC server from accepting new requests.
 
-        self.port = reactor.listenUNIX(sock_path, self.factory)
-        os.chmod(sock_path,
-            stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO | stat.S_ISGID)
-        
-    def stop(self):
-        d = None
-
-        if self.port:
-            d = self.port.stopListening()
-
-        if self.lockfile:
-            os.remove(self.lockfile.name)
-            fcntl.flock(self.lockfile.fileno(), fcntl.LOCK_UN)
-
-        return d
+        :keyword force: Kill all in-progress RPC requests (not recommended)
+        :type force: bool
+        """
+        jobs = [gevent.spawn(r.stop) for r in self.receivers]
+        gevent.joinall(jobs)

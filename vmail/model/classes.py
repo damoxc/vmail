@@ -1,10 +1,10 @@
 #
 # vmail/model/classes.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-import crypt
 import hashlib
 
 from sqlalchemy import and_, join, desc, text, exists, select
@@ -36,7 +35,7 @@ class Blacklist(object):
     pass
 
 class Package(object):
-    
+
     def __json__(self):
         return {
             'id': self.id,
@@ -46,7 +45,7 @@ class Package(object):
         }
 
 class Domain(object):
-    
+
     @staticmethod
     def create(domain, package, password):
         """
@@ -115,7 +114,7 @@ class Forward(object):
         }
 
 class Forwards(object):
-    
+
     @staticmethod
     def exists(source):
         return select([mysql_sucks.c.test],
@@ -130,16 +129,16 @@ class Forwards(object):
         }
 
 class Host(object):
-    
+
     def __json__(self):
         return {
             'ip_address': self.ip_address,
             'action': self.action,
             'comment': self.comment
-        }   
+        }
 
 class Login(object):
-    
+
     def __json__(self):
         return {
             'id': self.id,
@@ -173,7 +172,7 @@ class ResolvedForward(object):
     def __init__(self, source=None, destination=None):
         self.source = source
         self.destination = destination
-    
+
     def __json__(self):
         return {
             'source': self.source,
@@ -220,7 +219,7 @@ class User(object):
         }
 
 class UserQuota(object):
-    
+
     def __json__(self):
         return {
             'id': self.id,
@@ -230,7 +229,7 @@ class UserQuota(object):
         }
 
 class Vacation(object):
-    
+
     def __json__(self):
         return {
             'id': self.id,
@@ -247,7 +246,7 @@ class VacationNotification(object):
     pass
 
 class Whitelist(object):
-    
+
     def __json__(self):
         return {
             'address': self.address

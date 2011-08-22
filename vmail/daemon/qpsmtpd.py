@@ -1,10 +1,10 @@
 #
 # vmail/daemon/qpsmtpd.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ class Qpsmtpd(object):
 
         # Add the log entries to the database
         self.log_entries(connection, logs)
-        
+
         # Add the transactions to the database
         try:
             self.log_transactions(connection, transactions)
@@ -88,7 +88,7 @@ class Qpsmtpd(object):
             print e
 
         log.debug('connection logged')
-    
+
     def log_entries(self, connection, logs):
         """
         This method handles adding the log entries to the database.
@@ -100,7 +100,7 @@ class Qpsmtpd(object):
         """
         log.debug('Logging log entries')
 
-        # Add all the log entries 
+        # Add all the log entries
         for log_entry in logs:
             try:
                 (tnx, level, hook, plugin, message) = log_entry

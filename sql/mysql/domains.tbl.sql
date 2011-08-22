@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS `domains` (
 	`domain`        varchar(50) NOT NULL,
 	`package`       varchar(15) NOT NULL,
 	`package_id`    int(11)     NOT NULL,
-	`quota`         bitint(20)  NOT NULL,
+	`quota`         bigint(20)  NOT NULL,
 	`account_limit` int(11)     NOT NULL,
 	`enabled`       tinyint(1)  NOT NULL DEFAULT 1,
 	PRIMARY KEY	(`id`),

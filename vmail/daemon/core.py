@@ -1,10 +1,10 @@
 #
 # vmail/daemon/core.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,8 +32,6 @@ import datetime
 
 from email.message import Message
 from email.utils import formatdate
-
-from twisted.internet import reactor, threads
 
 from vmail.common import *
 from vmail.daemon.rpcserver import export
@@ -90,7 +88,7 @@ def resolve_forward(db, source, destinations=None):
     :type db: ScopedSession
     :param source: The forwards source
     :type source: str
-    :keyword destinations: A list of already checked destinations, mostly 
+    :keyword destinations: A list of already checked destinations, mostly
         used internally to prevent looping.
     :type sources: list
     """
@@ -169,9 +167,9 @@ class Core(object):
 
         if user.password != pw_clear:
             return False
-        
+
         return True
-    
+
     @export
     def authenticate_cram(self, user, pw_hash, ticket):
         """
@@ -424,7 +422,7 @@ class Core(object):
         smtp.close()
 
         log.debug("Sending vacation notification to '%s' for '%s'",
-            recipient.address, user.email) 
+            recipient.address, user.email)
 
         # Store that the recipient has been notified so we don't spam them
         # with useless information.
@@ -450,7 +448,7 @@ class Core(object):
         rw_db.query(Forward).filter_by(source=source).delete()
         rw_db.commit()
 
-        # Finally run the process forwards procedure to update the 
+        # Finally run the process forwards procedure to update the
         # other forwards tables.
         procs.process_forwards(rw_db)
 
@@ -496,7 +494,7 @@ class Core(object):
     def get_forward(self, source):
         """
         Get the destinations for a forward from the mail system.
-        
+
         :param source: The forward's source
         :type source: str
         """
@@ -599,7 +597,7 @@ class Core(object):
         # Due to the new table structure we merely delete the old forwards
         # if there are any.
         rw_db.query(Forward).filter_by(source=source).delete()
-        
+
         # Add all the new forwards as specified by the destinations list
         for destination in destinations:
             forward = Forward()
@@ -611,7 +609,7 @@ class Core(object):
         # Commit the changes to the forwards table
         rw_db.commit()
 
-        # Finally run the process forwards procedure to update the 
+        # Finally run the process forwards procedure to update the
         # other forwards tables.
         procs.process_forwards(rw_db)
 
