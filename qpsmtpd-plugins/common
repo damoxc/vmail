@@ -526,13 +526,13 @@ sub vm_exec
 	my %request = (
 		id     => $call_id,
 		method => $method,
-		args   => \@params,
+		params => \@params,
 		kwargs => \%kwargs
 	);
 	$self->qp->connection->notes(VM_CALL + 1);
 
 	# Send the request to vmaild
-	$sock->send(to_json(\%request));
+	$sock->send(to_json(\%request) . "\n");
 
 	# Receive back the response
 	my $buf;
