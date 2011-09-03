@@ -474,8 +474,6 @@ class Core(object):
         try:
             if os.path.isdir(user.maildir):
                 shutil.rmtree(user.maildir)
-                if self.daemon.monitor:
-                    self.daemon.monitor.remove_watch(user.maildir)
         except Exception, e:
             log.error('Unable to remove maildir for %s', email)
             log.exception(e)

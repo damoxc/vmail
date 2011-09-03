@@ -92,8 +92,8 @@ class VClient
 		$request = json_encode(array(
 			id     => $this->request_id,
 			method => $method,
-			args   => $arguments
-		));
+			params => $arguments
+		)) . "\n";
 		$this->request_id++;
 
 		if (socket_write($this->sock, $request) === false) {

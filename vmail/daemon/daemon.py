@@ -44,14 +44,7 @@ class Daemon(object):
         self.rpcserver = RPCServer()
         self.core = Core(self)
 
-        if self.config['monitor']:
-            from vmail.daemon.monitor import Monitor
-            self.monitor = Monitor()
-        else:
-            self.monitor = None
-
         self.rpcserver.add_receiver(JSONReceiver())
-
         self.rpcserver.register_object(self.core)
         self.rpcserver.register_object(Qpsmtpd())
 
