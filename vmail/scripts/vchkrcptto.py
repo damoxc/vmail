@@ -23,22 +23,10 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-from vmail.client import client, reactor
+from vmail.client import client
 from vmail.scripts.base import DaemonScriptBase, argcount
 
 class VChkRcptTo(DaemonScriptBase):
-
-    def on_connect(self, result):
-        return client.core.is_validrcptto(self.args[0]).addCallbacks(
-            self.on_got_result,
-            self.on_got_result_err
-        )
-
-    def on_got_result(self, (code, destination, rcpt_type)):
-        return code
-
-    def on_got_result_err(self, result):
-        return 1
 
     @argcount(1)
     def run(self):
@@ -46,4 +34,8 @@ class VChkRcptTo(DaemonScriptBase):
             log.error('invalid argument')
             return 1
 
-        return self.connect()
+        try:
+            self.connect()
+            return client.core.is_validrcptto(self.args[0]).get()[0]
+        except:
+            return 1

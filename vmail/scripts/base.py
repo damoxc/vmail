@@ -30,10 +30,9 @@ import logging.config
 import logging.handlers
 import optparse
 
-from twisted.internet import defer
-from vmail.client import client, reactor
+from vmail.client import client
 
-LEVELS = { 
+LEVELS = {
     'INFO': logging.INFO,
     'DEBUG': logging.DEBUG,
     'WARN': logging.WARN,
@@ -132,32 +131,15 @@ class DaemonScriptBase(ScriptBase):
     def _run(cls, instance):
         retval = instance.run()
 
-        if isinstance(retval, defer.Deferred):
-            instance._retval = 0
-            def exit(retval):
-                if reactor.running:
-                    reactor.stop()
-                instance._retval = retval
-
-            retval.addCallbacks(exit, exit)
-            reactor.run()
-            sys.exit(instance._retval)
-
-        elif isinstance(retval, int):
+        if isinstance(retval, int):
             sys.exit(retval)
 
     def connect(self, cbArgs=None, ebArgs=None):
-        if not os.path.exists(client.proxy.socket_path):
+        if not os.path.exists(client.socket_path):
             self.log.error('vmaild not running')
             return 255
 
-        if cbArgs is not None and not isinstance(cbArgs, tuple):
-            cbArgs = (cbArgs,)
-        if ebArgs is not None and not isinstance(ebArgs, tuple):
-            ebArgs = (ebArgs,)
-
-        return client.connect().addCallbacks(self.on_connect,
-            self.on_connect_err, cbArgs, ebArgs)
+        return client.connect()
 
     def on_connect(self):
         reactor.stop()

@@ -23,11 +23,11 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-from vmail.client import client, reactor
+from vmail.client import client
 from vmail.scripts.base import DaemonScriptBase, argcount
 
 class VLogMessage(DaemonScriptBase):
-    
+
     script = 'vlogmessage'
     usage  = 'Usage: %prog [options] sender [remote_addr]'
 
@@ -41,19 +41,14 @@ class VLogMessage(DaemonScriptBase):
         self.parser.add_option('-u', '--user', dest='user',
             action='store', help='Set the user sending the message')
 
-    def on_connect(self, result):
-        sender = self.args[0].lower()
-        remote_addr = self.args[1] if len(self.args) == 2 else None
-        return client.core.log_message(sender, self.options.user,
-            self.options.subject, remote_addr,
-            self.options.recipients).addCallbacks(
-                self.on_logged_message,
-                self.on_logged_message
-            )
-
-    def on_logged_message(self, result):
-        return 0
-
     @argcount(1)
     def run(self):
-        return self.connect()
+        sender = self.args[0].lower()
+        remote_addr = self.args[1] if len(self.args) == 2 else None
+        self.connect()
+
+        client.core.log_message(sender, self.options.user,
+            self.options.subject, remote_addr, self.optoins.recipients
+            ).join()
+
+        return 0

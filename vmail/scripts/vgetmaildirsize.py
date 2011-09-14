@@ -23,8 +23,10 @@
 #   Boston, MA    02110-1301, USA.
 #
 
+import gevent
+
 from vmail.common import fsize
-from vmail.client import client, reactor
+from vmail.client import client
 from vmail.scripts.base import DaemonScriptBase
 
 class VGetMailDirSize(DaemonScriptBase):
@@ -42,53 +44,30 @@ class VGetMailDirSize(DaemonScriptBase):
         self.parser.print_help()
         exit(0)
 
-    def on_connect(self, result):
-        if self.options.quota:
-            return client.core.get_quota(self.domain, self.user).addCallbacks(
-                self.on_got_quota,
-                self.on_got_quota_err
-            )
-        else:
-            return client.core.get_usage(self.domain, self.user).addCallbacks(
-                self.on_got_usage,
-                self.on_got_usage_err
-            )
-
-    def on_got_usage(self, usage):
-        if self.options.human:
-            usage = fsize(usage)
-            if self.options.quota:
-                self.quota = fsize(self.quota)
-        print ('%s/%s' % (usage, self.quota) if 
-            self.options.quota else '%s' % usage)
-
-    def on_got_usage_err(self, error):
-        self.log.error('error: %s', error.value['value'])
-        return 1
-
-    def on_got_quota(self, quota):
-        self.quota = quota
-        return client.core.get_usage(self.domain, self.user).addCallbacks(
-            self.on_got_usage,
-            self.on_got_usage_err
-        )
-
-    def on_got_quota_err(self, error):
-        self.log.error('error: %s', error.value['value'])
-        return 1
-
     def run(self):
         if not self.args:
             self.log.error('no argument provided')
             return 1
 
         if '@' in self.args[0]:
-            (self.user, self.domain) = self.args[0].split('@')
+            (user, domain) = self.args[0].split('@')
         else:
-            (self.user, self.domain) = (None, self.args[0])
+            (user, domain) = (None, self.args[0])
 
-        if not self.domain:
+        if not domain:
             self.log.error('no argument provided')
             return 1
 
-        return self.connect()
+        self.connect()
+
+        jobs = [client.core.get_usage(domain, user)]
+        if self.options.quota:
+            jobs.append(client.core.get_quota(domain, user))
+        gevent.joinall(jobs)
+
+        if self.options.human:
+            values = tuple(fsize(j.value) for j in jobs)
+        else:
+            values = tuple(j.value for j in jobs)
+
+        print ('%s/%s' % values if self.options.quota else '%s' % values)
