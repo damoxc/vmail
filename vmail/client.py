@@ -29,6 +29,8 @@ import logging
 
 import gevent
 from gevent import socket
+from gevent.event import AsyncResult
+from gevent.queue import Queue
 
 from vmail import common
 
@@ -81,8 +83,7 @@ class Client(object):
 
     def __init__(self):
         self.__requests = {}
-        self.__responses = {}
-        self.__pending = []
+        self.__pending = Queue()
         self.__buffer = None
         self.__config = common.get_config()
         self.__socket = None
@@ -104,11 +105,8 @@ class Client(object):
         self.__fobj = self.__socket.makefile()
 
         while True:
-            try:
-                request = self.__pending.pop(0)
-                self.__send(request)
-            except IndexError:
-                pass
+            request = self.__pending.get()
+            self.__send(request)
             response = self.__receive()
 
     def disconnect(self):
@@ -126,11 +124,13 @@ class Client(object):
 
         request = VmailRequest()
         request.request_id = self.__request_counter
+        self.__request_counter += 1
         request.method = method
         request.args = args
         request.kwargs = kwargs
-        self.__pending.append(request)
-        return gevent.spawn(self.__wait, request.request_id)
+        self.__pending.put(request)
+        self.__requests[request.request_id] = result = AsyncResult()
+        return result
 
     def __send(self, request):
         """
@@ -138,7 +138,6 @@ class Client(object):
 
         :param request: RPCRequest
         """
-        self.__responses[request.request_id] = None
         data = json.dumps(request.format_message())
         self.__fobj.write(data + '\n')
         self.__fobj.flush()
@@ -170,20 +169,13 @@ class Client(object):
             return
 
         request_id = response.get('id')
-        self.__responses[request_id] = response
-
-    def __wait(self, request_id):
-        while self.__responses[request_id] is None:
-            gevent.sleep()
-        response = self.__responses[request_id]
+        result = self.__requests[request_id]
 
         if 'error' in response and response['error'] is not None:
-            raise Exception(response['error'])
+            result.set_exception(Exception(response['error']))
 
-        if 'result' in response:
-            return response['result']
-
-        return None
+        elif 'result' in response:
+            result.set(response['result'])
 
     def __getattr__(self, method):
         return DottedObject(self, method)
