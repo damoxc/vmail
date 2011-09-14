@@ -117,6 +117,7 @@ class JSONReceiver(Receiver):
             try:
                 buf += data
                 request = json.loads(buf)
+                buf = ''
             except ValueError as e:
                 log.exception(e)
                 continue
@@ -323,6 +324,8 @@ class RPCServer(object):
             kwargs = dict(kwargs)
         except (TypeError, ValueError):
             kwargs = {}
+
+        log.debug('rpc call - %s(%r, %r)', name, args, kwargs)
 
         # Call the method
         return self.methods[name](*args, **kwargs)
