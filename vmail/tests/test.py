@@ -1,5 +1,29 @@
+import os
+import gevent
+import shutil
 import logging
+import tempfile
 import unittest
+
+import gevent
+import gevent.greenlet
+
+from gevent.hub import GreenletExit
+
+class QuietGreenlet(gevent.greenlet.Greenlet):
+
+    def _report_error(self, exc_info):
+        exception = exc_info[1]
+        if isinstance(exception, GreenletExit):
+            self._report_result(exception)
+            return
+
+        self._exception = exception
+        if self._links and self._notifier is None:
+            self._notifier = gevent.core.active_event(self._notify_links)
+
+gevent.Greenlet = gevent.greenlet.Greenlet = QuietGreenlet
+reload(gevent)
 
 from vmail.tests import testdata
 from vmail.model.tables import *
@@ -10,6 +34,13 @@ logging.basicConfig(
 )
 
 class BaseUnitTest(unittest.TestCase):
+
+    def setUp(self):
+        self.testDir = tempfile.mkdtemp()
+        os.chdir(self.testDir)
+
+    def tearDown(self):
+        shutil.rmtree(self.testDir)
 
     def failUnlessNone(self, expr, msg=None):
         """
@@ -40,6 +71,7 @@ class DatabaseUnitTest(BaseUnitTest):
         return _create_engine('sqlite:///')
 
     def setUp(self):
+        super(DatabaseUnitTest, self).setUp()
         from vmail.model import init_model, init_rw_model
         engine = self._create_engine()
 
@@ -157,6 +189,7 @@ class DatabaseUnitTest(BaseUnitTest):
 
     def tearDown(self):
         meta.drop_all()
+        super(DatabaseUnitTest, self).tearDown()
 
 class ThreadedDatabaseUnitTest(DatabaseUnitTest):
     """
@@ -166,7 +199,8 @@ class ThreadedDatabaseUnitTest(DatabaseUnitTest):
 
     def _create_engine(self):
         from vmail.model import _create_engine
-        return _create_engine('sqlite:///test.db')
+        db_path = os.path.join(self.testDir, 'test.db')
+        return _create_engine('sqlite:///' + db_path)
 
 class DaemonUnitTest(DatabaseUnitTest):
     """
@@ -185,11 +219,13 @@ class DaemonUnitTest(DatabaseUnitTest):
         self.rpcserver.register_object(Qpsmtpd())
         self.rpcserver.add_receiver(JSONReceiver('vmaild.sock'))
         self.rpcserver.start()
+        gevent.sleep()
 
         self.client = Client('vmaild.sock')
-        return self.client.connect()
+        self.client.connect()
 
     def tearDown(self):
-        super(DaemonUnitTest, self).tearDown()
         self.client.disconnect()
-        return self.rpcserver.stop()
+        self.rpcserver.stop()
+        super(DaemonUnitTest, self).tearDown()
+        return

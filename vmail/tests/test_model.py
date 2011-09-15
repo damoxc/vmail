@@ -1,4 +1,4 @@
-from twisted.internet import reactor, threads
+import gevent
 
 from vmail.tests import test
 from vmail.model.classes import *
@@ -23,7 +23,7 @@ class TestDatabase(test.DatabaseUnitTest):
         self.assertEqual(self.db.query(Transport
             ).filter_by(domain_id=1
             ).count(), 0)
-        
+
         # Check the users have been removed
         self.assertEqual(self.db.query(User
             ).filter_by(domain_id=1
@@ -88,11 +88,7 @@ class TestDatabase(test.DatabaseUnitTest):
 
 class TestSessionPool(test.ThreadedDatabaseUnitTest):
 
-    def test_same_object_across_threads(self):
-        """
-        Test using a session to access an object, checking it back in 
-        and then opening a new session accessing the same object.
-        """
+    def test_same_object_across_greenlets(self):
         from vmail.model import rw_pool
 
         def get_vacation():
@@ -108,8 +104,8 @@ class TestSessionPool(test.ThreadedDatabaseUnitTest):
             rw_pool.checkin()
             return True
 
-        threads.deferToThread(get_vacation)
-        return threads.deferToThread(get_user)
+        jobs = [gevent.spawn(get_vacation), gevent.spawn(get_user)]
+        gevent.joinall(jobs)
 
 class TestProcedures(test.DatabaseUnitTest):
 
@@ -119,19 +115,16 @@ class TestProcedures(test.DatabaseUnitTest):
         procs.db = self.db
         procs.rw_db = self.rw_db
         self.procs = procs
-    
+
     def test_get_quotas(self):
         self.assertEqual(self.procs.get_quotas('dave@example.com'
             ), (52428800L, 52428800L))
-    
+
     def test_is_validrcptto(self):
         self.assertEqual(self.procs.is_validrcptto('dave@example.com'
             ), (0, 'dave@example.com', 'local'))
-    
+
     def test_process_forwards(self):
-        """
-        Tests adding a new forward to model and then processing
-        """
         # Firstly add a new forward to the model
         forward = Forward()
         forward.domain_id = 1
