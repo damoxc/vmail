@@ -83,10 +83,12 @@ class Client(object):
 
     def __init__(self):
         self.__requests = {}
-        self.__pending = Queue()
-        self.__buffer = None
-        self.__config = common.get_config()
-        self.__socket = None
+        self.__pending  = Queue()
+        self.__buffer   = None
+        self.__config   = common.get_config()
+        self.__sender   = None
+        self.__receiver = None
+        self.__socket   = None
         self.__socket_path = None
         self.__request_counter = 0
 
@@ -94,59 +96,28 @@ class Client(object):
         """
         Connect to the vmaild server.
         """
-        gevent.spawn(self._connection)
-
-    def _connection(self):
-        """
-        """
         self.__socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.__socket.setblocking(0)
         self.__socket.connect(self.socket_path)
         self.__fobj = self.__socket.makefile()
 
+        self.__sender = gevent.spawn(self.__send)
+        self.__receiver = gevent.spawn(self.__receive)
+
+    def __send(self):
+        """
+        Send the RPCRequests to the server
+        """
         while True:
             request = self.__pending.get()
-            self.__send(request)
-            response = self.__receive()
-
-    def disconnect(self):
-        """
-        Disconnect the client from the vmaild server
-        """
-        if not self.__socket:
-            self.__send(request)
-            return
-
-    def __call__(self, method, *args, **kwargs):
-        """
-        Call a remote method.
-        """
-
-        request = VmailRequest()
-        request.request_id = self.__request_counter
-        self.__request_counter += 1
-        request.method = method
-        request.args = args
-        request.kwargs = kwargs
-        self.__pending.put(request)
-        self.__requests[request.request_id] = result = AsyncResult()
-        return result
-
-    def __send(self, request):
-        """
-        Send a RPCRequest to the server
-
-        :param request: RPCRequest
-        """
-        data = json.dumps(request.format_message())
-        self.__fobj.write(data + '\n')
-        self.__fobj.flush()
+            data = json.dumps(request.format_message())
+            self.__fobj.write(data + '\n')
+            self.__fobj.flush()
 
     def __receive(self):
         """
-        Receive an RPCRequest from the server
+        Receive RPCRequests from the server
         """
-
         while True:
             data = self.__fobj.readline()
 
@@ -162,20 +133,44 @@ class Client(object):
                 self.__buffer = data
                 continue
             else:
-                break
+                if type(response) is not dict:
+                    log.debug('Received invalid response: type is not dict')
+                    continue
 
-        if type(response) is not dict:
-            log.debug('Received invalid response: type is not dict')
+                request_id = response.get('id')
+                result = self.__requests[request_id]
+
+                if 'error' in response and response['error'] is not None:
+                    result.set_exception(Exception(response['error']))
+
+                elif 'result' in response:
+                    result.set(response['result'])
+
+    def disconnect(self):
+        """
+        Disconnect the client from the vmaild server
+        """
+        if not self.__socket:
             return
 
-        request_id = response.get('id')
-        result = self.__requests[request_id]
+        self.__sender.kill()
+        self.__receiver.kill()
+        self.__socket.shutdown(socket.SHUT_RDWR)
+        self.__socket.close()
 
-        if 'error' in response and response['error'] is not None:
-            result.set_exception(Exception(response['error']))
-
-        elif 'result' in response:
-            result.set(response['result'])
+    def __call__(self, method, *args, **kwargs):
+        """
+        Call a remote method.
+        """
+        request = VmailRequest()
+        request.request_id = self.__request_counter
+        self.__request_counter += 1
+        request.method = method
+        request.args = args
+        request.kwargs = kwargs
+        self.__pending.put(request)
+        self.__requests[request.request_id] = result = AsyncResult()
+        return result
 
     def __getattr__(self, method):
         return DottedObject(self, method)
