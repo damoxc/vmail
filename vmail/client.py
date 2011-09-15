@@ -81,7 +81,7 @@ class Client(object):
     def socket_path(self):
         return self.__socket_path or self.__config.get('socket')
 
-    def __init__(self):
+    def __init__(self, socket_path=None):
         self.__requests = {}
         self.__pending  = Queue()
         self.__buffer   = None
@@ -89,7 +89,7 @@ class Client(object):
         self.__sender   = None
         self.__receiver = None
         self.__socket   = None
-        self.__socket_path = None
+        self.__socket_path = socket_path
         self.__request_counter = 0
 
     def connect(self):
