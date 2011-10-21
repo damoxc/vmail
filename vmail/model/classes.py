@@ -109,7 +109,7 @@ class Forward(object):
 
     def __json__(self):
         return {
-            'source': self.source,
+            'source':      self.source,
             'destination': self.destination
         }
 
@@ -123,8 +123,9 @@ class Forwards(object):
 
     def __json__(self):
         return {
-            'id': self.id,
-            'source': self.source,
+            'id':          self.id,
+            'domain_id':   self.domain_id,
+            'source':      self.source,
             'destination': self.destination
         }
 
@@ -265,7 +266,9 @@ mapper(Domain, domains, properties = {
                     backref=backref('domain', uselist=False))
 })
 
-mapper(Forward, forwards)
+mapper(Forward, forwards, properties = {
+    'domain': relation(Domain)
+})
 
 mapper(Forwards, forwardings)
 
