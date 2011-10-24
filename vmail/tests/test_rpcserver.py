@@ -7,6 +7,7 @@ from nose.tools import raises
 
 from vmail.daemon.rpcserver import encode_object
 from vmail.daemon.rpcserver import JSONReceiver
+from vmail.daemon.rpcserver import RPCMethod
 
 def test_encode_object():
     date = datetime.datetime(2011, 10, 24)
@@ -55,5 +56,39 @@ def test_json_receiver_missing_directory():
     receiver.start()
 
 def test_json_receiver_stop_before_start():
-    receiver = JSONReceiver('foo')
+    receiver = JSONReceiver('/foo')
     receiver.stop()
+
+class ExportedClass():
+    before_test = False
+    after_test = False
+
+    def __before__(self):
+        self.before_test = True
+
+    def exported_method(self):
+        return 5
+
+    def exported_method_fails(self):
+        raise Exception('this failed')
+
+    def __after__(self):
+        self.after_test = True
+
+def test_rpc_method():
+    cls = ExportedClass()
+    method = RPCMethod(cls.exported_method)
+    assert method() == 5
+    assert cls.before_test == True
+    assert cls.after_test == True
+
+def test_rpc_method_failure():
+    cls = ExportedClass()
+    method = RPCMethod(cls.exported_method)
+    try:
+        assert method()
+    except Exception:
+        pass
+
+    assert cls.before_test == True
+    assert cls.after_test == True

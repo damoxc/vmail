@@ -271,12 +271,28 @@ class RPCMethod(object):
 
     def __call__(self, *args, **kwargs):
         try:
-            return self.__method(*args, **kwargs)
-        except RPCError:
-            raise
+            self.im_before()
         except Exception as e:
             log.exception(e)
-            raise
+
+        result = exc_info = None
+        try:
+            result = self.__method(*args, **kwargs)
+        except RPCError:
+            exc_info = sys.exc_info()
+        except Exception:
+            log.exception(e)
+            exc_info = sys.exc_info()
+
+        try:
+            self.im_after()
+        except Exception as e:
+            log.exception(e)
+
+        if exc_info:
+            raise exc_info[1], None, exc_info[2]
+
+        return result
 
 class RPCServer(object):
     """
