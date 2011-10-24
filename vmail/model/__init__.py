@@ -64,7 +64,7 @@ class SessionPool(object):
 
             # Grab the session from the checkouts
             session = self.checkouts.pop(cur_thread.ident)
-            
+
             # Remove any objects from the session and rollback any in
             # progress transaction
             session.expunge_all()
@@ -85,7 +85,7 @@ class SessionPool(object):
                     self.available.append(session)
                 else:
                     time.sleep(0.1)
-            
+
             session = self.available.pop()
             cur_thread = threading.current_thread()
             self.checkouts[cur_thread.ident] = session
@@ -139,10 +139,13 @@ def _create_engine(dburi, debug=False):
         'pool_size': config.get('pool_size'),
         'echo': debug
     }
-    if dburi.startswith('mysql://'):
+    if dburi.startswith('mysql'):
         engine_args['max_overflow'] = config.get('max_overflow')
         engine_args['pool_recycle'] = 1800
         procs.use_procedures('mysql')
+
+        if dburi.startswith('mysql+mysqlconnector'):
+            dburi = str(dburi)
     else:
         procs.use_procedures('py')
 
