@@ -485,7 +485,7 @@ class Core(object):
 
         # Finally run the process forwards procedure to update the
         # other forwards tables.
-        procs.process_forwards(rw_db)
+        update_forwardings(rw_db, source)
 
         # Update the resolved forwards as well.
         update_resolved_forwards(rw_db, source)
@@ -602,8 +602,8 @@ class Core(object):
     @export
     def save_forward(self, domain_id, source, destinations):
         """
-        Save a forwards details into the database and then trigger an
-        update via the process_forwards procedure.
+        Save a forwards details into the database and then reflect the
+        changes to the forwardings table.
 
         :param domain_id: The domain to associate this forward with
         :type domain_id: int
@@ -644,7 +644,7 @@ class Core(object):
 
         # Finally run the process forwards procedure to update the
         # other forwards tables.
-        procs.process_forwards(rw_db)
+        update_forwardings(rw_db, source, domain_id)
 
         # Update the resolved forwards as well.
         update_resolved_forwards(rw_db, source)
