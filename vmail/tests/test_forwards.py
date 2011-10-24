@@ -28,12 +28,15 @@ from twisted.internet import reactor
 from vmail.tests import test
 from vmail.daemon.core import resolve_forward
 from vmail.daemon.core import reverse_resolve_forward
+from vmail.daemon.core import update_forwardings
 from vmail.daemon.core import update_resolved_forwards
+
 from vmail.model.classes import Forward
+from vmail.model.classes import Forwards
 from vmail.model.classes import ResolvedForward
 
 class TestForwards(test.DatabaseUnitTest):
-    
+
     def test_simple_resolve(self):
         forward = Forward()
         forward.domain_id = 2
@@ -78,3 +81,22 @@ class TestForwards(test.DatabaseUnitTest):
         resolved = [r.destination for r in self.db.query(ResolvedForward
             ).filter_by(source='info@example.com')]
         self.assertEqual(resolved, ['dave@example.com'])
+
+class TestForwardings(test.DatabaseUnitTest):
+
+    def test_simple(self):
+        forward = Forward()
+        forward.domain_id = 2
+        forward.source = 'webmaster@testing.com'
+        forward.destination = 'postmaster@testing.com'
+        self.db.add(forward)
+        self.db.commit()
+
+        update_forwardings(self.db, forward.domain_id, forward.source)
+
+        forwards = self.db.query(Forwards
+            ).filter_by(source=forward.source
+            ).one()
+
+        self.assertEqual(forwards.destination,
+                         'fred@testing.com,postmaster@testing.com')
