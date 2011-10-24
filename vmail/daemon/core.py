@@ -42,6 +42,41 @@ from vmail.model import *
 
 log = logging.getLogger(__name__)
 
+def update_forwardings(db, source, domain_id=None):
+    """
+    This method updates the forwardings table converting the vmail
+    storage format for forwards into a postfix compatible format.
+
+    :param db: The database connection to use
+    :type db: ScopedSession
+    :param source: The forwards source
+    :type source: str
+    :keyword domain_id: The id of the domain the forward belongs to
+    :type domain_id: int
+    """
+
+    # Remove the old record for this forward
+    db.query(Forwards).filter_by(source=source).delete()
+
+    # Get all the immediate destinations for this forward
+    destinations = ','.join([d[0] for d in db.query(Forward.destination
+        ).filter_by(source=source
+        )])
+
+    # If there are no destinations return now
+    if not destinations:
+        return
+
+    if not domain_id:
+        raise ValueError('domain_id cannot be None if destinations exist')
+
+    forwardings = Forwards()
+    forwardings.domain_id   = domain_id
+    forwardings.source      = source
+    forwardings.destination = destinations
+    db.add(forwardings)
+    db.commit()
+
 def update_resolved_forwards(db, source, sources=None):
     """
     This method resolves the destination of any forwards before or
