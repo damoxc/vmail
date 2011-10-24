@@ -247,7 +247,8 @@ class JSONReceiver(Receiver):
         self._server.serve_forever()
 
     def stop(self):
-        self._server.stop()
+        if self._server:
+            self._server.stop()
 
         if self.lockfile:
             os.remove(self.lockfile.name)
