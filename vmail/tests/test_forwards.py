@@ -92,7 +92,7 @@ class TestForwardings(test.DatabaseUnitTest):
         self.db.add(forward)
         self.db.commit()
 
-        update_forwardings(self.db, forward.domain_id, forward.source)
+        update_forwardings(self.db, forward.source, forward.domain_id)
 
         forwards = self.db.query(Forwards
             ).filter_by(source=forward.source
