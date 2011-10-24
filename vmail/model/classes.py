@@ -258,12 +258,13 @@ mapper(Blacklist, blacklist)
 mapper(Package, packages)
 
 mapper(Domain, domains, properties = {
-    'package':    relation(Package, backref='domains'),
-    '_package':   domains.c.package,
-    'transports': relation(Transport, backref=backref('domain')),
-    'forwards':   relation(Forwards, order_by=forwardings.c.source),
-    'users':      relation(User, order_by=users.c.email,
-                    backref=backref('domain', uselist=False))
+    'package':     relation(Package, backref='domains'),
+    '_package':    domains.c.package,
+    'transports':  relation(Transport, backref=backref('domain')),
+    'forwards':    relation(Forward, order_by=forwards.c.source),
+    'forwardings': relation(Forwards, order_by=forwardings.c.source),
+    'users':       relation(User, order_by=users.c.email,
+                            backref=backref('domain', uselist=False))
 })
 
 mapper(Forward, forwards, properties = {

@@ -1,7 +1,7 @@
 #
 # vmail/daemon/daemon.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
 #   2010-2011 Damien Churchill <damoxc@gmail.com>
