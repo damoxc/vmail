@@ -136,12 +136,12 @@ class DBObjectProxy(ObjectProxy):
 def _create_engine(dburi, debug=False):
     config = get_config()
     engine_args = {
-        'pool_size': config.get('pool_size'),
         'echo': debug
     }
     if dburi.startswith('mysql'):
         engine_args['max_overflow'] = config.get('max_overflow')
         engine_args['pool_recycle'] = 1800
+        engine_args['pool_size'] = config.get('pool_size')
         procs.use_procedures('mysql')
 
         if dburi.startswith('mysql+mysqlconnector'):
