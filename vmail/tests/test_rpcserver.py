@@ -48,3 +48,12 @@ def test_json_receiver_already_running():
 
     receiver = JSONReceiver(socket_path)
     receiver.start()
+
+@raises(SystemExit)
+def test_json_receiver_missing_directory():
+    receiver = JSONReceiver('/some/missing/directory')
+    receiver.start()
+
+def test_json_receiver_stop_before_start():
+    receiver = JSONReceiver('foo')
+    receiver.stop()
