@@ -219,8 +219,8 @@ class JSONReceiver(Receiver):
             exit(1)
 
         # We want to check if another instance is running
-        self.lockfile = open(socket_path + '.lck', 'a+')
         try:
+            self.lockfile = open(socket_path + '.lck', 'a+')
             fcntl.flock(self.lockfile.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except IOError as e:
             if e.errno == errno.EAGAIN:
