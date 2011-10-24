@@ -45,7 +45,7 @@ DEFAULT_CONFIG = {
     'rodburi': '',
     'user': 'vmail',
     'group': 'vmail',
-    'socket': '/var/run/vmail/vmaild.sock',
+    'socket': '/run/vmail/vmaild.sock',
     'max_overflow': 10,
     'pool_size': 5,
     'thread_pool_size': 10,
