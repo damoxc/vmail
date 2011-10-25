@@ -1,6 +1,5 @@
 from nose.tools import raises
 from vmail.tests import test
-from twisted.python.failure import Failure
 
 class TestCoreSMTP(test.DaemonUnitTest):
 

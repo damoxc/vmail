@@ -280,7 +280,7 @@ class RPCMethod(object):
             result = self.__method(*args, **kwargs)
         except RPCError:
             exc_info = sys.exc_info()
-        except Exception:
+        except Exception as e:
             log.exception(e)
             exc_info = sys.exc_info()
 

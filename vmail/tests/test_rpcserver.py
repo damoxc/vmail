@@ -8,6 +8,7 @@ from nose.tools import raises
 from vmail.daemon.rpcserver import encode_object
 from vmail.daemon.rpcserver import JSONReceiver
 from vmail.daemon.rpcserver import RPCMethod
+from vmail.error import RPCError
 
 def test_encode_object():
     date = datetime.datetime(2011, 10, 24)
@@ -70,10 +71,21 @@ class ExportedClass():
         return 5
 
     def exported_method_fails(self):
-        raise Exception('this failed')
+        raise RPCError('this failed')
+
+    def exported_method_exception(self):
+        raise Exception('unexpected failure')
 
     def __after__(self):
         self.after_test = True
+
+class BadExportedClass(ExportedClass):
+
+    def __before__(self):
+        raise Exception('before fails')
+
+    def __after__(self):
+        raise Exception('after fails')
 
 def test_rpc_method():
     cls = ExportedClass()
@@ -84,11 +96,29 @@ def test_rpc_method():
 
 def test_rpc_method_failure():
     cls = ExportedClass()
-    method = RPCMethod(cls.exported_method)
+    method = RPCMethod(cls.exported_method_fails)
     try:
-        assert method()
+        method()
+    except RPCError:
+        pass
+
+    assert cls.before_test == True
+    assert cls.after_test == True
+
+def test_rpc_method_exception():
+    cls = ExportedClass()
+    method = RPCMethod(cls.exported_method_exception)
+    try:
+        method()
     except Exception:
         pass
 
     assert cls.before_test == True
     assert cls.after_test == True
+
+def test_rpc_method_before_after_fails():
+    cls = BadExportedClass()
+    method = RPCMethod(cls.exported_method)
+    assert method() == 5
+    assert cls.before_test == False
+    assert cls.after_test == False
