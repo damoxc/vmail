@@ -24,14 +24,31 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
+try:
+    from Cython.Distutils import build_ext
+    HAVE_CYTHON = True
+    cmdclass    = {
+        'build_ext': build_ext
+    }
+except ImportError:
+    HAVE_CYTHON = False
+    cmdclass    = {}
+
+ext_modules = []
+
+if HAVE_CYTHON:
+    ext_modules.append(Extension('vmail.daemon._postfix',
+                                 ['vmail/daemon/_postfix.pyx']))
 
 setup(
     name         = 'vmail',
-    version      = '0.4.0',
+    version      = '0.5.0',
     author       = 'Damien Churchill',
     author_email = 'damoxc@gmail.com',
 
+    cmdclass     = cmdclass,
+    ext_modules  = ext_modules,
     packages     = find_packages(exclude=['tests', 'docs']),
     entry_points = """
     [console_scripts]
