@@ -54,7 +54,9 @@ DEFAULT_CONFIG = {
     'defaulthost': 'example.com',
     'filterhost': 'filter.example.com',
     'listhost': 'list.example.com',
-    'autohost': 'autoreply.example.com'
+    'autohost': 'autoreply.example.com',
+    'test_username': 'testuser@example.org',
+    'test_password': 'testing123'
 }
 _config = None
 
@@ -160,7 +162,7 @@ def read_maildirsize(maildir_path, with_quota=False):
     if not os.path.isfile(path):
         raise Exception('Cannot find maildirsize: %s',
             os.path.basename(maildir_path))
-    
+
     if with_quota:
         fp = open(path)
         quota = fp.readline()
@@ -230,7 +232,7 @@ def send_welcome_message(address, smtphost=None):
     # Make the subsitutions
     for key, value in params.iteritems():
         message = message.replace(':' + key, value)
-    
+
     # Send the welcome messsage.
     smtp = smtplib.SMTP(smtphost or 'localhost')
     smtp.sendmail('postmaster@' + get_config().get('defaulthost'), address, message)

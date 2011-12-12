@@ -32,6 +32,7 @@ from twisted.internet import reactor
 
 from vmail.common import get_config
 from vmail.daemon.core import Core
+from vmail.daemon.health import Health
 from vmail.daemon.qpsmtpd import Qpsmtpd
 from vmail.daemon.rpcserver import RpcServer
 from vmail.model import connect, rw_connect
@@ -52,6 +53,7 @@ class Daemon(object):
             self.monitor = None
 
         self.rpcserver.register_object(self.core)
+        self.rpcserver.register_object(Health())
         self.rpcserver.register_object(Qpsmtpd())
 
     def start(self):
