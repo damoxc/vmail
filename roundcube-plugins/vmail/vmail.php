@@ -49,17 +49,25 @@ class vmail extends rcube_plugin
 		// This means that there is some issue with vmaild
 		if (!$this->current_user->id) return;
 
+        // Set some useful values
+		$pos = strrpos($this->current_user->data['username'], '@');
+		$this->username = substr($this->current_user->data['username'], 0, $pos);
+		$this->set_env('user', $this->current_user->email);
+
+
 		// Set up modifying the out of office message via the preferences
 		// tab in settings and changing passwords.
-		$this->add_hook('preferences_sections_list', array($this, 'listprefs_handler'));
-		$this->add_hook('preferences_list', array($this, 'prefs_handler'));
-		$this->add_hook('preferences_save', array($this, 'prefs_save_handler'));
+        if ($this->username != 'postmaster') {
+            $this->add_hook('preferences_sections_list', array($this, 'listprefs_handler'));
+            $this->add_hook('preferences_list', array($this, 'prefs_handler'));
+            $this->add_hook('preferences_save', array($this, 'prefs_save_handler'));
+        }
 
 		$this->include_script('vmail_passwd.js');
 
 		// Get the domain information from the database.
 		$this->domain = $this->current_user->domain;
-	
+
 		//$this->domain = $this->client->core->get_domain($this->user->domain_id);
 		$this->domain_id = $this->domain->id;
 		$this->domain_name = $this->domain->domain;
@@ -70,10 +78,6 @@ class vmail extends rcube_plugin
 
 		// Set the id of the current account being editing to 0.
 		$this->aid = 0;
-
-		$pos = strrpos($this->current_user->data['username'], '@');
-		$this->username = substr($this->current_user->data['username'], 0, $pos);
-		$this->set_env('user', $this->current_user->email);
 
 		// Finish setting up the plugin
 		$this->include_script('vmail.js');
@@ -249,7 +253,7 @@ class vmail extends rcube_plugin
 			$vacation->save();
 
 		} else if ($args['section'] == 'password') {
-			
+
 			$curpasswd = get_input_value('_curpasswd', RCUBE_INPUT_POST);
 			$newpasswd = get_input_value('_newpasswd', RCUBE_INPUT_POST);
 			$confpasswd = get_input_value('_confpasswd', RCUBE_INPUT_POST);
@@ -258,7 +262,7 @@ class vmail extends rcube_plugin
 				$this->rcmail->output->show_message('vmail.errbadpasswd','error');
 				return $args;
 			}
-			
+
 			if (!$newpasswd) {
 				$this->rcmail->output->show_message('vmail.nopasswd','error');
 				return $args;
@@ -365,7 +369,7 @@ class vmail extends rcube_plugin
 
 		// run quota through parse_bytes incase we have a string value.
 		$quota = parse_bytes($quota);
-		
+
 		// if we still don't have a viable quota use the default quota.
 		if (!$quota) {
 			$quota = $this->rcmail->config->get('default_quota');
@@ -383,7 +387,7 @@ class vmail extends rcube_plugin
 			$destinations = array();
 		}
 
-		// autoreply 
+		// autoreply
 		$autoreply = isset($_POST['_autoreply_enabled']);
 		$subject = get_input_value('_autoreply_subject', RCUBE_INPUT_POST);
 		$body = get_input_value('_autoreply_body', RCUBE_INPUT_POST);
@@ -402,7 +406,7 @@ class vmail extends rcube_plugin
 		$user->admin = $admin;
 		$this->user = $user;
 
-		
+
 		if ($this->aid == 0 && !check_email($user->email . '@' . $this->domain_name)) {
 			$this->error_message('vmail.errbademail');
 			$this->set_env('focus_field', '_email');
@@ -502,7 +506,7 @@ class vmail extends rcube_plugin
 	/****************************************
 	 * Forwards Section                     *
 	 ****************************************/
-	
+
 	/**
 	 * The main forwards handler that displays the forwards list
 	 * and the watermark.
@@ -726,7 +730,7 @@ class vmail extends rcube_plugin
 		foreach ($forward->keys as $col) {
 			$row["vmail.$col"] = $forward->$col;
 		}
-		
+
 		// Use the Any Address text if this is a catch all
 		if ($forward->catchall) {
 			$row['vmail.source'] = $this->gettext('anyaddress');
@@ -742,7 +746,7 @@ class vmail extends rcube_plugin
 	{
 		$this->fid = null;
 
-		// Sort out the local forwards store now, potentially 
+		// Sort out the local forwards store now, potentially
 		// having to remove or add a forward.
 		$i = 1;
 		foreach ($this->forwards as $f) {
@@ -966,7 +970,7 @@ class vmail extends rcube_plugin
 		$table->add('title', $this->form_label('_enabled', 'enabled'));
 		$table->add(null, $input->show(($account->id) ? $account->enabled : true));
 		$table->add_row();
-		
+
 		// account admin input
 		$attr = array(
 			'id'    => '_admin',
@@ -1180,7 +1184,7 @@ class vmail extends rcube_plugin
 
 	function forward_destinations($table, $destinations)
 	{
-		// Give a default single empty destination if there aren't 
+		// Give a default single empty destination if there aren't
 		// any destinations
 		if (!$destinations || count($destinations) == 0) {
 			$destinations = array('');
@@ -1190,7 +1194,7 @@ class vmail extends rcube_plugin
 		$table->add(array('colspan' => 3),
 			html::p(array('class' => 'dst-help'), $this->gettext('helpdestinations')));
 		$table->add_row();
-		
+
 		// Set up the destinations to display.
 		$i = 0;
 
