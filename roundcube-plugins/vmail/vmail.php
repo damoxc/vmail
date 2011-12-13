@@ -50,8 +50,8 @@ class vmail extends rcube_plugin
 		if (!$this->current_user->id) return;
 
         // Set some useful values
-		$pos = strrpos($this->current_user->data['username'], '@');
-		$this->username = substr($this->current_user->data['username'], 0, $pos);
+		$pos = strrpos($this->current_user->data['email'], '@');
+		$this->username = substr($this->current_user->data['email'], 0, $pos);
 		$this->set_env('user', $this->current_user->email);
 
 
