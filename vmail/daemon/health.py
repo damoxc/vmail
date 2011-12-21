@@ -69,7 +69,7 @@ class Health(object):
     @export
     def check_system_load(self):
         try:
-            loadavg = (float(l) for l in open('/proc/loadavg').read().split())
+            loadavg = (float(l) for l in open('/proc/loadavg').read().split()[0:3])
             assert cmp_loadavg(loadavg, (5, 5, 5)) != 1
         except:
             return False
