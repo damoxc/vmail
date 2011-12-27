@@ -89,7 +89,7 @@ class Health(object):
         else:
             return True
         finally:
-            if imap: imap.close()
+            if imap: imap.shutdown()
 
     @export
     def check_pop3(self):
