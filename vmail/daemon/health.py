@@ -80,7 +80,7 @@ class Health(object):
     def check_imap(self):
         imap = None
         try:
-            imap = imaplib.IMAP4('mail6.london.ukplc.net')
+            imap = imaplib.IMAP4('localhost')
             imap.login(self.username, self.password)
             imap.select()
             assert imap.state == 'SELECTED'
@@ -95,7 +95,7 @@ class Health(object):
     def check_pop3(self):
         pop = None
         try:
-            pop = poplib.POP3('mail6.london.ukplc.net')
+            pop = poplib.POP3('localhost')
             pop.user(self.username)
             pop.pass_(self.password)
             assert pop.noop() == '+OK'
@@ -131,7 +131,7 @@ class Health(object):
     def check_smtp_private(self):
         smtp = None
         try:
-            smtp = smtplib.SMTP('mail6.london.ukplc.net')
+            smtp = smtplib.SMTP('localhost')
             code, msg = smtp.helo()
             assert code == 250, 'SMTP responded with %d %s' % (code, msg)
 
