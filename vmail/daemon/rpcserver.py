@@ -87,9 +87,11 @@ class JSONReceiver(Receiver):
     """
 
     def __init__(self, socket_path=None):
-        self.config = common.get_config()
+        self.config   = common.get_config()
         self.lockfile = None
+        self.requests = {}
         self.socket_path = socket_path
+
         if self.socket_path:
             self.socket_path = os.path.abspath(self.socket_path)
         self._server = None
@@ -211,7 +213,6 @@ class JSONReceiver(Receiver):
         pass
 
     def start(self):
-        self.requests = {}
         socket_path = self.socket_path or self.config['socket']
 
         if not os.path.isdir(os.path.dirname(socket_path)):

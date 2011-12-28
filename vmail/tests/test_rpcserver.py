@@ -3,6 +3,8 @@ import gevent
 import datetime
 import tempfile
 
+from cStringIO import StringIO
+
 from nose.tools import raises
 
 from vmail.daemon.rpcserver import encode_object
@@ -24,11 +26,14 @@ def test_encode_object():
         'wday': 0
     }
 
+class FauxRpcServer(object):
+
+    def dispatch(self, method, args, kwargs):
+        pass
+
 @raises(TypeError)
 def test_encode_object_invalid():
-    class Invalid:
-        pass
-    encode_object(Invalid())
+    encode_object(fcntl)
 
 def test_encode_object_json():
     class Test(object):
@@ -59,6 +64,21 @@ def test_json_receiver_missing_directory():
 def test_json_receiver_stop_before_start():
     receiver = JSONReceiver('/foo')
     receiver.stop()
+
+def test_json_receiver_json_handler():
+    socket_path = tempfile.mktemp()
+
+    server = FauxRpcServer()
+
+    fobj = StringIO()
+
+    receiver = JSONReceiver(socket_path)
+    receiver.set_server(server)
+    receiver.handle_json1({
+        'id': 1,
+        'method': 'test_method',
+        'params': []
+    }, fobj)
 
 class ExportedClass():
     before_test = False
