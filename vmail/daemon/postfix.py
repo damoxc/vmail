@@ -158,7 +158,8 @@ class Postfix(object):
             stats[queue] = len([
                 m for d in
                     os.listdir(queue_path)
-                    for m in os.listdir(os.path.join(queue_path, d))])
+                    for m in os.listdir(os.path.join(queue_path, d))
+                        if m[0] is not '.'])
         return stats
 
     @export
