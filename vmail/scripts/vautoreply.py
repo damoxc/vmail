@@ -1,10 +1,10 @@
 #
 # vmail/scripts/vautoreply.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ import smtplib
 from email.utils import formatdate
 
 from vmail.common import Address, check_message
-from vmail.client import client, reactor
+from vmail.client import client
 from vmail.error import IgnoredMessageError
 from vmail.scripts.base import DaemonScriptBase
 
@@ -40,23 +40,6 @@ class VAutoreply(DaemonScriptBase):
     def __init__(self):
         super(VAutoreply, self).__init__()
         self.parser.add_option('-f', '--from', dest='sender', action='store')
-
-    def on_connect(self, result, recipient):
-        sender = self.options.sender
-        return client.core.send_vacation(recipient, sender).addCallbacks(
-            self.on_sent_vacation,
-            self.on_err_vacation,
-            (recipient,)
-        )
-
-    def on_sent_vacation(self, result, recipient):
-        if not result:
-            self.log.warning('not sending vacation message')
-        else:
-            self.log.info('sent vacation message to %s', recipient)
-
-    def on_err_vacation(self, failure):
-        self.log.error('error: %s', failure.getErrorMessage())
 
     def run(self):
         if not self.args:
@@ -72,10 +55,13 @@ class VAutoreply(DaemonScriptBase):
         except IgnoredMessageError as e:
             self.log.warning(e[0])
             return 0
-        
+
         # Since the recipient comes in the form of:
         # user#example.com@autoreply.example.com we need to do some
         # converting of it first.
         recipient = self.args[0].split('@', 1)[0].replace('#', '@')
 
-        return self.connect(recipient)
+        if client.core.send_vacation(recipient, self.options.sender).get():
+            self.log.info('sent vacation message to %s', recipient)
+        else:
+            self.log.warning('not sending vacation message')

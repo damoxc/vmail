@@ -2,10 +2,10 @@
 #
 # setup.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,14 +24,31 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
+try:
+    from Cython.Distutils import build_ext
+    HAVE_CYTHON = True
+    cmdclass    = {
+        'build_ext': build_ext
+    }
+except ImportError:
+    HAVE_CYTHON = False
+    cmdclass    = {}
+
+ext_modules = []
+
+if HAVE_CYTHON:
+    ext_modules.append(Extension('vmail.daemon._postfix',
+                                 ['vmail/daemon/_postfix.pyx']))
 
 setup(
     name         = 'vmail',
-    version      = '0.4.0',
+    version      = '0.5.0',
     author       = 'Damien Churchill',
     author_email = 'damoxc@gmail.com',
 
+    cmdclass     = cmdclass,
+    ext_modules  = ext_modules,
     packages     = find_packages(exclude=['tests', 'docs']),
     entry_points = """
     [console_scripts]

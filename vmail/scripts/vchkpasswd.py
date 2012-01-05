@@ -1,10 +1,10 @@
 #
 # vmail/scripts/vchkpasswd.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-from vmail.client import client, reactor
+from vmail.client import client
 from vmail.scripts.base import DaemonScriptBase, argcount
 
 class VChkPasswd(DaemonScriptBase):
@@ -31,24 +31,16 @@ class VChkPasswd(DaemonScriptBase):
     script = 'vchkpasswd'
     usage  = 'Usage: %prog [options] user passwd'
 
-    def on_connect(self, result):
-        return client.core.authenticate(self.args[0], self.args[1]).addCallbacks(
-            self.on_auth_check,
-            self.on_auth_check_err
-        )
-
-    def on_auth_check(self, result):
-        if result:
-            self.log.info('%s successfully authenticated', self.args[0])
-            return 0
-        else:
-            self.log.info('%s failed to authenticate', self.args[0])
-            return 1
-
-    def on_auth_check_err(self, error):
-        self.log.error('unable to check authentication, vmaild encountered an error')
-        return 1
-
     @argcount(2)
     def run(self):
-        return self.connect()
+        try:
+            self.connect()
+            if client.core.authenticate(self.args[0], self.args[1]).get():
+                self.log.info('%s successfully authenticated', self.args[0])
+                return 0
+            else:
+                self.log.info('%s failed to authenticate', self.args[0])
+                return 1
+        except:
+            self.log.error('unable to check authentication, vmaild encountered an error')
+            return 1

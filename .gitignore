@@ -1,4 +1,7 @@
 *.pyc
+_*.c
+_*.so
+.*.swp
 *.egg-info
 _trial_temp/
 build/

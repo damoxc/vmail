@@ -1,10 +1,10 @@
 #
 # vmail/common.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,8 +45,7 @@ DEFAULT_CONFIG = {
     'rodburi': '',
     'user': 'vmail',
     'group': 'vmail',
-    'monitor': True,
-    'socket': '/var/run/vmail/vmaild.sock',
+    'socket': '/run/vmail/vmaild.sock',
     'max_overflow': 10,
     'pool_size': 5,
     'thread_pool_size': 10,

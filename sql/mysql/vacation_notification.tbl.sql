@@ -26,7 +26,7 @@
 CREATE TABLE IF NOT EXISTS `vacation_notification` (
 	`on_vacation` varchar(255) NOT NULL,
 	`notified`    varchar(255) NOT NULL,
-	`notified_at` timestamp    NOT NULL default CURRENT_TIMESTAMP,
+	`notified_at` timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY  (`on_vacation`,`notified`),
 	CONSTRAINT `vacation_notification_pkey` FOREIGN KEY (`on_vacation`) REFERENCES `vacation` (`email`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

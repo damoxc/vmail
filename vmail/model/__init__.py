@@ -1,10 +1,10 @@
 #
 # vmail/model/__init__.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,10 +25,14 @@
 
 import time
 import logging
-import threading
 
-from sqlalchemy import create_engine, func, text, and_, not_, or_, exists
+from gevent.coros import Semaphore
+from gevent.local import local
+from gevent.queue import Queue, Full, Empty
+
+from sqlalchemy import create_engine, func, text, and_, not_, or_, exists, exc
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.pool import Pool
 
 from vmail.common import get_config
 from vmail.error import VmailException
@@ -36,6 +40,103 @@ from vmail.model.classes import *
 from vmail.model import procs
 
 log = logging.getLogger(__name__)
+
+class GreenQueuePool(Pool):
+
+    def __init__(self, creator, pool_size=5, max_overflow=10, timeout=30, **kw):
+        Pool.__init__(self, creator, **kw)
+        self._pool = Queue(pool_size)
+        self._overflow = 0 - pool_size
+        self._max_overflow = max_overflow
+        self._timeout = timeout
+        self._overflow_lock = self._max_overflow > -1 and Semaphore() or None
+
+    def recreate(self):
+        self.logger.info("Pool recreating")
+        return self.__class__(self._creator, pool_size=self._pool.maxsize,
+            max_overflow=self._max_overflow,
+            timeout=self._timeout,
+            recycle=self._recycle, echo=self.echo,
+            logging_name=self._orig_logging_name,
+            use_threadlocal=self._use_threadlocal,
+            _dispatch=self.dispatch)
+
+    def _do_return_conn(self, conn):
+        try:
+            self._pool.put(conn, False)
+        except Full:
+            conn.close()
+            if self._overflow_lock is None:
+                self._overflow -= 1
+            else:
+                self._overflow_lock.acquire()
+                try:
+                    self._overflow -= 1
+                finally:
+                    self._overflow_lock.release()
+
+    def  _do_get(self):
+        try:
+            wait = self._max_overflow > -1 and \
+                    self._overflow >= self._max_overflow
+            return self._pool.get(wait, self._timeout)
+        except Empty:
+            if self._max_overflow > -1 and \
+                    self._overflow >= self._max_overflow:
+                if not wait:
+                    return self._do_get()
+                else:
+                    raise exc.TimeoutError(
+                            "QueuePool limit of size %d overflow %d reached, "
+                            "connection timed out, timeout %d" %
+                            (self.size(), self.overflow(), self._timeout))
+
+            if self._overflow_lock is not None:
+                self._overflow_lock.acquire()
+
+            if self._max_overflow > -1 and \
+                    self._overflow >= self._max_overflow:
+                if self._overflow_lock is not None:
+                    self._overflow_lock.release()
+                return self._do_get()
+
+            try:
+                con = self._create_connection()
+                self._overflow += 1
+            finally:
+                if self._overflow_lock is not None:
+                    self._overflow_lock.release()
+            return con
+
+    def dispose(self):
+        while True:
+            try:
+                conn = self._pool.get(False)
+                conn.close()
+            except Empty:
+                break
+        self._overflow = 0 - self.size()
+        self.logger.info("Pool disposed. %s", self.status())
+
+    def status(self):
+        return "Pool size: %d  Connections in pool: %d "\
+                "Current Overflow: %d Current Checked out "\
+                "connections: %d" % (self.size(),
+                                    self.checkedin(),
+                                    self.overflow(),
+                                    self.checkedout())
+
+    def size(self):
+        return self._pool.maxsize
+
+    def checkedin(self):
+        return self._pool.qsize()
+
+    def overflow(self):
+        return self._overflow
+
+    def checkedout(self):
+        return self._pool.maxsize - self._pool.qsize() + self._overflow
 
 class VmailSessionException(VmailException):
     pass
@@ -48,47 +149,33 @@ class SessionPool(object):
 
     def __init__(self, engine, min_sessions=10, max_sessions=25):
         self.engine = engine
+        sm = sessionmaker(autoflush=False, autocommit=False, bind=engine)
+        self.session = scoped_session(sm)
+
         self.min_sessions = min_sessions
         self.max_sessions = max_sessions
+
         self.session_pool = []
         self.available = []
         self.checkouts = {}
-        self.lock = threading.Lock()
+        self.sessions = local()
+        self.lock = Semaphore()
 
     def checkin(self):
         self.lock.acquire()
         try:
-            cur_thread = threading.current_thread()
-            if cur_thread.ident not in self.checkouts:
-                raise VmailSessionException('No session checked out')
-
-            # Grab the session from the checkouts
-            session = self.checkouts.pop(cur_thread.ident)
-            
+            session = self.sessions.session
             # Remove any objects from the session and rollback any in
             # progress transaction
             session.expunge_all()
             session.rollback()
-
-            # Add the session back to the Pool.
-            self.available.append(session)
         finally:
             self.lock.release()
 
     def checkout(self):
         self.lock.acquire()
         try:
-            while not self.available:
-                if len(self.session_pool) < self.max_sessions:
-                    session = create_session(self.engine)
-                    self.session_pool.append(session)
-                    self.available.append(session)
-                else:
-                    time.sleep(0.1)
-            
-            session = self.available.pop()
-            cur_thread = threading.current_thread()
-            self.checkouts[cur_thread.ident] = session
+            session = self.sessions.session = self.session()
             return session
         finally:
             self.lock.release()
@@ -136,13 +223,20 @@ class DBObjectProxy(ObjectProxy):
 def _create_engine(dburi, debug=False):
     config = get_config()
     engine_args = {
-        'pool_size': config.get('pool_size'),
-        'echo': debug
+        'echo': debug,
+        'poolclass': GreenQueuePool
     }
-    if dburi.startswith('mysql://'):
+    if dburi.startswith('mysql'):
+        import pymysql_sa
+        pymysql_sa.make_default_mysql_dialect()
+
         engine_args['max_overflow'] = config.get('max_overflow')
         engine_args['pool_recycle'] = 1800
+        engine_args['pool_size'] = config.get('pool_size')
         procs.use_procedures('mysql')
+
+        if dburi.startswith('mysql+mysqlconnector'):
+            dburi = str(dburi)
     else:
         procs.use_procedures('py')
 

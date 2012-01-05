@@ -1,0 +1,13 @@
+
+<root@smtp.uk-plc.net>: host smtp.uk-plc.net[80.64.53.100] said: 451 Unable to queue message () (in reply to end of DATA command)
+recipient=root@smtp.uk-plc.net
+offset=574
+dsn_orig_rcpt=rfc822;root@smtp.uk-plc.net
+status=4.0.0
+action=delayed
+diag_type=smtp
+diag_text=451 Unable to queue message ()
+mta_type=dns
+mta_mname=smtp.uk-plc.net
+reason=host smtp.uk-plc.net[80.64.53.100] said: 451 Unable to queue message () (in reply to end of DATA command)
+

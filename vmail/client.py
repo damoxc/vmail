@@ -1,10 +1,10 @@
 #
 # vmail/client.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,15 +24,17 @@
 #
 
 import os
+import json
 import logging
 
-from twisted.internet import reactor, defer
-from twisted.internet.protocol import Protocol, ClientFactory
+import gevent
+from gevent import socket
+from gevent.event import AsyncResult
+from gevent.queue import Queue
 
-import vmail.common
+from vmail import common
 
 log = logging.getLogger(__name__)
-json = vmail.common.json
 
 class VmailRequest(object):
 
@@ -48,176 +50,134 @@ class VmailRequest(object):
         return {
             'id'     : self.request_id,
             'method' : self.method,
-            'args'   : self.args,
+            'params' : self.args,
             'kwargs' : self.kwargs
         }
-
-class VmailClientProtocol(Protocol):
-
-    def connectionMade(self):
-        self.__rpc_requests = {}
-        self.__buffer = None
-        self.factory.daemon.protocol = self
-        self.factory.daemon.connect_deferred.callback(True)
-
-    def dataReceived(self, data):
-        """
-        This method is called whenever we receive data from the daemon.
-
-        :param data: a json-rpc encoded string
-        """
-        if self.__buffer:
-            # We have some data from the last dataReceived() so lets
-            # prepend it
-            data = self.__buffer + data
-            self.__buffer = None
-
-        try:
-            response = json.loads(data)
-        except Exception, e:
-            self.__buffer = data
-            return
-
-        if type(response) is not dict:
-            log.debug('Received invalid response: type is not dict')
-            return
-
-        request_id = response.get('id')
-        d = self.factory.daemon.pop_deferred(request_id)
-        if 'error' in response and response['error'] is not None:
-            d.errback(response.get('error'))
-        else:
-            d.callback(response.get('result'))
-
-        del self.__rpc_requests[request_id]
-
-    def send_request(self, request):
-        """
-        Sends a RPCRequest to the server.
-
-        :param request: RPCRequest
-
-        """
-        self.__rpc_requests[request.request_id] = request
-        data = json.dumps(request.format_message())
-        self.transport.write(data)
-
-class VmailClientFactory(ClientFactory):
-
-    protocol = VmailClientProtocol
-
-    def __init__(self, daemon):
-        self.daemon = daemon
-
-class DaemonProxy(object):
-
-    @property
-    def socket_path(self):
-        return self._socket_path or self.config.get('socket')
-
-    def __init__(self, socket_path=None):
-        self.factory = VmailClientFactory(self)
-        self.__request_counter = 0
-        self.__deferred = {}
-        self.config = vmail.common.get_config()
-        self.protocol = None
-        self._socket_path = os.path.abspath(socket_path) if socket_path else None
-
-    def connect(self):
-        log.debug('connecting to: %s', self.socket_path)
-        self.socket = reactor.connectUNIX(self.socket_path, self.factory)
-        self.connect_deferred = defer.Deferred()
-        return self.connect_deferred
-
-    def disconnect(self):
-        self.socket.disconnect()
-
-    def _on_connect_fail(self, result):
-        self.connect_deferred.errback(False)
-
-    def call(self, method, *args, **kwargs):
-        """
-        Makes a RPCRequest to the daemon.  All methods should be in the form of
-        'component.method'.
-
-        :params method: str, the method to call in the form of 'component.method'
-        :params args: the arguments to call the remote method with
-        :params kwargs: the keyword arguments to call the remote method with
-
-        :return: a twisted.Deferred object that will be activated when a RPCResponse
-            or RPCError is received from the daemon
-
-        """
-        # Create the VmailRequest to pass to protocol.send_request()
-        request = VmailRequest()
-        request.request_id = self.__request_counter
-        request.method = method
-        request.args = args
-        request.kwargs = kwargs
-
-        # Send the request to the server
-        self.protocol.send_request(request)
-        # Create a Deferred object to return and add a default errback to print
-        # the error.
-        d = defer.Deferred()
-        d.addErrback(self.__rpc_error)
-
-        # Store the Deferred until we receive a response from the daemon
-        self.__deferred[self.__request_counter] = d
-
-        # Increment the request counter since we don't want to use the same one
-        # before a response is received.
-        self.__request_counter += 1
-
-        return d
-
-    def pop_deferred(self, request_id):
-        """
-        Pops a Deferred object.  This is generally called once we receive the
-        reply we were waiting on from the server.
-
-        :param request_id: the request_id of the Deferred to pop
-        :type request_id: int
-
-        """
-        return self.__deferred.pop(request_id)
-
-    def __rpc_error(self, error_data):
-        return error_data
 
 class DottedObject(object):
     """
     This is used for dotted name calls to client
     """
-    def __init__(self, daemon, method):
-        self.daemon = daemon
+    def __init__(self, client, method):
+        self.client = client
         self.base = method
 
     def __call__(self, *args, **kwargs):
         raise Exception("You must make calls in the form of 'component.method'!")
 
     def __getattr__(self, name):
-        return RemoteMethod(self.daemon, self.base + "." + name)
+        return RemoteMethod(self.client, self.base + "." + name)
 
 class RemoteMethod(DottedObject):
     """
     This is used when something like 'client.core.get_something()' is attempted.
     """
     def __call__(self, *args, **kwargs):
-        return self.daemon.call(self.base, *args, **kwargs)
+        return self.client(self.base, *args, **kwargs)
 
 class Client(object):
 
+    @property
+    def socket_path(self):
+        return self.__socket_path or self.__config.get('socket')
+
     def __init__(self, socket_path=None):
-        self.proxy = DaemonProxy(socket_path)
+        self.__requests = {}
+        self.__pending  = Queue()
+        self.__buffer   = None
+        self.__config   = common.get_config()
+        self.__sender   = None
+        self.__receiver = None
+        self.__socket   = None
+        self.__socket_path = socket_path
+        self.__request_counter = 0
 
     def connect(self):
-        return self.proxy.connect()
+        """
+        Connect to the vmaild server.
+        """
+        self.__socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.__socket.setblocking(0)
+        self.__socket.connect(self.socket_path)
+        self.__fobj = self.__socket.makefile()
+
+        self.__sender = gevent.spawn(self.__send)
+        self.__receiver = gevent.spawn(self.__receive)
+
+    def __send(self):
+        """
+        Send the RPCRequests to the server
+        """
+        while True:
+            request = self.__pending.get()
+            data = json.dumps(request.format_message())
+            self.__fobj.write(data + '\n')
+            self.__fobj.flush()
+
+    def __receive(self):
+        """
+        Receive RPCRequests from the server
+        """
+        while True:
+            data = self.__fobj.readline()
+
+            if self.__buffer:
+                # we have some data from the last receive() so lets
+                # prepend it
+                data = self.__buffer + data
+                self.__buffer = None
+
+            try:
+                response = json.loads(data)
+            except Exception, e:
+                self.__buffer = data
+                continue
+            else:
+                if type(response) is not dict:
+                    log.debug('Received invalid response: type is not dict')
+                    continue
+
+                request_id = response.get('id')
+                result = self.__requests[request_id]
+
+                if 'error' in response and response['error'] is not None:
+                    result.set_exception(Exception(response['error']))
+
+                elif 'result' in response:
+                    result.set(response['result'])
 
     def disconnect(self):
-        return self.proxy.disconnect()
-    
+        """
+        Disconnect the client from the vmaild server
+        """
+        if not self.__socket:
+            return
+
+        self.__sender.kill()
+        self.__receiver.kill()
+        self.__socket.shutdown(socket.SHUT_RDWR)
+        self.__socket.close()
+
+    def __call__(self, method, *args, **kwargs):
+        """
+        Call a remote method.
+        """
+        request = VmailRequest()
+        request.request_id = self.__request_counter
+        self.__request_counter += 1
+        request.method = method
+        request.args = args
+        request.kwargs = kwargs
+        self.__pending.put(request)
+        self.__requests[request.request_id] = result = AsyncResult()
+        return result
+
     def __getattr__(self, method):
-        return DottedObject(self.proxy, method)
+        return DottedObject(self, method)
+
+class SyncClient(Client):
+
+    def __call__(self, method, *args, **kwargs):
+        return super(SyncClient, self).__call__(method, *args, **kwargs).get()
 
 client = Client()

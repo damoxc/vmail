@@ -1,10 +1,10 @@
 #
 # vmail/daemon/core.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,8 +32,6 @@ import datetime
 
 from email.message import Message
 from email.utils import formatdate
-
-from twisted.internet import reactor, threads
 
 from vmail.common import *
 from vmail.daemon.rpcserver import export
@@ -504,8 +502,6 @@ class Core(object):
         try:
             if os.path.isdir(user.maildir):
                 shutil.rmtree(user.maildir)
-                if self.daemon.monitor:
-                    self.daemon.monitor.remove_watch(user.maildir)
         except Exception, e:
             log.error('Unable to remove maildir for %s', email)
             log.exception(e)

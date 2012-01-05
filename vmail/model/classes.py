@@ -1,10 +1,10 @@
 #
 # vmail/model/classes.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-import crypt
 import hashlib
 
 from sqlalchemy import and_, join, desc, text, exists, select
@@ -36,7 +35,7 @@ class Blacklist(object):
     pass
 
 class Package(object):
-    
+
     def __json__(self):
         return {
             'id': self.id,
@@ -46,7 +45,7 @@ class Package(object):
         }
 
 class Domain(object):
-    
+
     @staticmethod
     def create(domain, package, password):
         """
@@ -110,12 +109,12 @@ class Forward(object):
 
     def __json__(self):
         return {
-            'source': self.source,
+            'source':      self.source,
             'destination': self.destination
         }
 
 class Forwards(object):
-    
+
     @staticmethod
     def exists(source):
         return select([mysql_sucks.c.test],
@@ -124,22 +123,23 @@ class Forwards(object):
 
     def __json__(self):
         return {
-            'id': self.id,
-            'source': self.source,
+            'id':          self.id,
+            'domain_id':   self.domain_id,
+            'source':      self.source,
             'destination': self.destination
         }
 
 class Host(object):
-    
+
     def __json__(self):
         return {
             'ip_address': self.ip_address,
             'action': self.action,
             'comment': self.comment
-        }   
+        }
 
 class Login(object):
-    
+
     def __json__(self):
         return {
             'id': self.id,
@@ -173,7 +173,7 @@ class ResolvedForward(object):
     def __init__(self, source=None, destination=None):
         self.source = source
         self.destination = destination
-    
+
     def __json__(self):
         return {
             'source': self.source,
@@ -220,7 +220,7 @@ class User(object):
         }
 
 class UserQuota(object):
-    
+
     def __json__(self):
         return {
             'id': self.id,
@@ -230,7 +230,7 @@ class UserQuota(object):
         }
 
 class Vacation(object):
-    
+
     def __json__(self):
         return {
             'id': self.id,
@@ -247,7 +247,7 @@ class VacationNotification(object):
     pass
 
 class Whitelist(object):
-    
+
     def __json__(self):
         return {
             'address': self.address
@@ -258,15 +258,18 @@ mapper(Blacklist, blacklist)
 mapper(Package, packages)
 
 mapper(Domain, domains, properties = {
-    'package':    relation(Package, backref='domains'),
-    '_package':   domains.c.package,
-    'transports': relation(Transport, backref=backref('domain')),
-    'forwards':   relation(Forwards, order_by=forwardings.c.source),
-    'users':      relation(User, order_by=users.c.email,
-                    backref=backref('domain', uselist=False))
+    'package':     relation(Package, backref='domains'),
+    '_package':    domains.c.package,
+    'transports':  relation(Transport, backref=backref('domain')),
+    'forwards':    relation(Forward, order_by=forwards.c.source),
+    'forwardings': relation(Forwards, order_by=forwardings.c.source),
+    'users':       relation(User, order_by=users.c.email,
+                            backref=backref('domain', uselist=False))
 })
 
-mapper(Forward, forwards)
+mapper(Forward, forwards, properties = {
+    'domain': relation(Domain)
+})
 
 mapper(Forwards, forwardings)
 

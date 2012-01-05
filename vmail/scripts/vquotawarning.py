@@ -1,10 +1,10 @@
 #
 # vmail/scripts/vquotawarning.py
 #
-# Copyright (C) 2010 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010 Damien Churchill <damoxc@gmail.com>
+#   2010-2011 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ import smtplib
 from email.utils import formatdate
 
 from vmail.common import get_config, get_config_dir, deliver
-from vmail.client import client, reactor
+from vmail.client import client
 from vmail.scripts.base import DaemonScriptBase, argcount
 
 class VQuotaWarning(DaemonScriptBase):
@@ -38,7 +38,22 @@ class VQuotaWarning(DaemonScriptBase):
         self.usage = self.args[1]
         self.addrs = []
 
-        return self.connect()
+        self.connect()
+
+        user = client.core.get_user(self.user).get()
+
+        other = user.get('secondary_email')
+        if other:
+            self.addrs.append(other)
+
+        domain = self.user.split('@', 1)[1]
+        postmaster = client.core.get_user('postmaster@' + domain).get()
+
+        self.addrs.append(postmaster.get('email'))
+        other = postmaster.get('secondary_email')
+        if other and other not in self.addrs:
+            self.addrs.append(other)
+        self.send_notifications()
 
     def send_notifications(self):
         postmaster = 'postmaster@' + get_config('defaulthost')
@@ -64,14 +79,14 @@ class VQuotaWarning(DaemonScriptBase):
         if not self.addrs:
             reactor.stop()
             return
-        
+
         # Get the admin warning message
         admin_msg = open(get_config_dir('admin_quota.msg')).read()
 
         for addr in self.addrs:
             params['to'] = addr
             msg = admin_msg
-            
+
             # Build the admin message
             for key, value in params.iteritems():
                 msg = msg.replace(':' + key, value)
@@ -80,28 +95,3 @@ class VQuotaWarning(DaemonScriptBase):
             except:
                 self.log.warning('Failed sending to %s', addr)
 
-    def on_connect(self, result):
-        return client.core.get_user(self.user).addCallbacks(self.on_got_user,
-            self.on_got_user_err)
-
-    def on_got_user(self, user):
-        other = user.get('secondary_email')
-        if other:
-            self.addrs.append(other)
-
-        domain = self.user.split('@', 1)[1]
-        return client.core.get_user('postmaster@' + domain).addCallbacks(
-            self.on_got_postmaster, self.on_got_postmaster_err)
-
-    def on_got_postmaster(self, postmaster):
-        self.addrs.append(postmaster.get('email'))
-        other = postmaster.get('secondary_email')
-        if other and other not in self.addrs:
-            self.addrs.append(other)
-        self.send_notifications()
-
-    def on_got_user_err(self, error):
-        return 1
-
-    def on_got_postmaster_err(self, error):
-        return 1
