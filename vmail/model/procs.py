@@ -334,6 +334,7 @@ def _mysql_is_local(email, db=None):
 
     result = db.execute('SELECT is_local(:email)', {'email': email})
     row = result.fetchone()
+    result.cursor._get_db().next_result()
     result.close()
     return bool(row[0])
 
@@ -352,6 +353,7 @@ def _mysql_is_validrcptto(email, db=None):
 
     result = db.execute('CALL is_validrcptto(:email)', {'email': email})
     row = result.fetchone()
+    result.cursor._get_db().next_result()
     result.close()
     return (row[0], row[1], row[2])
 
