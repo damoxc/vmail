@@ -1,10 +1,10 @@
 #
 # vmail/daemon/main.py
 #
-# Copyright (C) 2010-2011 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2010-2012 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010-2011 Damien Churchill <damoxc@gmail.com>
+#   2010-2012 Damien Churchill <damoxc@gmail.com>
 #
 # Based off rpcserver.py found in Deluge, written by Andrew Resch.
 #

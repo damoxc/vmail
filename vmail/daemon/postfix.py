@@ -1,10 +1,10 @@
 #
 # vmail/daemon/postfix.py
 #
-# Copyright (C) 2011 @UK Plc, http://www.uk-plc.net
+# Copyright (C) 2011-2012 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2011 Damien Churchill <damoxc@gmail.com>
+#   2011-2012 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
