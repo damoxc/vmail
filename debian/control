@@ -15,7 +15,7 @@ Architecture: all
 Depends: ${misc:Depends}, ${python:Depends},
          python-sqlalchemy,
          python-pkg-resources,
-         python-twisted-core,
+         python-gevent,
 Suggests: python-pyinotify
 Description: A database driven virtual mail setup
  VMail is a Postfix/Qpsmtpd based virtual mail project that
@@ -27,7 +27,7 @@ Package: vmail-smtp
 Architecture: all
 Depends: ${perl:Depends}, vmail (= ${source:Version}),
          postfix, postfix-mysql, dovecot-common,
-         qpsmtpd, qpsmtpd-vmail, libjson-perl, 
+         qpsmtpd, qpsmtpd-vmail, libjson-perl,
          libmime-encwords-perl,
          libemail-valid-perl,
          libmail-sender-perl,
@@ -60,7 +60,7 @@ Suggests: libdbd-mysql-perl, libdbd-sqlite3-perl
 Replaces: qpsmtpd-plugins-vmail
 Homepage: http://www.uk-plc.net
 Description: collection of database-driven plugins for qpsmtpd
- qpsmtpd-vmail contains all the plugins that vmail requires for 
+ qpsmtpd-vmail contains all the plugins that vmail requires for
  providing a complete frontend SMTP server using the vmail DB backend.
 
 Package: roundcube-vmail

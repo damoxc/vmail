@@ -1,3 +1,9 @@
+vmail (0.4.901-2) oneiric; urgency=low
+
+  * First release candidate for 0.5.
+
+ -- Damien Churchill <damien.churchill@ukplc.net>  Thu, 15 Mar 2012 11:57:41 +0000
+
 vmail (0.3.2-1) lucid; urgency=low
 
   * Bugfix release.

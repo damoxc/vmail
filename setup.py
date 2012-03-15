@@ -43,7 +43,7 @@ if HAVE_CYTHON:
 
 setup(
     name         = 'vmail',
-    version      = '0.5.0',
+    version      = '0.4.901',
     author       = 'Damien Churchill',
     author_email = 'damoxc@gmail.com',
 
