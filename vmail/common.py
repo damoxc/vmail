@@ -55,7 +55,8 @@ DEFAULT_CONFIG = {
     'listhost': 'list.example.com',
     'autohost': 'autoreply.example.com',
     'test_username': 'testuser@example.org',
-    'test_password': 'testing123'
+    'test_password': 'testing123',
+    'procs': 'native'
 }
 _config = None
 
