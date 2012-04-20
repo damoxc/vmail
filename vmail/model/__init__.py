@@ -234,7 +234,7 @@ def _create_engine(dburi, debug=False):
         engine_args['pool_size'] = config.get('pool_size')
         engine_args['poolclass'] = GreenQueuePool
 
-        if config.get('procs') not in ('py', 'python'):
+        if not config.get('python_procs'):
             procs.use_procedures('mysql')
 
         if dburi.startswith('mysql+mysqlconnector'):

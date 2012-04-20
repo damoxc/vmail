@@ -56,7 +56,7 @@ DEFAULT_CONFIG = {
     'autohost': 'autoreply.example.com',
     'test_username': 'testuser@example.org',
     'test_password': 'testing123',
-    'procs': 'native'
+    'python_procs': False
 }
 _config = None
 
