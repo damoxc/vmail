@@ -30,13 +30,26 @@ import logging.config
 import logging.handlers
 import optparse
 
+from gevent.hub import getcurrent
+
+# Custom log class that includes the greenlet "id"
+class Logger(logging.Logger, object):
+
+    def makeRecord(self, name, level, fn, lno, msg, args,
+                   exc_info, func=None, extra=None):
+        lr = super(Logger, self).makeRecord(name, level, fn, lno, msg, args,
+                                            exc_info, func, extra)
+        lr.__dict__['gid'] = '0x%x' % id(getcurrent())
+        return lr
+
+logging.setLoggerClass(Logger)
 from vmail.client import client
 
 LEVELS = {
-    'INFO': logging.INFO,
-    'DEBUG': logging.DEBUG,
-    'WARN': logging.WARN,
-    'ERROR': logging.ERROR,
+    'INFO':     logging.INFO,
+    'DEBUG':    logging.DEBUG,
+    'WARN':     logging.WARN,
+    'ERROR':    logging.ERROR,
     'CRITICAL': logging.CRITICAL
 }
 
