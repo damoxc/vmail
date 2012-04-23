@@ -30,6 +30,8 @@ from gevent.coros import Semaphore
 from gevent.local import local
 
 from sqlalchemy import create_engine, func, text, and_, not_, or_, exists, exc
+
+from sqlalchemy.exc import NoSuchColumnError
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 from vmail.common import get_config

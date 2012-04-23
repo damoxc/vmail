@@ -298,7 +298,12 @@ class Core(object):
         # Avoid a pointless db hit
         if not address:
             return False
-        return bool(db.query(Whitelist).get(address))
+
+        try:
+            return bool(db.query(Whitelist).get(address))
+        except NoSuchColumnError:
+            log.warning('NoSuchColumnError received checking whitelist for %s', address)
+            return False
 
     @export
     def get_local_destinations(self, forward):
@@ -312,9 +317,13 @@ class Core(object):
         """
 
         # Retrieve the local destinations that a forward may resolve to
-        destinations = [r[0] for r in db.query(ResolvedForward.destination
-            ).filter_by(source=forward
-            ).all()]
+        try:
+            destinations = [r[0] for r in db.query(ResolvedForward.destination
+                ).filter_by(source=forward
+                ).all()]
+        except NoSuchColumnError:
+            log.warning('NoSuchColumnError received getting local destinations for %s', forward)
+            destinations = []
 
         # Return if there are destinations to return
         if destinations:
