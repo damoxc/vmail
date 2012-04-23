@@ -206,8 +206,15 @@ class JSONReceiver(Receiver):
             'error': error
         }, default=encode_object)
 
-        sock.write(data + '\r\n')
-        sock.flush()
+        try:
+            sock.write(data + '\r\n')
+            sock.flush()
+        except socket.error as e:
+            # An EPIPE error occurs when a client disconnects uncleanly
+            # but we aren't too bothered about this so silence the noise
+            if e.errno == errno.EPIPE:
+                return
+            raise
 
     def respond_json2(self):
         pass
