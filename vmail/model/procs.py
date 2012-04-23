@@ -40,10 +40,10 @@ from vmail.model import *
 log = logging.getLogger(__name__)
 
 # is_validrcptto return codes
-VALID = 0
-NOT_FOUND = 1
-USER_DISABLED = 2
-USER_OVER_QUOTA = 4
+VALID             = 0
+NOT_FOUND         = 1
+USER_DISABLED     = 2
+USER_OVER_QUOTA   = 4
 DOMAIN_OVER_QUOTA = 5
 
 _mode = 'py'
