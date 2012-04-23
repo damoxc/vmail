@@ -295,6 +295,9 @@ class Core(object):
         :returns: True or False
         :rtype: boolean
         """
+        # Avoid a pointless db hit
+        if not address:
+            return False
         return bool(db.query(Whitelist).get(address))
 
     @export
