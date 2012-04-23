@@ -190,9 +190,9 @@ class Core(object):
         to check the actual password.
 
         :param user: The username to authenticate
-        :type user: string
+        :type user: str
         :param pw_clear: The password to check
-        :type pw_clear: string
+        :type pw_clear: str
         :returns: True or False
         :rtype: bool
         """
@@ -212,11 +212,11 @@ class Core(object):
         password hash rather than the actual password.
 
         :param user: The username to authenticate
-        :type user: string
+        :type user: str
         :param pw_hash: The password hash to check
-        :type pw_hash: string
+        :type pw_hash: str
         :param ticket: The msg used to generate the auth token
-        :type ticket: string
+        :type ticket: str
         :returns: True or False
         :rtype: bool
         """
@@ -252,7 +252,7 @@ class Core(object):
         Add a block for the specified host.
 
         :param remote_addr: The remote host to block
-        :type remote_addr: string
+        :type remote_addr: str
         """
         if rw_db.query(Host).get(remote_addr):
             raise VmailCoreError('Host %s already exists' % remote_addr)
@@ -272,7 +272,7 @@ class Core(object):
         Check whether the host is allowed to connect to the server.
 
         :param remote_addr: The remote address
-        :type remote_addr: string
+        :type remote_addr: str
         :returns: (action, comment)
         :rtype: tuple
         """
@@ -291,7 +291,7 @@ class Core(object):
         Check whether an address is listed in the whitelist.
 
         :param address: The address to check
-        :type address: string
+        :type address: str
         :returns: True or False
         :rtype: boolean
         """
@@ -303,7 +303,7 @@ class Core(object):
         Gets the resolved local destinations for the specified forward.
 
         :param forward: The forward to check
-        :type forward: string
+        :type forward: str
         :returns: The resolved local destinations
         :rtype: list
         """
@@ -367,7 +367,7 @@ class Core(object):
         Check whether an email address is a valid recipient.
 
         :param email: The email address to check.
-        :type email: string
+        :type email: str
         :returns: An tuple containing (result, destination, type)
         :rtype: tuple
         """
@@ -380,11 +380,11 @@ class Core(object):
         Log a login made to the email system.
 
         :param email: The email address used to log in
-        :type email: string
+        :type email: str
         :param method: The method used to log in.
-        :type method: string
+        :type method: str
         :keyword remote_addr: The remote address of the log in
-        :type remote_addr: string
+        :type remote_addr: str
         """
         # Ensure we are working with a lowercase email address
         email = email.lower()
