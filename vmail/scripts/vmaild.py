@@ -28,9 +28,9 @@ from gevent.monkey import patch_all; patch_all()
 import os
 import re
 
+from vmail.scripts.base import ScriptBase
 from vmail.common import get_config_dir
 from vmail.daemon.daemon import Daemon
-from vmail.scripts.base import ScriptBase
 
 class VMailD(ScriptBase):
 
