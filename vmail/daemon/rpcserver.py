@@ -351,7 +351,7 @@ class RPCServer(object):
         except (TypeError, ValueError):
             kwargs = {}
 
-        log.debug('rpc call - %s(%r, %r)', name, args, kwargs)
+        log.info('calling %s(%r, %r)', name, args, kwargs)
 
         # Call the method
         return self.methods[name](*args, **kwargs)
