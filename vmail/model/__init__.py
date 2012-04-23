@@ -122,9 +122,6 @@ def _create_engine(dburi, debug=False):
         'echo': debug
     }
     if dburi.startswith('mysql'):
-        import pymysql_sa
-        pymysql_sa.make_default_mysql_dialect()
-
         engine_args['max_overflow'] = config.get('max_overflow')
         engine_args['pool_recycle'] = 1800
         engine_args['pool_size'] = config.get('pool_size')
