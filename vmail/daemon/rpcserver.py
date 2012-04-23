@@ -399,7 +399,7 @@ class RPCServer(object):
                 continue
             m = getattr(obj, d)
             if getattr(m, '_rpcserver_export', False):
-                log.debug('Registering methood: %s.%s', name, d)
+                log.debug('Registering method: %s.%s', name, d)
                 self.methods[name + '.' + d] = getattr(obj, d)
 
     def start(self):
