@@ -272,7 +272,7 @@ class RPCMethod(object):
 
     def __call__(self, *args, **kwargs):
         try:
-            self.im_before()
+            self.im_before(self.__method)
         except Exception as e:
             log.exception(e)
 
@@ -286,7 +286,7 @@ class RPCMethod(object):
             exc_info = sys.exc_info()
 
         try:
-            self.im_after()
+            self.im_after(self.__method)
         except Exception as e:
             log.exception(e)
 
@@ -400,7 +400,7 @@ class RPCServer(object):
             m = getattr(obj, d)
             if getattr(m, '_rpcserver_export', False):
                 log.debug('Registering method: %s.%s', name, d)
-                self.methods[name + '.' + d] = getattr(obj, d)
+                self.methods[name + '.' + d] = RPCMethod(getattr(obj, d))
 
     def start(self):
         """
