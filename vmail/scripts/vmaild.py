@@ -23,6 +23,8 @@
 #   Boston, MA    02110-1301, USA.
 #
 
+from gevent.monkey import patch_all; patch_all()
+
 import os
 import re
 

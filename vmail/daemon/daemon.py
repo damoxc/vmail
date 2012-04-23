@@ -29,8 +29,6 @@ import pwd
 import gevent
 import logging
 
-from gevent.monkey import patch_socket; patch_socket()
-
 from vmail.common import get_config
 from vmail.daemon.core import Core
 from vmail.daemon.health import Health
