@@ -43,8 +43,10 @@ log = logging.getLogger(__name__)
 VALID             = 0
 NOT_FOUND         = 1
 USER_DISABLED     = 2
+DOMAIN_DISABLED   = 3
 USER_OVER_QUOTA   = 4
 DOMAIN_OVER_QUOTA = 5
+USER_NON_EXISTANT = 6
 
 _mode = 'py'
 _module = sys.modules[__name__]
@@ -133,6 +135,15 @@ def _py_is_validrcptto(email, db=None):
 
     # Lower the email as we only deal in lowercase
     email = email.lower()
+    domain_name = email.split('@')[1]
+
+    # Check to see if we host the domain
+    domain = db.query(Domain).filter_by(domain=domain_name).first()
+    if not domain:
+        return (NOT_FOUND, email, 'denied')
+
+    if not domain.enabled:
+        return (DOMAIN_DISABLED, email, 'local')
 
     # Check to see if we have a user by that name
     user = db.query(User).filter_by(email=email).first()
@@ -148,13 +159,13 @@ def _py_is_validrcptto(email, db=None):
             return (USER_OVER_QUOTA, email, 'local')
 
         # Get the domains quota values
-        domain = db.query(func.sum(UserQuota.bytes), Domain.quota
+        quotas = db.query(func.sum(UserQuota.bytes), Domain.quota
             ).join(User, Domain
             ).filter(Domain.id == user.domain_id
             ).first()
 
         # Return if the domain is over quota
-        if domain and domain[0] >= domain[1]:
+        if quotas and quotas[0] >= quotas[1]:
             return (DOMAIN_OVER_QUOTA, email, 'local')
 
         # Return valid if we haven't failed any of the other checks
@@ -165,11 +176,8 @@ def _py_is_validrcptto(email, db=None):
     if forward:
         return (VALID, forward.destination, 'forward')
 
-    # Get the domain
-    domain = email.split('@')[1]
-
     # Check for a catch-all forward
-    forward = db.query(Forwards).filter_by(source='@'+ domain).first()
+    forward = db.query(Forwards).filter_by(source='@'+domain_name).first()
     if forward:
         return (VALID, forward.destination, 'forward')
 
@@ -179,18 +187,18 @@ def _py_is_validrcptto(email, db=None):
         return (VALID, transport.transport, 'transport')
 
     # Check to see if there are any transport rules for the domain
-    transport = db.query(Transport).filter_by(source=domain).first()
+    transport = db.query(Transport).filter_by(source=domain_name).first()
     if transport:
         return (VALID, transport.transport, 'transport')
 
     # TODO: is this required/valid?
     # Check to see if there are any transport rules for a subsomain
-    transport = db.query(Transport).filter_by(source='.' + domain).first()
+    transport = db.query(Transport).filter_by(source='.' + domain_name).first()
     if transport:
         return (VALID, transport.transport, 'transport')
 
     # Unable to match anything in the system
-    return (NOT_FOUND, email, 'denied')
+    return (USER_NON_EXISTANT, email, 'denied')
 
 def _py_log_rotate(db=None):
 

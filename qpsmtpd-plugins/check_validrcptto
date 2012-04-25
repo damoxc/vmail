@@ -1,5 +1,13 @@
 use Qpsmtpd::DSN();
 
+use constant VALID             => 0;
+use constant NOT_FOUND         => 1;
+use constant USER_DISABLED     => 2;
+use constant DOMAIN_DISABLED   => 3;
+use constant USER_OVER_QUOTA   => 4;
+use constant DOMAIN_OVER_QUOTA => 5;
+use constant USER_NON_EXISTANT => 6;
+
 sub init
 {
 	my ($self, $qp) = @_;
@@ -10,10 +18,10 @@ sub init
 
 sub vm_init_config
 {
-    my ($self, $config_fields, $config_fields_empty, $config_fields_default)  = @_; 
-    %$config_fields         = (); 
-    %$config_fields_empty   = (); 
-    %$config_fields_default = (); 
+    my ($self, $config_fields, $config_fields_empty, $config_fields_default)  = @_;
+    %$config_fields         = ();
+    %$config_fields_empty   = ();
+    %$config_fields_default = ();
 }
 
 sub hook_rcpt {
@@ -21,11 +29,6 @@ sub hook_rcpt {
 	my $user        = lc $recipient->user;
 	my $host        = lc $recipient->host;
 	my $delivery    = "$user\@$host";
-
-	# This means that it is either a local address or has auth'd.
-	if ($self->qp->connection->relay_client) {
-		return (OK);
-	}
 
 	$self->vm_exec("core.is_validrcptto", $delivery);
 	$self->vm_last_error and return $self->vm_denysoft_error();
@@ -37,9 +40,13 @@ sub hook_rcpt {
 
 	$self->log(LOGINFO, "Receipient type: $rcpt_type");
 
-	if ($exit_code == 0) {
+	if ($exit_code == VALID) {
 		return (OK);
 	}
+
+    if ($exit_code == USER_NON_EXISTANT) {
+        return Qpsmtpd::DSN->addr_bad_dest_mbox("No such user by the name $delivery.");
+    }
 
 	# This is when the connection to the database failed
 	if ($exit_code == 255) {
@@ -47,16 +54,25 @@ sub hook_rcpt {
 	}
 
 	# This is the exit code when the account is disabled
-	if ($exit_code == 2) {
+	if ($exit_code == USER_DISABLED) {
 		return Qpsmtpd::DSN->mbox_disabled;
 	}
 
-	if ($exit_code == 4) {
+    if ($exit_code == DOMAIN_DISABLED) {
+        return Qpsmtpd::DSN->mbox_disabled;
+    }
+
+	if ($exit_code == USER_OVER_QUOTA) {
 		return Qpsmtpd::DSN->mbox_full("User over quota");
 	}
 
-	if ($exit_code == 5) {
+	if ($exit_code == DOMAIN_OVER_QUOTA) {
 		return Qpsmtpd::DSN->mbox_full("Domain over quota");
+	}
+
+	# This means that it is either a local address or has auth'd in which case.
+	if ($self->qp->connection->relay_client) {
+		return (OK);
 	}
 
 	return (DECLINED);
