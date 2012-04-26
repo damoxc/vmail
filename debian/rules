@@ -13,3 +13,17 @@ override_dh_auto_install:
 override_dh_auto_clean:
 	dh_auto_clean
 	find . -type d -name '*.egg-info' | xargs rm -rf
+
+override_dh_link:
+	for plugin in $(CURDIR)/debian/roundcube-plugins-vmail/usr/share/roundcube/plugins/*; do \
+        dh_link -proundcube-plugins-vmail usr/share/roundcube/plugins/$${plugin##*/} \
+            var/lib/roundcube/plugins/$${plugin##*/} ; \
+        if [ ! -f $${plugin}/config.inc.php.dist ]; then continue; fi ; \
+        dh_installdirs -proundcube-plugins-vmail etc/roundcube/plugins/$${plugin##*/} ; \
+        (echo "<?php" ; \
+         echo "// Empty configuration for $${plugin##*/}" ; \
+         echo "// See /usr/share/roundcube/plugins/$${plugin##*/}/config.inc.php.dist for instructions") > \
+            $(CURDIR)/debian/roundcube-plugins-vmail/etc/roundcube/plugins/$${plugin##*/}/config.inc.php ; \
+        dh_link -proundcube-plugins-vmail etc/roundcube/plugins/$${plugin##*/}/config.inc.php \
+            usr/share/roundcube/plugins/$${plugin##*/}/config.inc.php ; \
+    done

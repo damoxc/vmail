@@ -63,9 +63,11 @@ Description: collection of database-driven plugins for qpsmtpd
  qpsmtpd-vmail contains all the plugins that vmail requires for
  providing a complete frontend SMTP server using the vmail DB backend.
 
-Package: roundcube-vmail
+Package: roundcube-plugins-vmail
 Architecture: all
-Depends: ${misc:Depends}, ${php:Depends}, roundcube, vmail
+Depends: ${misc:Depends}, ${php:Depends}, roundcube-core, vmail
+Replaces: roundcube-vmail
+Conflicts: roundcube-vmail
 Homepage: http://www.uk-plc.net
 Description: collection of vmail plugins for Roundcube webmail client
  roundcube-vmail contains plugins to enhance Roundcube allowing users
