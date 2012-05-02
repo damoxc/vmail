@@ -451,7 +451,7 @@ sub vm_connect
 
 	my $sock = new IO::Socket::UNIX(Peer => $config->{sock},
 		Type => SOCK_STREAM) or $self->vm_error("Can't connect to socket: $!");
-	
+
 
 	return $sock;
 }
@@ -479,7 +479,7 @@ sub vm_close
 
 	my $sock = $self->qp->connection->notes(VM_SOCK);
 	return 0 unless $sock;
-	
+
 	$sock->shutdown(2);
 	$self->qp->connection->notes(VM_SOCK, undef);
 	return 1;
@@ -993,10 +993,10 @@ sub vm_denysoft_error
 
 	$temp_transaction->header(Mail::Header->new( Modify => 1, MailFrom => "COERCE"));
 
-	$temp_transaction->header->add ( "Subject", "QPSMTPD Error in " . $self->plugin_name() );
-	$temp_transaction->header->add ( "From", $from_name );
-	$temp_transaction->header->add ( "To", $notify->{notify_email} );
-	$temp_transaction->header->add ( "Date", Date::Format::time2str ( '%C', time ) );
+	$temp_transaction->header->add("Subject", "QPSMTPD Error in " . $self->plugin_name());
+	$temp_transaction->header->add("From", $from_name);
+	$temp_transaction->header->add("To", $notify->{notify_email});
+	$temp_transaction->header->add("Date", Date::Format::time2str('%a, %e %h %Y %X %z', time));
 
 	my $text	= '';
 
