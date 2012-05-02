@@ -9,6 +9,7 @@ import gevent
 import gevent.greenlet
 
 from gevent.hub import GreenletExit
+from gevent.monkey import patch_all; patch_all()
 
 class QuietGreenlet(gevent.greenlet.Greenlet):
 

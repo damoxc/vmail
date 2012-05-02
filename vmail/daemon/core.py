@@ -471,7 +471,17 @@ class Core(object):
         notification.notified = destination
         notification.notified_at = datetime.datetime.now()
         rw_db.add(notification)
-        rw_db.commit()
+
+        # FIXME: This is a kludgy fix to prevent unrequired error messages
+        # when a vacation message is attempted to be sent to the same person
+        # more than once. This should be resolved properly by allowing
+        # configurable notification intervals and modifying the database
+        # accordingly.
+        try:
+            rw_db.commit()
+        except IntegrityError:
+            pass
+
         return True
 
     ######################
