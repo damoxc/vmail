@@ -105,6 +105,7 @@ class JSONReceiver(Receiver):
         :param addr: The address of the remote client
         :type addr: `tuple`
         """
+        log.info('client has connected')
         fobj = sock.makefile()
         buf = ''
 
