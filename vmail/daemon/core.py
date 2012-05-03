@@ -445,7 +445,10 @@ class Core(object):
             log.debug('Vacation message is not active')
             return False
 
-        recipient = Address.parse(destination)
+        try:
+            recipient = Address.parse(destination)
+        except Exception:
+            return False
 
         # TODO: Add support for html vacation messages
         # Build up the response message here

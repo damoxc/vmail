@@ -73,8 +73,13 @@ class Address(object):
     @staticmethod
     def parse(address):
         name, address = email.utils.parseaddr(address)
+
         if '@' not in address:
             raise VmailError('Unable to parse address')
+
+        if address == '@':
+            raise VmailError('Unable to parse address')
+
         return Address(address, name)
 
 def get_config(key=None):
