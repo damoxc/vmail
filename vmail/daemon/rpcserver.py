@@ -280,7 +280,8 @@ class RPCMethod(object):
 
     def __call__(self, *args, **kwargs):
         try:
-            self.im_before(self.__method)
+            if self.im_before:
+                self.im_before(self.__method)
         except Exception as e:
             log.exception(e)
 
@@ -294,7 +295,8 @@ class RPCMethod(object):
             exc_info = sys.exc_info()
 
         try:
-            self.im_after(self.__method)
+            if self.im_after:
+                self.im_after(self.__method)
         except Exception as e:
             log.exception(e)
 
