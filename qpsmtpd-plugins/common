@@ -38,6 +38,7 @@ use Date::Format();
 use IO::Socket;
 use JSON;
 use Mail::Header ();
+use Net::SMTP;
 use Qpsmtpd::Address ();
 use Qpsmtpd::Transaction ();
 use Sys::Hostname qw(hostname);
@@ -979,24 +980,22 @@ sub vm_denysoft_error
 
 	$self->vm_log( "--- Notifying $notify->{notify_email}" );
 
-	my $curr_transaction    = $self->qp->transaction;
-	my $temp_transaction    = Qpsmtpd::Transaction->new();
-
+    my $curr_transaction    = $self->qp->transaction;
 	my $from        = $notify->{notify_from};
 	my $from_name   = $notify->{notify_from_name} . " <$from>";
 
 	my $sender      = Qpsmtpd::Address->new($from);
 	my $recipient   = Qpsmtpd::Address->new($notify->{notify_email});
+    my $smtp        = Net::SMTP->new('localhost');
 
-	$temp_transaction->sender           ($sender);
-	$temp_transaction->add_recipient    ($recipient);
+    $smtp->mail($sender);
+    $smtp->to($recipient);
 
-	$temp_transaction->header(Mail::Header->new( Modify => 1, MailFrom => "COERCE"));
-
-	$temp_transaction->header->add("Subject", "QPSMTPD Error in " . $self->plugin_name());
-	$temp_transaction->header->add("From", $from_name);
-	$temp_transaction->header->add("To", $notify->{notify_email});
-	$temp_transaction->header->add("Date", Date::Format::time2str('%a, %e %h %Y %X %z', time));
+    $smtp->data;
+    $smtp->datasend("Subject: QPSMTPD Error in " . $self->plugin_name() . "\n");
+    $smtp->datasend("From: $from_name\n");
+    $smtp->datasend("To: $recipient\n");
+    $smtp->datasend("Date: " . Date::Format::time2str('%a, %e %h %Y %X %z', time) . "\n");
 
 	my $text	= '';
 
@@ -1022,11 +1021,9 @@ sub vm_denysoft_error
 	$text	.= "result      : DENYSOFT " . ( $msg || VM_LATER ) . "\n";
 	$text	.= "\n";
 
-	$temp_transaction->body_write ( $text );
-
-	$self->qp->{_transaction}	= $temp_transaction;		#	private !?
-	$self->qp->run_hooks ( "queue" );
-	$self->qp->{_transaction}	= $curr_transaction;		#	private !?
+	$smtp->datasend($text);
+    $smtp->dataend;
+    $smtp->quit;
 
 	$self->vm_log ( "--- Finished notifying");
 
