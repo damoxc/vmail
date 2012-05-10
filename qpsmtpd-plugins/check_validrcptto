@@ -30,7 +30,11 @@ sub hook_rcpt {
 	my $host        = lc $recipient->host;
 	my $delivery    = "$user\@$host";
 
-	$self->vm_exec("core.is_validrcptto", $delivery);
+	my $i = 0;
+	while ($i++ < 3) {
+		$self->vm_exec("core.is_validrcptto", $delivery);
+		$self->vm_last_error or last
+	}
 	$self->vm_last_error and return $self->vm_denysoft_error();
 
 	# Grab the variables from the result.
