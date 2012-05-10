@@ -7,6 +7,7 @@ the vmail project.
 Ideas
 -----
 
+* Allow the database to be converted to cdb format for read actions.
 * Add support for banning IP addresses or individual users.
 * Implement a vmail cli tool that can be used for manipulating the vmail
   database, adding new domains or users, banning people or IP addresses.
