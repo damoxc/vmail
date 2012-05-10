@@ -44,6 +44,7 @@ my %CONFIG_FIELDS = map { $_ => 1 } qw(
 	notify_email
 	notify_from
 	notify_from_name
+    notify_host
 );
 
 my %CONFIG_FIELDS_EMPTY = map { $_ => 1 } qw(
@@ -54,6 +55,7 @@ my %CONFIG_FIELDS_EMPTY = map { $_ => 1 } qw(
 my %CONFIG_FIELDS_DEFAULT =
 (
 	notify_from_name	=> 'QPSMTPD Mail System',
+    notify_host         => 'localhost',
 );
 
 =head1 CONSTRUCTOR METHODS
@@ -129,14 +131,14 @@ sub vm_get_settings
 
 	my $config = $self->vm_config();
 	my $text = "Can't get socket settings: ";
-	
+
 	# Get the database settings.
 	$ENV{PATH} = '/usr/local/bin:/usr/bin';
 	open(VGC, "vgetconfig socket|") || $self->vm_die("$text $!\n");
 	while(my $sock = <VGC>) {
 		if ($sock =~ /^socket: (.*)$/) {
 			$config->{sock} = $1;
-		} 
+		}
 	}
 	close(VGC);
 }
@@ -234,6 +236,7 @@ sub hook_connect
 							notify_email		=> $config->{notify_email},
 							notify_from			=> $config->{notify_from},
 							notify_from_name	=> $config->{notify_from_name},
+                            notify_host         => $config->{notify_host},
 						}
 					);
 

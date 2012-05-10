@@ -986,7 +986,7 @@ sub vm_denysoft_error
 
 	my $sender      = Qpsmtpd::Address->new($from);
 	my $recipient   = Qpsmtpd::Address->new($notify->{notify_email});
-    my $smtp        = Net::SMTP->new('localhost');
+    my $smtp        = Net::SMTP->new($notify->{notify_host});
 
     $smtp->mail($sender);
     $smtp->to($recipient);
