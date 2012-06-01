@@ -23,7 +23,7 @@ sub vm_init_config
 
 sub vm_valid_config
 {
-    my ($self) = @_; 
+    my ($self) = @_;
     my $config  = $self->vm_config();
 }
 
@@ -33,9 +33,12 @@ sub hook_data_post {
 	my $sender = lc $transaction->sender()->address();
 	return (DECLINED) if $self->vm_call("core.check_whitelist", $sender);
 
+    my $remote = lc $self->qp->connection->remote_ip;
+	return (DECLINED) if $self->vm_call("core.check_whitelist", $remote);
+
 	# Get the recipient count.
 	my $rcpt_count = scalar($transaction->recipients());
-	
+
 	# Get the number of recipients that are declared in the email
 	my $headers = $transaction->header();
 	my $to_count = 0;
