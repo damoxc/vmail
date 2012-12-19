@@ -1,4 +1,11 @@
+import time
+
 from nose.tools import raises
+
+from vmail.error import DomainNotFoundError
+from vmail.error import ForwardNotFoundError
+from vmail.error import UserNotFoundError
+from vmail.error import VmailCoreError
 from vmail.tests import test
 
 class TestCoreSMTP(test.DaemonUnitTest):
@@ -16,9 +23,9 @@ class TestCoreSMTP(test.DaemonUnitTest):
         (action, comment) = result
         self.assertEqual(action, 'DENY_DISCONNECT')
 
-    @raises(Exception)
     def test_blocking_host_already_exists(self):
-        self.client.core.block_host('43.52.175.8').get()
+        with self.assertRaises(VmailCoreError) as _:
+            self.client.core.block_host('43.52.175.8').get()
 
     def test_check_host(self):
         result = self.client.core.check_host('97.38.123.17').get()
@@ -38,37 +45,31 @@ class TestCoreSMTP(test.DaemonUnitTest):
     def test_get_usage_domain(self):
         self.assertEqual(self.client.core.get_usage('example.com').get(), 20656946)
 
-    @raises(Exception)
     def test_get_usage_domain_unknown(self):
-        # TODO: Fix this once vmaild has correct error reporting so the
-        # exception type is checked etc.
-        self.client.core.get_usage('higglepuddle.com').get()
+        with self.assertRaises(DomainNotFoundError) as _:
+            self.client.core.get_usage('higglepuddle.com').get()
 
     def test_get_usage_user(self):
         self.assertEqual(self.client.core.get_usage('testing.com', 'fred').get(), 81998643)
 
-    @raises(Exception)
     def test_get_usage_user_unknown(self):
-        # TODO: Fix this once vmaild has correct error reporting so the
-        # exception type is checked etc.
-        self.client.core.get_usage('higglepuddle.com', 'yankeedoodle').get()
+        with self.assertRaises(UserNotFoundError) as _:
+            self.client.core.get_usage('higglepuddle.com', 'yankeedoodle').get()
 
     def test_get_quota_domain(self):
         self.assertEqual(self.client.core.get_quota('example.com').get(),
                          52428800)
 
-    @raises(Exception)
     def test_get_quota_domain_unknown(self):
-        # TODO: Fix this once vmaild has correct error reporting so the
-        # exception type is checked etc.
-        self.client.core.get_quota('higglepuddle.com').get()
+        with self.assertRaises(DomainNotFoundError) as _:
+            self.client.core.get_quota('higglepuddle.com').get()
 
     def test_last_login(self):
         self.assertTrue(self.client.core.last_login('dave@example.com', 'imap', '1.2.3.4').get())
 
-    @raises(Exception)
     def test_last_login_unknown(self):
-        self.client.core.last_login('yankeedoodle@higglepuddle.com', 'imap', '1.2.3.4').get()
+        with self.assertRaises(UserNotFoundError) as _:
+            self.client.core.last_login('yankeedoodle@higglepuddle.com', 'imap', '1.2.3.4').get()
 
     def test_last_login_mixed_case(self):
         self.assertTrue(self.client.core.last_login('Dave@Example.com', 'imap', '1.2.3.4').get())
@@ -77,38 +78,27 @@ class TestCoreManagement(test.DaemonUnitTest):
 
     def test_delete_forward(self):
         self.assertNone(self.client.core.delete_forward('help@example.com').get())
-        try:
+        with self.assertRaises(ForwardNotFoundError) as _:
             self.client.core.get_forward('help@example.com').get()
-        except:
-            pass
-        else:
-            self.fail()
 
     def test_delete_user(self):
         self.assertNone(self.client.core.delete_user('dave@example.com').get())
-        try:
+        with self.assertRaises(UserNotFoundError) as _:
             self.client.core.get_user('dave@example.com').get()
-        except:
-            try:
-                self.client.core.get_vacation('dave@example.com').get()
-            except:
-                pass
-            else:
-                self.fail()
-        else:
-            self.fail()
+        with self.assertRaises(VmailCoreError) as _:
+            self.client.core.get_vacation('dave@example.com').get()
 
-    @raises(Exception)
     def test_delete_user_unknown(self):
-        self.client.core.delete_user('yankeedoodle@higglepuddle.com').get()
+        with self.assertRaises(UserNotFoundError) as _:
+            self.client.core.delete_user('yankeedoodle@higglepuddle.com').get()
 
     def test_get_forward(self):
         forwards = ['help@example.com']
         self.assertEqual(self.client.core.get_forward('info@example.com').get(), forwards)
 
-    @raises(Exception)
     def test_get_forward_unknown(self):
-        self.client.core.get_forward('yankeedoodle@higglepuddle.com').get()
+        with self.assertRaises(ForwardNotFoundError) as _:
+            self.client.core.get_forward('yankeedoodle@higglepuddle.com').get()
 
     def test_get_forwards(self):
         forwards = {
@@ -121,9 +111,9 @@ class TestCoreManagement(test.DaemonUnitTest):
         self.assertEqual(self.client.core.get_forwards('example.com').get(),
                          forwards)
 
-    @raises(Exception)
     def test_get_forwards_unknown(self):
-        self.client.core.get_forwards('higglepuddle.com').get()
+        with self.assertRaises(DomainNotFoundError) as _:
+            self.client.core.get_forwards('higglepuddle.com').get()
 
     def test_get_user(self):
         user = self.client.core.get_user('fred@testing.com').get()
@@ -131,9 +121,9 @@ class TestCoreManagement(test.DaemonUnitTest):
         self.assertTrue(user['enabled'])
         self.assertEqual(user['email'], 'fred@testing.com')
 
-    @raises(Exception)
     def test_get_user_unknown(self):
-        self.client.core.get_user('hinkypinky@testing.com').get()
+        with self.assertRaises(UserNotFoundError) as _:
+            self.client.core.get_user('hinkypinky@testing.com').get()
 
     def test_get_vacation(self):
         vacation = self.client.core.get_vacation('dave@example.com').get()
@@ -145,17 +135,13 @@ class TestCoreManagement(test.DaemonUnitTest):
         self.assertNotNone(vacation)
         self.assertEqual(vacation['email'], 'fred@testing.com')
 
-    @raises(Exception)
-    def test_get_vacation_missing(self):
-        return self.client.core.get_vacation('fred@testing.com'
-            ).addCallback(self.fail
-            ).addErrback(self.assertIsInstance, Failure)
+#    def test_get_vacation_missing(self):
+#        with self.assertRaises(VmailCoreError) as _:
+#            print self.client.core.get_vacation('fred@testing.com').get()
 
-    @raises(Exception)
     def test_get_vacation_unknown(self):
-        return self.client.core.get_vacation('hinkypinky@testing.com'
-            ).addCallback(self.fail
-            ).addErrback(self.assertIsInstance, Failure)
+        with self.assertRaises(VmailCoreError) as _:
+            self.client.core.get_vacation('hinkypinky@testing.com').get()
 
     def test_save_forward(self):
         source = 'sales@example.com'
@@ -169,9 +155,9 @@ class TestCoreManagement(test.DaemonUnitTest):
 
         self.client.core.save_forward(1, source, destinations).get()
 
-    @raises(Exception)
     def test_save_forward_unknown(self):
         source = 'yankeedoodle@higglepuddle.com'
         destinations = ['help@higglepuddle.com']
 
-        self.client.core.save_forward(5, source, destinations).get()
+        with self.assertRaises(DomainNotFoundError) as _:
+            self.client.core.save_forward(5, source, destinations).get()

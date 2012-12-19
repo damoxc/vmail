@@ -247,7 +247,7 @@ class JSONReceiver(Receiver):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.setblocking(0)
         sock.bind(socket_path)
-        sock.listen(100)
+        sock.listen(400)
 
         os.chmod(socket_path,
             stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO | stat.S_ISGID)

@@ -23,8 +23,6 @@
 #   Boston, MA    02110-1301, USA.
 #
 
-from twisted.internet import reactor
-
 from vmail.tests import test
 from vmail.daemon.core import resolve_forward
 from vmail.daemon.core import reverse_resolve_forward

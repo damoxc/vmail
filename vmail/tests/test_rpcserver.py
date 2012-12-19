@@ -84,7 +84,7 @@ class ExportedClass():
     before_test = False
     after_test = False
 
-    def __before__(self):
+    def __before__(self, method):
         self.before_test = True
 
     def exported_method(self):
@@ -96,15 +96,15 @@ class ExportedClass():
     def exported_method_exception(self):
         raise Exception('unexpected failure')
 
-    def __after__(self):
+    def __after__(self, method):
         self.after_test = True
 
 class BadExportedClass(ExportedClass):
 
-    def __before__(self):
+    def __before__(self, method):
         raise Exception('before fails')
 
-    def __after__(self):
+    def __after__(self, method):
         raise Exception('after fails')
 
 def test_rpc_method():

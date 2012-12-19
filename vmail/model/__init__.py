@@ -118,11 +118,10 @@ class DBObjectProxy(ObjectProxy):
             object.__getattribute__(self, '_connector')()
         return ObjectProxy.__getattribute__(self, key)
 
-def _create_engine(dburi, debug=False):
+def _create_engine(dburi, debug=False, **engine_args):
     config = get_config()
-    engine_args = {
-        'echo': debug
-    }
+    engine_args['echo'] = debug
+
     if dburi.startswith('mysql'):
         engine_args['max_overflow'] = config.get('max_overflow')
         engine_args['pool_recycle'] = 1800

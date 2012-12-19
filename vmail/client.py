@@ -25,6 +25,7 @@
 
 import os
 import json
+import time
 import logging
 
 import gevent
@@ -34,7 +35,20 @@ from gevent.queue import Queue
 
 from vmail import common
 
+from vmail.error import ForwardNotFoundError
+from vmail.error import DomainNotFoundError
+from vmail.error import UserNotFoundError
+from vmail.error import VmailCoreError
+from vmail.error import RPCError
+
 log = logging.getLogger(__name__)
+
+ERRORS = {
+    'ForwardNotFoundError': ForwardNotFoundError,
+    'DomainNotFoundError':  DomainNotFoundError,
+    'UserNotFoundError':    UserNotFoundError,
+    'VmailCoreError':       VmailCoreError
+}
 
 class VmailRequest(object):
 
@@ -119,7 +133,11 @@ class Client(object):
         Receive RPCRequests from the server
         """
         while True:
-            data = self.__fobj.readline()
+            try:
+                data = self.__fobj.readline()
+            except socket.error:
+                time.sleep(0.1)
+                continue
 
             if self.__buffer:
                 # we have some data from the last receive() so lets
@@ -141,7 +159,11 @@ class Client(object):
                 result = self.__requests[request_id]
 
                 if 'error' in response and response['error'] is not None:
-                    result.set_exception(Exception(response['error']))
+                    if 'name' in response['error']:
+                        err_cls = ERRORS.get(response['error']['name'], RPCError)
+                        result.set_exception(err_cls(response['error']['message']))
+                    else:
+                        result.set_exception(RPCError(response['error']))
 
                 elif 'result' in response:
                     result.set(response['result'])
