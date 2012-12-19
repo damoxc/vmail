@@ -5,26 +5,8 @@ import logging
 import tempfile
 import unittest
 
-import gevent
-import gevent.greenlet
-
-from gevent.hub import GreenletExit
+from contextlib import contextmanager
 from gevent.monkey import patch_all; patch_all()
-
-class QuietGreenlet(gevent.greenlet.Greenlet):
-
-    def _report_error(self, exc_info):
-        exception = exc_info[1]
-        if isinstance(exception, GreenletExit):
-            self._report_result(exception)
-            return
-
-        self._exception = exception
-        if self._links and self._notifier is None:
-            self._notifier = gevent.core.active_event(self._notify_links)
-
-gevent.Greenlet = gevent.greenlet.Greenlet = QuietGreenlet
-reload(gevent)
 
 from vmail.tests import testdata
 from vmail.model.tables import *
@@ -36,8 +18,25 @@ logging.basicConfig(
 
 class BaseUnitTest(unittest.TestCase):
 
+    PATCH_HUB = True
+
+    @contextmanager
+    def assertRaises(self, *exceptions):
+        hub = gevent.get_hub()
+        not_error = hub.NOT_ERROR
+        try:
+            if self.PATCH_HUB:
+                hub.NOT_ERROR = not_error + exceptions
+            with super(BaseUnitTest, self).assertRaises(*exceptions) as _:
+                yield 1
+        finally:
+            hub.NOT_ERROR = not_error
+
     def setUp(self):
         self.testDir = tempfile.mkdtemp()
+
+        hub = gevent.get_hub()
+
         os.chdir(self.testDir)
 
     def tearDown(self):
@@ -114,7 +113,7 @@ class DatabaseUnitTest(BaseUnitTest):
             user_quotas.insert().values(
                 email    = email,
                 bytes    = bytes,
-                msesages = messages
+                messages = messages
             ).execute()
 
         for (email, subject, body, created, active) in testdata.vacation:
@@ -200,10 +199,10 @@ class ThreadedDatabaseUnitTest(DatabaseUnitTest):
 
     def _create_engine(self):
         from vmail.model import _create_engine
-        db_path = os.path.join(self.testDir, 'test.db')
-        return _create_engine('sqlite:///' + db_path)
+        from sqlalchemy.pool import StaticPool
+        return _create_engine('sqlite://', connect_args={'check_same_thread': False}, poolclass=StaticPool)
 
-class DaemonUnitTest(DatabaseUnitTest):
+class DaemonUnitTest(ThreadedDatabaseUnitTest):
     """
     Starts a Vmail Daemon within the test suite.
     """
