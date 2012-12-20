@@ -111,7 +111,6 @@ class Client(object):
         Connect to the vmaild server.
         """
         self.__socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.__socket.setblocking(0)
         self.__socket.connect(self.socket_path)
         self.__fobj = self.__socket.makefile()
 
@@ -133,11 +132,7 @@ class Client(object):
         Receive RPCRequests from the server
         """
         while True:
-            try:
-                data = self.__fobj.readline()
-            except socket.error:
-                time.sleep(0.1)
-                continue
+            data = self.__fobj.readline()
 
             if self.__buffer:
                 # we have some data from the last receive() so lets
