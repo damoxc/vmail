@@ -156,6 +156,9 @@ class LoginDomain(object):
 class LoginHourly(object):
     pass
 
+class Message(object):
+    pass
+
 class QpsmtpdConnection(object):
     pass
 
@@ -280,6 +283,8 @@ mapper(Login, logins)
 mapper(LoginDomain, logins_domains)
 
 mapper(LoginHourly, logins_hourly)
+
+mapper(Message, messages)
 
 mapper(QpsmtpdConnection, qpsmtpd_connections)
 

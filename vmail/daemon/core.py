@@ -422,6 +422,24 @@ class Core(object):
         return True
 
     @export
+    def log_message(self, email, recipients):
+        """
+        Log the fact a message has been queued by postfix.
+
+        :param email: The email address of the sender
+        :type email: str
+        :param recipients: The number of recipients the email has
+        :type recipients: int
+        """
+
+        message = Message()
+        message.email = email
+        message.date = datetime.datetime.now()
+        message.recipients = recipients
+        rw_db.add(message)
+        rw_db.commit()
+
+    @export
     def send_vacation(self, email, destination):
         """
         Sends a vacation message to the destination address unless they have
