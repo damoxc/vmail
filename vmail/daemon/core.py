@@ -434,6 +434,7 @@ class Core(object):
 
         message = Message()
         message.email = email
+        message.host  = socket.getfqdn()
         message.date = datetime.datetime.now()
         message.recipients = recipients
         rw_db.add(message)
