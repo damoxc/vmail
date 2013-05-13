@@ -105,7 +105,7 @@ class JSONReceiver(Receiver):
         :param addr: The address of the remote client
         :type addr: `tuple`
         """
-        log.info('client has connected')
+        log.debug('client has connected')
         fobj = sock.makefile()
         buf = ''
 
@@ -141,7 +141,7 @@ class JSONReceiver(Receiver):
                 self.handle_json1(request, fobj)
 
         # Shutdown the socket
-        log.info('client has disconnected')
+        log.debug('client has disconnected')
         try:
             sock.shutdown(socket.SHUT_RDWR)
             sock.close()
@@ -354,7 +354,7 @@ class RPCServer(object):
         except (TypeError, ValueError):
             kwargs = {}
 
-        log.info('calling %s(%r, %r)', name, args, kwargs)
+        log.debug('calling %s(%r, %r)', name, args, kwargs)
 
         # Call the method
         return self.methods[name](*args, **kwargs)
