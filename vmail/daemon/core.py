@@ -4,7 +4,7 @@
 # Copyright (C) 2010-2012 @UK Plc, http://www.uk-plc.net
 #
 # Author:
-#   2010-2012 Damien Churchill <damoxc@gmail.com>
+#   2010-2013 Damien Churchill <damoxc@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -284,6 +284,48 @@ class Core(object):
             return (host.action, host.comment)
         else:
             return None
+
+    @export
+    def check_limits(self, address):
+        """
+        Check to see whether a sender has hit their sending limits.
+
+        :param address: The address to check
+        :type address: str
+        """
+        address = address.lower()
+        user = db.query(User).filter_by(email=address).first()
+        if not user:
+            raise ValueError('Not a valid user')
+
+        daily_limit  = user.daily_limit
+        hourly_limit = user.hourly_limit
+
+        if not daily_limit:
+            daily_limit = user.domain.daily_limit or user.domain.package.daily_limit
+
+        if not hourly_limit:
+            hourly_limit = user.domain.hourly_limit or user.domain.package.hourly_limit
+
+        now  = datetime.datetime.now()
+        hour = now - datetime.timedelta(0, 3600)
+        day  = now - datetime.timedelta(1)
+
+        # First check that the hourly limit hasn't been reached
+        hourly = long(db.query(func.sum(Message.recipients)
+            ).filter(Message.email==address, Message.date>=hour).scalar() or 0)
+
+        if hourly >= hourly_limit:
+            return {'action': 'deny', 'type': 'hourly', 'limit': hourly_limit, 'value': hourly}
+
+        # Finally check that the daily limit hasn't been reached
+        daily = long(db.query(func.sum(Message.recipients)
+            ).filter(Message.email==address, Message.date>=day).scalar() or 0)
+
+        if daily >= daily_limit:
+            return {'action': 'deny', 'type': 'daily', 'limit': daily_limit, 'value': daily}
+
+        return {'action': 'decline'}
 
     @export
     def check_whitelist(self, address):

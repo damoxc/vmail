@@ -58,6 +58,8 @@ def create_tables(meta, *tables):
             Column('quota', Integer),
             Column('account_limit', Integer),
             Column('enabled', Boolean, default=1),
+            Column('daily_limit', Integer, nullable=True, default=None),
+            Column('hourly_limit', Integer, nullable=True, default=None),
             PrimaryKeyConstraint('id'),
             ForeignKeyConstraint(['package_id'], ['packages.id'])
         )
@@ -142,6 +144,8 @@ def create_tables(meta, *tables):
             Column('name', String(100)),
             Column('quota', Integer(20)),
             Column('account_limit', Integer),
+            Column('daily_limit', Integer),
+            Column('hourly_limit', Integer),
             PrimaryKeyConstraint('id')
         )
 
@@ -240,6 +244,8 @@ def create_tables(meta, *tables):
             Column('quota', Integer),
             Column('enabled', Boolean, default=True),
             Column('admin', Boolean, default=False),
+            Column('daily_limit', Integer, nullable=True, default=None),
+            Column('hourly_limit', Integer, nullable=True, default=None),
             PrimaryKeyConstraint('id'),
             ForeignKeyConstraint(['domain_id'], ['domains.id'], ondelete='CASCADE')
         )
