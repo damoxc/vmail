@@ -1,0 +1,62 @@
+=head1 NAME
+
+vmail/limits
+
+=head1 DESCRIPTION
+
+This plugin checks to ensure that the user hasn't gone past any limits imposed
+to prevent spammers from sending out mail.
+
+=head1 CONFIG
+
+The plugin requires no configuration within qpsmtpd. Simply include it in the
+config file:
+
+  vmail/limits
+
+=cut
+
+
+use Qpsmtpd::DSN();
+
+sub init
+{
+	my ($self, $qp) = @_;
+	$self->isa_plugin("vmail/common");
+	$self->vm_debug;
+	$self->SUPER::init($qp);
+}
+
+sub vm_init_config
+{
+	my ($self, $config_fields, $config_fields_empty, $config_fields_default)  = @_;
+    %$config_fields         = ();
+    %$config_fields_empty   = ();
+    %$config_fields_default = ();
+}
+
+sub hook_rcpt {
+	my ($self, $transaction, $recipient) = @_;
+    my $auth_user = lc $self->qp->connection->notes("authuser");
+
+    $self->vm_exec('core.check_limits', $auth_user);
+    my $result = $self->vm_result();
+
+    if ($result->{'action'} eq 'deny') {
+        my $msg = 'Sending limit reached';
+        my $detail = 10;
+        if ($result->{'type'} eq 'hourly') {
+            $msg = 'Hourly sending limit reached';
+            $detail = 11;
+        } elsif ($result->{'type'} eq 'daily') {
+            $msg = 'Daily sending limit reached';
+            $detail = 12;
+        }
+
+        return (DENYSOFT, "$msg (#4.7.$detail)");
+    }
+
+    return (DECLINED);
+}
+
+# vim: ft=perl
