@@ -30,7 +30,7 @@ import imaplib
 import logging
 import datetime
 
-from email.message import Message
+from email.message import Message as MIMEMessage
 from email.utils import formatdate
 
 from vmail.common import *
@@ -178,6 +178,44 @@ def reverse_resolve_forward(db, source, sources=[]):
         reverse_resolve_forward(db, forward.source, sources)
     return sources
 
+def limit_reached_alert(user, limit_type, limit, value):
+    """
+    Send out a notification when a limit is reached.
+
+    :param user: The user who has hit the limit
+    :type user: User
+    :param limit_type: The type of limit that has been reached
+    :type limit_type: str
+    :param limit: The limit amount
+    :type limit: int
+    :param value: The number of messages sent
+    :type value: int
+    """
+
+    name  = get_config('alerts_name')
+    faddr = get_config('alerts_from')
+    taddr = get_config('alerts_to')
+
+
+    message = MIMEMessage()
+    message.add_header('From', '"%s" <%s>' % (name, faddr))
+    if isinstance(taddr, list):
+        message.add_header('To', ', '.join(taddr))
+    else:
+        message.add_header('To', taddr)
+    message.add_header('Date', formatdate())
+    message.add_header('Subject', 'User %s reached sending limit' % user.email)
+    message.set_payload("""Hi,
+
+The user has reached their %s limit of sending messages. They have sent %d
+messages and have a limit of %d""" % (limit_type, value, limit)
+    )
+
+    # Send the message to the local SMTP server
+    smtp = smtplib.SMTP('localhost')
+    smtp.sendmail(faddr, taddr, str(message))
+    smtp.close()
+
 class Core(object):
 
     def __init__(self, daemon):
@@ -316,6 +354,7 @@ class Core(object):
             ).filter(Message.email==address, Message.date>=hour).scalar() or 0)
 
         if hourly >= hourly_limit:
+            limit_reached_alert(user, 'hourly', hourly_limit, hourly)
             return {'action': 'deny', 'type': 'hourly', 'limit': hourly_limit, 'value': hourly}
 
         # Finally check that the daily limit hasn't been reached
@@ -323,6 +362,7 @@ class Core(object):
             ).filter(Message.email==address, Message.date>=day).scalar() or 0)
 
         if daily >= daily_limit:
+            limit_reached_alert(user, 'daily', daily_limit, daily)
             return {'action': 'deny', 'type': 'daily', 'limit': daily_limit, 'value': daily}
 
         return {'action': 'decline'}
@@ -513,7 +553,7 @@ class Core(object):
 
         # TODO: Add support for html vacation messages
         # Build up the response message here
-        message = Message()
+        message = MIMEMessage()
         message.add_header('From', '%s <%s>' % (user.name, user.email))
         message.add_header('To', str(recipient))
         message.add_header('Date', formatdate())
