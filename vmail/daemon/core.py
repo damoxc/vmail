@@ -345,7 +345,7 @@ class Core(object):
         address = address.lower()
         user = rw_db.query(User).filter_by(email=address).first()
         if not user:
-            raise ValueError('Not a valid user')
+            raise ValueError('Not a valid user: %r', address)
 
         now  = datetime.datetime.now()
 
