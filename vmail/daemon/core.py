@@ -552,20 +552,23 @@ class Core(object):
         return True
 
     @export
-    def log_message(self, email, recipients):
+    def log_message(self, email, subject, recipients):
         """
         Log the fact a message has been queued by postfix.
 
         :param email: The email address of the sender
         :type email: str
+        :param subject: The email's subject
+        :type subject: str
         :param recipients: The number of recipients the email has
         :type recipients: int
         """
 
         message = Message()
-        message.email = email
-        message.host  = socket.getfqdn()
-        message.date = datetime.datetime.now()
+        message.email   = email
+        message.subject = subject
+        message.host    = socket.getfqdn()
+        message.date    = datetime.datetime.now()
         message.recipients = recipients
         rw_db.add(message)
         rw_db.commit()

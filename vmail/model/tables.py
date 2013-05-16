@@ -140,6 +140,7 @@ def create_tables(meta, *tables):
         tbls['messages'] = Table('messages', meta,
             Column('id', Integer),
             Column('email', String(255)),
+            Column('subject', String(1000)),
             Column('host', String(255)),
             Column('date', DateTime),
             Column('recipients', Integer),
