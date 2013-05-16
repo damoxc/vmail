@@ -40,6 +40,18 @@ from vmail.model import *
 
 log = logging.getLogger(__name__)
 
+hourly_blocks = (
+    datetime.timedelta(seconds=3600),
+    datetime.timedelta(seconds=7200),
+    datetime.timedelta(seconds=14400),
+)
+
+daily_blocks = (
+    datetime.timedelta(days=1),
+    datetime.timedelta(days=2),
+    datetime.timedelta(days=4),
+)
+
 def update_forwardings(db, source, domain_id=None):
     """
     This method updates the forwardings table converting the vmail
@@ -196,7 +208,6 @@ def limit_reached_alert(user, limit_type, limit, value):
     faddr = get_config('alerts_from')
     taddr = get_config('alerts_to')
 
-
     message = MIMEMessage()
     message.add_header('From', '"%s" <%s>' % (name, faddr))
     if isinstance(taddr, list):
@@ -332,9 +343,16 @@ class Core(object):
         :type address: str
         """
         address = address.lower()
-        user = db.query(User).filter_by(email=address).first()
+        user = rw_db.query(User).filter_by(email=address).first()
         if not user:
             raise ValueError('Not a valid user')
+
+        now  = datetime.datetime.now()
+
+        # Check for a sending block placed on the user
+        block = user.get_block(BLOCK_SENDING)
+        if block and block.expires > now:
+            return {'action': 'deny', 'type': 'block', 'expires': block.expires.ctime()}
 
         daily_limit  = user.daily_limit
         hourly_limit = user.hourly_limit
@@ -345,25 +363,55 @@ class Core(object):
         if not hourly_limit:
             hourly_limit = user.domain.hourly_limit or user.domain.package.hourly_limit
 
-        now  = datetime.datetime.now()
         hour = now - datetime.timedelta(0, 3600)
         day  = now - datetime.timedelta(1)
 
         # First check that the hourly limit hasn't been reached
-        hourly = long(db.query(func.sum(Message.recipients)
+        hourly = long(rw_db.query(func.sum(Message.recipients)
             ).filter(Message.email==address, Message.date>=hour).scalar() or 0)
 
+        btype = None
+
+        # Check the limits in-place on the user to check for breaches
         if hourly >= hourly_limit:
-            limit_reached_alert(user, 'hourly', hourly_limit, hourly)
-            return {'action': 'deny', 'type': 'hourly', 'limit': hourly_limit, 'value': hourly}
+            btype = 'hourly'
+            limit = hourly_limit
+            value = hourly
+        else:
+            daily = long(rw_db.query(func.sum(Message.recipients)
+                ).filter(Message.email==address, Message.date>=day).scalar() or 0)
 
-        # Finally check that the daily limit hasn't been reached
-        daily = long(db.query(func.sum(Message.recipients)
-            ).filter(Message.email==address, Message.date>=day).scalar() or 0)
+            if daily >= daily_limit:
+                btype = 'daily'
+                limit = daily_limit
+                value = daily
 
-        if daily >= daily_limit:
-            limit_reached_alert(user, 'daily', daily_limit, daily)
-            return {'action': 'deny', 'type': 'daily', 'limit': daily_limit, 'value': daily}
+        if btype is not None:
+            limit_reached_alert(user, btype, limit, value)
+            if block is not None:
+                if block.count == 3:
+                    log.info('disabling user %s for breaching sending limit 3 times', user.email)
+                    user.enabled = 0
+                else:
+                    block.expires = now + hourly_blocks[block.count] if btype == 'hourly' else daily_blocks[block.count]
+                    block.count += 1
+                    log.info('add block for user %s; expires %s; count %d', block.email, block.expires, block.count)
+            else:
+                block         = Block()
+                block.type    = BLOCK_SENDING
+                block.expires = now + hourly_blocks[0] if btype == 'hourly' else daily_blocks[0]
+                block.count   = 1
+                user.blocks.append(block)
+                log.info('add block for user %s; expires %s; count %d', block.email, block.expires, block.count)
+
+            # silently fail here, chances are that it's a PK collision, if
+            # not the user will be disabled shortly when they try again
+            try:
+                rw_db.commit()
+            except:
+                pass
+
+            return {'action': 'deny', 'type': btype, 'limit': limit, 'value': value}
 
         return {'action': 'decline'}
 

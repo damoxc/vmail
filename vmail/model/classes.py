@@ -34,6 +34,9 @@ from vmail.model.tables import *
 class Blacklist(object):
     pass
 
+class Block(object):
+    pass
+
 class Package(object):
 
     def __json__(self):
@@ -202,6 +205,11 @@ class User(object):
 
     password = property(__get_password, __set_password)
 
+    def get_block(self, block_type):
+        for block in self.blocks:
+            if block.type == block_type:
+                return block
+
     @staticmethod
     def exists(email):
         return select([mysql_sucks.c.test],
@@ -313,6 +321,10 @@ mapper(User, users, properties = {
     'vacation':   relation(Vacation, uselist=False, cascade='all'),
     '_password':  users.c.password,
     '_cleartext': users.c.cleartext
+})
+
+mapper(Block, blocks, properties = {
+    'user': relation(User, backref='blocks')
 })
 
 mapper(UserQuota, user_quotas)

@@ -16,7 +16,6 @@ config file:
 
 =cut
 
-
 use Qpsmtpd::DSN();
 
 sub init
@@ -39,6 +38,10 @@ sub hook_rcpt {
 	my ($self, $transaction, $recipient) = @_;
     my $auth_user = lc $self->qp->connection->notes("authuser");
 
+    if ($auth_user eq "") {
+        return (DECLINED);
+    }
+
     $self->vm_exec('core.check_limits', $auth_user);
     my $result = $self->vm_result();
 
@@ -51,6 +54,9 @@ sub hook_rcpt {
         } elsif ($result->{'type'} eq 'daily') {
             $msg = 'Daily sending limit reached';
             $detail = 12;
+        } elsif ($result->{'type'} eq 'block') {
+            $detail = 13;
+            $msg = "Sending limit reached, block in place until $result->{'expires'}.";
         }
 
         return (DENYSOFT, "$msg (#4.7.$detail)");

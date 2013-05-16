@@ -30,12 +30,15 @@ from sqlalchemy import MetaData, Table, Column, ForeignKey
 from sqlalchemy import ForeignKeyConstraint, PrimaryKeyConstraint
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, Time
 
+BLOCK_SENDING   = 1
+BLOCK_RECEIVING = 2
+
 def create_tables(meta, *tables):
     tbls = {}
 
     if not tables:
         tables = (
-            'blacklist', 'domains', 'forwardings', 'forwards', 'hosts', 'logins',
+            'blacklist', 'blocks', 'domains', 'forwardings', 'forwards', 'hosts', 'logins',
             'logins_domains', 'logins_hourly', 'mysql_sucks', 'messages', 'packages',
             'qpsmtpd_connections', 'qpsmtpd_log', 'qpsmtpd_transactions',
             'qpsmtpd_rcpts', 'resolved_forwards', 'transport', 'users', 'user_quotas',
@@ -46,6 +49,16 @@ def create_tables(meta, *tables):
         tbls['blacklist'] = Table('blacklist', meta,
             Column('address', String(50)),
             PrimaryKeyConstraint('address')
+        )
+
+    if 'blocks' in tables:
+        tbls['blocks'] = Table('blocks', meta,
+            Column('email', String(255)),
+            Column('type', Integer, autoincrement=False),
+            Column('expires', DateTime),
+            Column('count', Integer),
+            PrimaryKeyConstraint('email', 'type'),
+            ForeignKeyConstraint(['email'], ['users.email'])
         )
 
     if 'domains' in tables:
