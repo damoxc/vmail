@@ -82,7 +82,9 @@ sub hook_queue {
 
   my $auth_user = lc $self->qp->connection->notes("authuser");
   if ($auth_user) {
-    $self->vm_exec("core.log_message", $auth_user, scalar($transaction->recipients()));
+    my $headers = $transaction->header();
+    $self->vm_exec("core.log_message", $auth_user, $headers->get('subject'),
+                   scalar($transaction->recipients()));
   }
 
   if ($queue_resp =~ /2.0.0 Ok: queued as ([A-F0-9]{8})/) {
