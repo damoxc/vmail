@@ -54,6 +54,9 @@ sub hook_rcpt {
         } elsif ($result->{'type'} eq 'daily') {
             $msg = 'Daily sending limit reached';
             $detail = 12;
+        } elsif ($result->{'type'} eq 'disabled') {
+            $msg = 'Account disabled, please contact support@ukplc.net';
+            $detail = 14;
         } elsif ($result->{'type'} eq 'block') {
             $detail = 13;
             $msg = "Sending limit reached, block in place until $result->{'expires'}.";

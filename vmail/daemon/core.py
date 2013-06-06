@@ -347,6 +347,9 @@ class Core(object):
         if not user:
             raise ValueError('Not a valid user: %r', address)
 
+        if not user.enabled:
+            return {'action': 'deny', 'type': 'disabled'}
+
         now  = datetime.datetime.now()
 
         # Check for a sending block placed on the user
