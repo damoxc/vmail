@@ -90,9 +90,9 @@ class VClient
 		}
 
 		$request = json_encode(array(
-			id     => $this->request_id,
-			method => $method,
-			params => $arguments
+			'id'     => $this->request_id,
+			'method' => $method,
+			'params' => $arguments
 		)) . "\n";
 		$this->request_id++;
 
@@ -106,7 +106,7 @@ class VClient
 				message => "Could not write to socket: $errormsg"
 			), true);
 		}
-		
+
 		// Read the initial data from the socket
 		$buffer = socket_read($this->sock, 4096);
 
