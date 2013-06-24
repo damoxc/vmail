@@ -1138,7 +1138,7 @@ class vmail extends rcube_plugin
 		));
 		$out .= $hiddenfields->show();
 
-		$table = new html_table(array('cols' => 3));
+		$table = new html_table(array('cols' => 4));
 
 		$forward = ($this->forward) ? $this->forward : $this->forwards[$this->fid];
 		$source = get_user_part($forward->source);
