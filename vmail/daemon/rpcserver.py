@@ -158,7 +158,7 @@ class JSONReceiver(Receiver):
         # Dispatch the call
         g = gevent.spawn(self.server.dispatch, method, params)
         g.link(self.respond_json1)
-        self.requests[g] = (request_id, fobj)
+        self.requests[g] = (request, fobj)
 
     def handle_json2(self, request, fobj):
         # Get the required parameters for our method call
@@ -176,7 +176,7 @@ class JSONReceiver(Receiver):
         # Dispatch the call
         g = gevent.spawn(self.server.dispatch, method, args, kwargs)
         g.link(self.respond_json2)
-        self.requests[g] = (request_id, fobj)
+        self.requests[g] = (request, fobj)
 
     def respond_json1(self, response):
         """
@@ -186,7 +186,7 @@ class JSONReceiver(Receiver):
         :type response: Greenlet
         """
         # Retrieve and remove the request id
-        request_id, sock = self.requests.pop(response)
+        request, sock = self.requests.pop(response)
 
         # Get the correct return value
         result = None
@@ -194,7 +194,7 @@ class JSONReceiver(Receiver):
         try:
             result = response.get()
         except Exception as e:
-            #log.exception(e)
+            log.exception(e, {'request': request})
             error = {
                 'name': e.__class__.__name__,
                 'message': ''
@@ -202,7 +202,7 @@ class JSONReceiver(Receiver):
 
         # Create the json encoded response string
         data = json.dumps({
-            'id': request_id,
+            'id': request['id'],
             'result': result,
             'error': error
         }, default=encode_object)
