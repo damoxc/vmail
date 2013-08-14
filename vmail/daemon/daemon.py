@@ -33,8 +33,9 @@ from vmail.common import get_config
 from vmail.daemon.core import Core
 from vmail.daemon.health import Health
 from vmail.daemon.qpsmtpd import Qpsmtpd
-from vmail.daemon.rpcserver import RPCServer, JSONReceiver
-from vmail.model import connect, rw_connect
+from vmail.daemon.rpcserver import RPCServer
+from vmail.daemon.rpcserver import JSONReceiver
+from vmail.model import init_model
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ class Daemon(object):
         self.config = get_config()
         self.rpcserver = RPCServer()
         self.core = Core(self)
+        self.db_session = init_model()
 
         self.rpcserver.add_receiver(JSONReceiver())
         self.rpcserver.register_object(self.core)

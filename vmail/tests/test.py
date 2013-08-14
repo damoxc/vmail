@@ -72,7 +72,7 @@ class DatabaseUnitTest(BaseUnitTest):
 
     def setUp(self):
         super(DatabaseUnitTest, self).setUp()
-        from vmail.model import init_model, init_rw_model
+        from vmail.model import init_model
         engine = self._create_engine()
 
         # Create the database schema
@@ -179,16 +179,12 @@ class DatabaseUnitTest(BaseUnitTest):
         mysql_sucks.insert().values(test=1).execute()
 
         # Initialize the sessions
-        init_model(engine)
-        init_rw_model(engine)
-
-        # Set the db and rw_db as local variables to avoid auto-connecting
-        from vmail.model import db, rw_db
-        self.db = db
-        self.rw_db = rw_db
+        self.db_session = init_model(engine)
+        self.db = self.db_session()
 
     def tearDown(self):
         meta.drop_all()
+        self.db.close()
         super(DatabaseUnitTest, self).tearDown()
 
 class ThreadedDatabaseUnitTest(DatabaseUnitTest):
@@ -214,8 +210,14 @@ class DaemonUnitTest(ThreadedDatabaseUnitTest):
         from vmail.daemon.core import Core
         from vmail.daemon.qpsmtpd import Qpsmtpd
 
+        this = self
+        class Daemon(object):
+
+            def __init__(self):
+                self.db_session = this.db_session
+
         self.rpcserver = RPCServer()
-        self.rpcserver.register_object(Core(None))
+        self.rpcserver.register_object(Core(Daemon()))
         self.rpcserver.register_object(Qpsmtpd())
         self.rpcserver.add_receiver(JSONReceiver('vmaild.sock'))
         self.rpcserver.start()

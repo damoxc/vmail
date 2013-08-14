@@ -30,6 +30,8 @@ import imaplib
 import logging
 import datetime
 
+from contextlib import contextmanager
+
 from email.message import Message as MIMEMessage
 from email.utils import formatdate
 
@@ -232,6 +234,18 @@ class Core(object):
     def __init__(self, daemon):
         self.daemon = daemon
 
+    @contextmanager
+    def db_session(self):
+        db_session = self.daemon.db_session()
+        try:
+            yield db_session
+            db_session.commit()
+        except:
+            db_session.rollback()
+            raise
+        finally:
+            db_session.close()
+
     @export
     def authenticate(self, user, pw_clear):
         """
@@ -283,15 +297,17 @@ class Core(object):
         return True
 
     def _authenticate(self, user):
-        user = db.query(User).filter_by(email=user).first()
-        if not user:
-            return False
+        with self.db_session() as session:
+            user = session.query(User).filter_by(email=user).first()
 
-        if not user.enabled:
-            return False
+            if not user:
+                return False
 
-        if not user.domain.enabled:
-            return False
+            if not user.enabled:
+                return False
+
+            if not user.domain.enabled:
+                return False
 
         return user
 
@@ -303,17 +319,19 @@ class Core(object):
         :param remote_addr: The remote host to block
         :type remote_addr: str
         """
-        if rw_db.query(Host).get(remote_addr):
-            raise VmailCoreError('Host %s already exists' % remote_addr)
 
-        host = Host()
-        host.ip_address = remote_addr
-        host.action = 'DENY_DISCONNECT'
-        host.comment = 'Suspected spam source. Please go to\n'
-        host.comment += 'http://www.ukplc.net/abous?ip=%s ' % remote_addr
-        host.comment += 'for more information.'
-        rw_db.add(host)
-        rw_db.commit()
+        with self.db_session() as session:
+            if session.query(Host).get(remote_addr):
+                raise VmailCoreError('Host %s already exists' % remote_addr)
+
+            host = Host()
+            host.ip_address = remote_addr
+            host.action = 'DENY_DISCONNECT'
+            host.comment = 'Suspected spam source. Please go to\n'
+            host.comment += 'http://www.ukplc.net/abous?ip=%s ' % remote_addr
+            host.comment += 'for more information.'
+            session.add(host)
+            session.commit()
 
     @export
     def check_host(self, remote_addr):
@@ -325,14 +343,14 @@ class Core(object):
         :returns: (action, comment)
         :rtype: tuple
         """
-        host = db.query(Host
-            ).filter(Host.ip_address.like('%' + remote_addr + '%')
-            ).first()
 
-        if host:
-            return (host.action, host.comment)
-        else:
-            return None
+        with self.db_session() as session:
+            host = session.query(Host).filter(Host.ip_address.like('%' + remote_addr + '%')).first()
+
+            if host:
+                return (host.action, host.comment)
+            else:
+                return None
 
     @export
     def check_limits(self, address):
@@ -343,80 +361,82 @@ class Core(object):
         :type address: str
         """
         address = address.lower()
-        user = rw_db.query(User).filter_by(email=address).first()
-        if not user:
-            raise ValueError('Not a valid user: %r', address)
 
-        if not user.enabled:
-            return {'action': 'deny', 'type': 'disabled'}
+        with self.db_session() as session:
+            user = session.query(User).filter_by(email=address).first()
+            if not user:
+                raise ValueError('Not a valid user: %r', address)
 
-        now  = datetime.datetime.now()
+            if not user.enabled:
+                return {'action': 'deny', 'type': 'disabled'}
 
-        # Check for a sending block placed on the user
-        block = user.get_block(BLOCK_SENDING)
-        if block and block.expires > now:
-            return {'action': 'deny', 'type': 'block', 'expires': block.expires.ctime()}
+            now  = datetime.datetime.now()
 
-        daily_limit  = user.daily_limit
-        hourly_limit = user.hourly_limit
+            # Check for a sending block placed on the user
+            block = user.get_block(BLOCK_SENDING)
+            if block and block.expires > now:
+                return {'action': 'deny', 'type': 'block', 'expires': block.expires.ctime()}
 
-        if not daily_limit:
-            daily_limit = user.domain.daily_limit or user.domain.package.daily_limit
+            daily_limit  = user.daily_limit
+            hourly_limit = user.hourly_limit
 
-        if not hourly_limit:
-            hourly_limit = user.domain.hourly_limit or user.domain.package.hourly_limit
+            if not daily_limit:
+                daily_limit = user.domain.daily_limit or user.domain.package.daily_limit
 
-        hour = now - datetime.timedelta(0, 3600)
-        day  = now - datetime.timedelta(1)
+            if not hourly_limit:
+                hourly_limit = user.domain.hourly_limit or user.domain.package.hourly_limit
 
-        # First check that the hourly limit hasn't been reached
-        hourly = long(rw_db.query(func.sum(Message.recipients)
-            ).filter(Message.email==address, Message.date>=hour).scalar() or 0)
+            hour = now - datetime.timedelta(0, 3600)
+            day  = now - datetime.timedelta(1)
 
-        btype = None
+            # First check that the hourly limit hasn't been reached
+            hourly = long(session.query(func.sum(Message.recipients)
+                ).filter(Message.email==address, Message.date>=hour).scalar() or 0)
 
-        # Check the limits in-place on the user to check for breaches
-        if hourly >= hourly_limit:
-            btype = 'hourly'
-            limit = hourly_limit
-            value = hourly
-        else:
-            daily = long(rw_db.query(func.sum(Message.recipients)
-                ).filter(Message.email==address, Message.date>=day).scalar() or 0)
+            btype = None
 
-            if daily >= daily_limit:
-                btype = 'daily'
-                limit = daily_limit
-                value = daily
-
-        if btype is not None:
-            limit_reached_alert(user, btype, limit, value)
-            if block is not None:
-                if block.count == 3:
-                    log.info('disabling user %s for breaching sending limit 3 times', user.email)
-                    user.enabled = 0
-                else:
-                    block.expires = now + hourly_blocks[block.count] if btype == 'hourly' else daily_blocks[block.count]
-                    block.count += 1
-                    log.info('add block for user %s; expires %s; count %d', block.email, block.expires, block.count)
+            # Check the limits in-place on the user to check for breaches
+            if hourly >= hourly_limit:
+                btype = 'hourly'
+                limit = hourly_limit
+                value = hourly
             else:
-                block         = Block()
-                block.type    = BLOCK_SENDING
-                block.expires = now + hourly_blocks[0] if btype == 'hourly' else daily_blocks[0]
-                block.count   = 1
-                user.blocks.append(block)
-                log.info('add block for user %s; expires %s; count %d', block.email, block.expires, block.count)
+                daily = long(session.query(func.sum(Message.recipients)
+                    ).filter(Message.email==address, Message.date>=day).scalar() or 0)
 
-            # silently fail here, chances are that it's a PK collision, if
-            # not the user will be disabled shortly when they try again
-            try:
-                rw_db.commit()
-            except:
-                pass
+                if daily >= daily_limit:
+                    btype = 'daily'
+                    limit = daily_limit
+                    value = daily
 
-            return {'action': 'deny', 'type': btype, 'limit': limit, 'value': value}
+            if btype is not None:
+                limit_reached_alert(user, btype, limit, value)
+                if block is not None:
+                    if block.count == 3:
+                        log.info('disabling user %s for breaching sending limit 3 times', user.email)
+                        user.enabled = 0
+                    else:
+                        block.expires = now + hourly_blocks[block.count] if btype == 'hourly' else daily_blocks[block.count]
+                        block.count += 1
+                        log.info('add block for user %s; expires %s; count %d', block.email, block.expires, block.count)
+                else:
+                    block         = Block()
+                    block.type    = BLOCK_SENDING
+                    block.expires = now + hourly_blocks[0] if btype == 'hourly' else daily_blocks[0]
+                    block.count   = 1
+                    user.blocks.append(block)
+                    log.info('add block for user %s; expires %s; count %d', block.email, block.expires, block.count)
 
-        return {'action': 'decline'}
+                # silently fail here, chances are that it's a PK collision, if
+                # not the user will be disabled shortly when they try again
+                try:
+                    session.commit()
+                except:
+                    pass
+
+                return {'action': 'deny', 'type': btype, 'limit': limit, 'value': value}
+
+            return {'action': 'decline'}
 
     @export
     def check_whitelist(self, address):
@@ -428,15 +448,17 @@ class Core(object):
         :returns: True or False
         :rtype: boolean
         """
+
         # Avoid a pointless db hit
         if not address:
             return False
 
-        try:
-            return bool(db.query(Whitelist).get(address))
-        except NoSuchColumnError:
-            log.warning('NoSuchColumnError received checking whitelist for %s', address)
-            return False
+        with self.db_session() as session:
+            try:
+                return bool(session.query(Whitelist).get(address))
+            except NoSuchColumnError:
+                log.warning('NoSuchColumnError received checking whitelist for %s', address)
+                return False
 
     @export
     def get_local_destinations(self, forward):
@@ -449,62 +471,65 @@ class Core(object):
         :rtype: list
         """
 
-        # Retrieve the local destinations that a forward may resolve to
-        try:
-            destinations = [r[0] for r in db.query(ResolvedForward.destination
-                ).filter_by(source=forward
-                ).all()]
-        except NoSuchColumnError:
-            log.warning('NoSuchColumnError received getting local destinations for %s', forward)
-            destinations = []
+        with self.db_session() as session:
+            # Retrieve the local destinations that a forward may resolve to
+            try:
+                destinations = [r[0] for r in session.query(ResolvedForward.destination
+                    ).filter_by(source=forward
+                    ).all()]
+            except NoSuchColumnError:
+                log.warning('NoSuchColumnError received getting local destinations for %s', forward)
+                destinations = []
 
-        # Return if there are destinations to return
-        if destinations:
-            return destinations
+            # Return if there are destinations to return
+            if destinations:
+                return destinations
 
-        # If there are no resolved destinations then check for a user
-        if db.query(User).filter_by(email=forward).count():
-            return [forward]
-        else:
-            return []
+            # If there are no resolved destinations then check for a user
+            if session.query(User).filter_by(email=forward).count():
+                return [forward]
+            else:
+                return []
 
     @export
     def get_usage(self, domain, user=None):
         """
         Get the total quota usage for the specified domain or account.
         """
-        if user:
-            email = '%s@%s' % (user, domain)
-            user = db.query(User).filter_by(email=email).first()
-            if not user:
-                raise UserNotFoundError(email)
-            return user.usage.bytes if user.usage else 0L
-        else:
-            if not isinstance(domain, (int, long)):
-                dom = db.query(Domain).filter_by(domain=domain).first()
-                if not dom:
-                    raise DomainNotFoundError(domain)
-                domain = dom.id
-            return long(db.query(func.sum(UserQuota.bytes)
-                ).join(User
-                ).filter_by(domain_id=domain).scalar() or 0)
+        with self.db_session() as session:
+            if user:
+                email = '%s@%s' % (user, domain)
+                user = session.query(User).filter_by(email=email).first()
+                if not user:
+                    raise UserNotFoundError(email)
+                return user.usage.bytes if user.usage else 0L
+            else:
+                if not isinstance(domain, (int, long)):
+                    dom = session.query(Domain).filter_by(domain=domain).first()
+                    if not dom:
+                        raise DomainNotFoundError(domain)
+                    domain = dom.id
+                return long(session.query(func.sum(UserQuota.bytes)
+                    ).join(User
+                    ).filter_by(domain_id=domain).scalar() or 0)
 
     @export
     def get_quota(self, domain, user=None):
         """
         Return the quota for the specified user or domain.
         """
-        if user:
-            email = '%s@%s' % (user, domain)
-            user = db.query(User).filter_by(email=email).first()
-            if not user:
-                raise UserNotFoundError(email)
-            return user.quota
-        else:
-            dom = db.query(Domain).filter_by(domain=domain).first()
-            if not dom:
-                raise DomainNotFoundError(domain)
-            return dom.quota
+        with self.db_session() as session:
+            if user:
+                email = '%s@%s' % (user, domain)
+                user = session.query(User).filter_by(email=email).first()
+                if not user:
+                    raise UserNotFoundError(email)
+                return user.quota
+            else:
+                dom = session.query(Domain).filter_by(domain=domain).first()
+                if not dom:
+                    raise DomainNotFoundError(domain)
+                return dom.quota
 
     @export
     def is_validrcptto(self, email):
@@ -516,8 +541,9 @@ class Core(object):
         :returns: An tuple containing (result, destination, type)
         :rtype: tuple
         """
-        log.debug('checking rcpt to for %s', email)
-        return procs.is_validrcptto(email, db)
+        with self.db_session() as session:
+            log.debug('checking rcpt to for %s', email)
+            return procs.is_validrcptto(email, session)
 
     @export
     def last_login(self, email, method, remote_addr=None):
@@ -534,25 +560,22 @@ class Core(object):
         # Ensure we are working with a lowercase email address
         email = email.lower()
 
-        try:
-            user = db.query(User).filter_by(email=email).first()
-        except Exception as e:
-            log.exception(e)
-            user = None
+        with self.db_session() as session:
+            user = session.query(User).filter_by(email=email).first()
 
-        if user is None:
-            raise UserNotFoundError(email)
+            if user is None:
+                raise UserNotFoundError(email)
 
-        login = Login()
-        login.email = email
-        login.user_id = user.id if user else -1
-        login.method = method
-        login.local_addr = socket.getfqdn()
-        login.remote_addr = remote_addr
-        login.date = datetime.datetime.now()
-        rw_db.add(login)
-        rw_db.commit()
-        return True
+            login = Login()
+            login.email = email
+            login.user_id = user.id if user else -1
+            login.method = method
+            login.local_addr = socket.getfqdn()
+            login.remote_addr = remote_addr
+            login.date = datetime.datetime.now()
+            session.add(login)
+            session.commit()
+            return True
 
     @export
     def log_message(self, email, subject, recipients):
@@ -567,14 +590,15 @@ class Core(object):
         :type recipients: int
         """
 
-        message = Message()
-        message.email   = email
-        message.subject = subject
-        message.host    = socket.getfqdn()
-        message.date    = datetime.datetime.now()
-        message.recipients = recipients
-        rw_db.add(message)
-        rw_db.commit()
+        with self.db_session() as session:
+            message = Message()
+            message.email      = email
+            message.subject    = subject
+            message.host       = socket.getfqdn()
+            message.date       = datetime.datetime.now()
+            message.recipients = recipients
+            session.add(message)
+            session.commit()
 
     @export
     def send_vacation(self, email, destination):
@@ -653,15 +677,17 @@ class Core(object):
         :param source: The forwards address
         :type source: str
         """
-        rw_db.query(Forward).filter_by(source=source).delete()
-        rw_db.commit()
 
-        # Finally run the process forwards procedure to update the
-        # other forwards tables.
-        update_forwardings(rw_db, source)
+        with self.db_session() as session:
+            session.query(Forward).filter_by(source=source).delete()
+            session.commit()
 
-        # Update the resolved forwards as well.
-        update_resolved_forwards(rw_db, source)
+            # Finally run the process forwards procedure to update the
+            # other forwards tables.
+            update_forwardings(session, source)
+
+            # Update the resolved forwards as well.
+            update_resolved_forwards(session, source)
 
     @export
     def delete_user(self, email):
@@ -671,30 +697,33 @@ class Core(object):
         :param email: The users email address or user id
         :type email: str or int
         """
-        if isinstance(email, (int, long)):
-            user = rw_db.query(User).get(email)
-        else:
-            user = rw_db.query(User).filter_by(email=email).first()
 
-        if not user:
-            raise UserNotFoundError(email)
+        with self.db_session() as session:
+            if isinstance(email, (int, long)):
+                user = session.query(User).get(email)
+            else:
+                user = session.query(User).filter_by(email=email).first()
 
-        try:
-            if os.path.isdir(user.maildir):
-                shutil.rmtree(user.maildir)
-        except Exception, e:
-            log.error('Unable to remove maildir for %s', email)
-            log.exception(e)
+            if not user:
+                raise UserNotFoundError(email)
 
-        rw_db.delete(user)
-        rw_db.commit()
+            try:
+                if os.path.isdir(user.maildir):
+                    shutil.rmtree(user.maildir)
+            except Exception, e:
+                log.error('Unable to remove maildir for %s', email)
+                log.exception(e)
+
+            session.delete(user)
+            session.commit()
 
     @export
     def get_domain(self, domain):
-        if isinstance(domain, (int, long)):
-            return db.query(Domain).get(domain)
-        else:
-            return db.query(Domain).filter_by(domain=domain).one()
+        with self.db_session() as session:
+            if isinstance(domain, (int, long)):
+                return session.query(Domain).get(domain)
+            else:
+                return session.query(Domain).filter_by(domain=domain).one()
 
     @export
     def get_forward(self, source):
@@ -704,13 +733,13 @@ class Core(object):
         :param source: The forward's source
         :type source: str
         """
-        destinations = [f.destination for f in rw_db.query(Forward
-            ).filter_by(source = source)]
+        with self.db_session() as session:
+            destinations = [f.destination for f in session.query(Forward).filter_by(source = source)]
 
-        if not destinations:
-            raise ForwardNotFoundError(source)
+            if not destinations:
+                raise ForwardNotFoundError(source)
 
-        return destinations
+            return destinations
 
     @export
     def get_forwards(self, domain):
@@ -722,55 +751,63 @@ class Core(object):
         :keyword full: Set to True to include the destinations
         :type full: bool
         """
-        if not isinstance(domain, (int, long)):
-            domain_id = db.query(Domain).filter_by(domain=domain).first()
-            if not domain_id:
-                raise DomainNotFoundError(domain)
-            domain_id = domain_id.id
-        else:
-            domain_id = domain
+        with self.db_session() as session:
+            if not isinstance(domain, (int, long)):
+                domain_id = session.query(Domain).filter_by(domain=domain).first()
+                if not domain_id:
+                    raise DomainNotFoundError(domain)
+                domain_id = domain_id.id
+            else:
+                domain_id = domain
 
-        forwards = db.query(Forward
-            ).filter_by(domain_id=domain_id,
-            ).order_by(Forward.source
-            ).all()
-        fwds = {}
-        for forward in forwards:
-            destinations = fwds.setdefault(forward.source, [])
-            destinations.append(forward.destination)
-        return fwds
+            forwards = session.query(Forward
+                ).filter_by(domain_id=domain_id,
+                ).order_by(Forward.source
+                ).all()
+            fwds = {}
+            for forward in forwards:
+                destinations = fwds.setdefault(forward.source, [])
+                destinations.append(forward.destination)
+            return fwds
 
     @export
     def get_users(self, domain):
-        return self.get_domain(domain).users
+        with self.db_session() as session:
+            if isinstance(domain, (int, long)):
+                return session.query(Domain).get(domain).users
+            else:
+                return session.query(Domain).filter_by(domain=domain).one().users
 
     @export
     def get_user_count(self, domain):
-        if not isinstance(domain, (int, long)):
-            domain = db.query(Domain).filter_by(domain=domain).one().id
-        return db.query(User).filter_by(domain_id=domain).count()
+        with self.db_session() as session:
+            if not isinstance(domain, (int, long)):
+                domain = session.query(Domain).filter_by(domain=domain).one().id
+            return session.query(User).filter_by(domain_id=domain).count()
 
     @export
     def get_user(self, user):
-        if isinstance(user, (int, long)):
-            email = 'user #%d' % user
-            user = db.query(User).get(user)
-        else:
-            email = user
-            user = db.query(User).filter_by(email=email).first()
+        with self.db_session() as session:
+            if isinstance(user, (int, long)):
+                email = 'user #%d' % user
+                user = session.query(User).get(user)
+            else:
+                email = user
+                user = session.query(User).filter_by(email=email).first()
 
-        # If the user doesn't exist throw a RPC error
-        if not user:
-            raise UserNotFoundError(email)
+            # If the user doesn't exist throw a RPC error
+            if not user:
+                raise UserNotFoundError(email)
 
-        return user
+            return user
 
     @export
     def get_vacation(self, email):
-        vacation = db.query(Vacation).filter_by(email=email).first()
-        if not vacation:
-            raise VmailCoreError('Cannot find vacation for %s' % email)
-        return vacation
+        with self.db_session() as session:
+            vacation = session.query(Vacation).filter_by(email=email).first()
+            if not vacation:
+                raise VmailCoreError('Cannot find vacation for %s' % email)
+            return vacation
 
     @export
     def save_forward(self, domain_id, source, destinations):
@@ -790,40 +827,42 @@ class Core(object):
         if not destinations:
             return
 
-        # Get the domain first to check that it is one that is hosted on
-        # our system.
-        domain = db.query(Domain).get(domain_id)
-        if not domain:
-            raise DomainNotFoundError("Couldn't find domain id %d" % domain_id)
+        with self.db_session() as session:
 
-        # Double check the forward belongs to this domain.
-        if not source.endswith(domain.domain):
-            raise VmailCoreError('Unable to save forward for a different domain')
+            # Get the domain first to check that it is one that is hosted on
+            # our system.
+            domain = session.query(Domain).get(domain_id)
+            if not domain:
+                raise DomainNotFoundError("Couldn't find domain id %d" % domain_id)
 
-        # Due to the new table structure we merely delete the old forwards
-        # if there are any.
-        rw_db.query(Forward).filter_by(source=source).delete()
+            # Double check the forward belongs to this domain.
+            if not source.endswith(domain.domain):
+                raise VmailCoreError('Unable to save forward for a different domain')
 
-        # Add all the new forwards as specified by the destinations list
-        for destination in destinations:
-            forward = Forward()
-            forward.domain_id = domain_id
-            forward.source = source
-            forward.destination = destination
-            rw_db.add(forward)
+            # Due to the new table structure we merely delete the old forwards
+            # if there are any.
+            session.query(Forward).filter_by(source=source).delete()
 
-        # Commit the changes to the forwards table
-        rw_db.commit()
+            # Add all the new forwards as specified by the destinations list
+            for destination in destinations:
+                forward = Forward()
+                forward.domain_id = domain_id
+                forward.source = source
+                forward.destination = destination
+                session.add(forward)
 
-        # Finally run the process forwards procedure to update the
-        # other forwards tables.
-        update_forwardings(rw_db, source, domain_id)
+            # Commit the changes to the forwards table
+            session.commit()
 
-        # Update the resolved forwards as well.
-        update_resolved_forwards(rw_db, source)
+            # Finally run the process forwards procedure to update the
+            # other forwards tables.
+            update_forwardings(session, source, domain_id)
 
-        # Return the forwards source
-        return source
+            # Update the resolved forwards as well.
+            update_resolved_forwards(session, source)
+
+            # Return the forwards source
+            return source
 
     @export
     def save_user(self, user, params):
@@ -864,46 +903,34 @@ class Core(object):
         :type params: dict
         """
 
-        # If there aren't any parameters can just return
-        if not params:
-            return
+        with self.db_session() as session:
 
-        # Get the email and active parameters, if there are any.
-        email = params.get('email')
-        active = params.get('active')
+            # If there aren't any parameters can just return
+            if not params:
+                return
 
-        # Convert the parameter keys into their corresponding properties on
-        # the Vacation object.
-        params = dict([
-            (getattr(Vacation, k), params[k])
-            for k in params if hasattr(Vacation, k)])
+            # Get the email and active parameters, if there are any.
+            email = params.get('email')
+            active = params.get('active')
 
-        # Attempt to save/create the vacation message
-        try:
-            if isinstance(vacation, (int, long)):
-                rw_db.query(Vacation).filter_by(id=vacation).update(params)
-            else:
-                rw_db.query(Vacation).filter_by(email=vacation).update(params)
+            # Convert the parameter keys into their corresponding properties on
+            # the Vacation object.
+            params = dict([
+                (getattr(Vacation, k), params[k])
+                for k in params if hasattr(Vacation, k)])
 
-            # Remove any notifications if the active state has changed and
-            # we have an email address to filter with.
-            if email and active is not None:
-                rw_db.query(VacationNotification).filter_by(on_vacation=email).delete()
+            # Attempt to save/create the vacation message
+            try:
+                if isinstance(vacation, (int, long)):
+                    session.query(Vacation).filter_by(id=vacation).update(params)
+                else:
+                    session.query(Vacation).filter_by(email=vacation).update(params)
 
-            rw_db.commit()
-        except Exception, e:
-            log.exception(e)
+                # Remove any notifications if the active state has changed and
+                # we have an email address to filter with.
+                if email and active is not None:
+                    session.query(VacationNotification).filter_by(on_vacation=email).delete()
 
-
-    # Setup and tear down methods
-    def __before__(self, method):
-        func = method.im_func
-        func.func_globals['db'] = pool.checkout()
-        func.func_globals['rw_db'] = rw_pool.checkout()
-
-    def __after__(self, method):
-        func = method.im_func
-
-        # dispose of the database connections
-        pool.checkin()
-        rw_pool.checkin()
+                session.commit()
+            except Exception, e:
+                log.exception(e)

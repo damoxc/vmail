@@ -86,42 +86,20 @@ class TestDatabase(test.DatabaseUnitTest):
             ).filter_by(on_vacation=email
             ).count(), 0)
 
-class TestSessionPool(test.ThreadedDatabaseUnitTest):
-
-    def test_same_object_across_greenlets(self):
-        from vmail.model import rw_pool
-
-        def get_vacation():
-            rw_db = rw_pool.checkout()
-            user = rw_db.query(User).get(2)
-            rw_pool.checkin()
-            return True
-
-        def get_user():
-            rw_db = rw_pool.checkout()
-            user = rw_db.query(User).get(2)
-            rw_db.delete(user.vacation)
-            rw_pool.checkin()
-            return True
-
-        jobs = [gevent.spawn(get_vacation), gevent.spawn(get_user)]
-        gevent.joinall(jobs)
-
 class TestProcedures(test.DatabaseUnitTest):
 
     def setUp(self):
         super(TestProcedures, self).setUp()
         from vmail.model import procs
         procs.db = self.db
-        procs.rw_db = self.rw_db
         self.procs = procs
 
     def test_get_quotas(self):
-        self.assertEqual(self.procs.get_quotas('dave@example.com'
+        self.assertEqual(self.procs.get_quotas('dave@example.com', self.db
             ), (52428800L, 52428800L))
 
     def test_is_validrcptto(self):
-        self.assertEqual(self.procs.is_validrcptto('dave@example.com'
+        self.assertEqual(self.procs.is_validrcptto('dave@example.com', self.db
             ), (0, 'dave@example.com', 'local'))
 
     def test_process_forwards(self):
@@ -130,15 +108,15 @@ class TestProcedures(test.DatabaseUnitTest):
         forward.domain_id = 1
         forward.source = 'info@example.com'
         forward.destination = 'postmaster@example.com'
-        self.rw_db.add(forward)
-        self.rw_db.commit()
+        self.db.add(forward)
+        self.db.commit()
 
         # Process the forwards
-        self.procs.process_forwards()
+        self.procs.process_forwards(self.db)
 
         # Make sure that the forwardings table contains the new forward
         # destination
-        fwd = self.rw_db.query(Forwards
+        fwd = self.db.query(Forwards
             ).filter_by(source=forward.source
             ).first()
 
@@ -150,15 +128,15 @@ class TestProcedures(test.DatabaseUnitTest):
         forward.domain_id = 1
         forward.source = 'info@example.com'
         forward.destination = 'postmaster@example.com'
-        self.rw_db.add(forward)
-        self.rw_db.commit()
+        self.db.add(forward)
+        self.db.commit()
 
         # Process the forwards
-        self.procs.resolve_forwards()
+        self.procs.resolve_forwards(self.db)
 
         # Make sure that the resolved_forwards table contains the new forward
         # destination
-        forwards = self.rw_db.query(ResolvedForward
+        forwards = self.db.query(ResolvedForward
             ).filter_by(source=forward.source
             ).all()
         self.assertEqual(len(forwards), 2)

@@ -31,6 +31,15 @@ from sqlalchemy.orm import mapper, backref, relation
 from vmail.common import get_mail_dir
 from vmail.model.tables import *
 
+def json_prepare(obj):
+    if not obj:
+        return obj
+
+    # Call the __json__ method once (whilst the database session is open) to ensure all the attributes are available 
+    return obj.__json__()
+
+    return obj
+
 class Blacklist(object):
     pass
 
@@ -226,6 +235,7 @@ class User(object):
             'password': self.password,
             'quota': self.quota,
             'usage': self.usage.bytes if self.usage else 0,
+            'vacation': self.vacation,
             'enabled': self.enabled,
             'admin': self.admin
         }
@@ -316,9 +326,8 @@ mapper(Transport, transport)
 
 mapper(User, users, properties = {
     'logins':     relation(Login, backref=backref('user', uselist=False)),
-    'usage':      relation(UserQuota, lazy=False, uselist=False,
-                    cascade='all'),
-    'vacation':   relation(Vacation, uselist=False, cascade='all'),
+    'usage':      relation(UserQuota, lazy='joined', uselist=False, cascade='all'),
+    'vacation':   relation(Vacation, lazy='joined', uselist=False, cascade='all'),
     '_password':  users.c.password,
     '_cleartext': users.c.cleartext
 })
