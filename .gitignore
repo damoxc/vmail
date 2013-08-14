@@ -5,3 +5,4 @@ _*.so
 *.egg-info
 _trial_temp/
 build/
+vmail.sublime-*
