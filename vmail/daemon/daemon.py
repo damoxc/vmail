@@ -72,10 +72,6 @@ class Daemon(object):
         os.setgid(gid)
         os.setuid(uid)
 
-        # Setup database connections
-        connect()
-        rw_connect()
-
         # Start the RPC server
         self.rpcserver.start()
 
