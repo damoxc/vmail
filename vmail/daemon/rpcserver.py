@@ -194,7 +194,9 @@ class JSONReceiver(Receiver):
         try:
             result = response.get()
         except Exception as e:
-            log.exception(e, {'request': request})
+            if not isinstance(e, RPCError):
+                log.exception(e, {'request': request})
+
             error = {
                 'name': e.__class__.__name__,
                 'message': ''
