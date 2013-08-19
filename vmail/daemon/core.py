@@ -612,59 +612,60 @@ class Core(object):
         :type destination: str
         """
 
-        user = rw_db.query(User).filter_by(email = email).first()
-        if not user:
-            raise UserNotFoundError(email)
+        with self.db_session() as session:
+            user = session.query(User).filter_by(email = email).first()
+            if not user:
+                raise UserNotFoundError(email)
 
-        if not user.vacation:
-            log.debug('User has no vacation message')
-            return False
+            if not user.vacation:
+                log.debug('User has no vacation message')
+                return False
 
-        if not user.vacation.active:
-            log.debug('Vacation message is not active')
-            return False
+            if not user.vacation.active:
+                log.debug('Vacation message is not active')
+                return False
 
-        try:
-            recipient = Address.parse(destination)
-        except Exception:
-            return False
+            try:
+                recipient = Address.parse(destination)
+            except Exception:
+                return False
 
-        # TODO: Add support for html vacation messages
-        # Build up the response message here
-        message = MIMEMessage()
-        message.add_header('From', '%s <%s>' % (user.name, user.email))
-        message.add_header('To', str(recipient))
-        message.add_header('Date', formatdate())
-        message.add_header('Subject', user.vacation.subject)
-        message.set_payload(user.vacation.body.encode('utf8'))
+            # TODO: Add support for html vacation messages
+            # Build up the response message here
+            message = MIMEMessage()
+            message.add_header('From', '%s <%s>' % (user.name, user.email))
+            message.add_header('To', str(recipient))
+            message.add_header('Date', formatdate())
+            message.add_header('Subject', user.vacation.subject)
+            message.set_payload(user.vacation.body.encode('utf8'))
 
-        # Send the message to the local SMTP server
-        smtp = smtplib.SMTP('localhost')
-        smtp.sendmail(user.email, recipient.address, str(message))
-        smtp.close()
+            # Send the message to the local SMTP server
+            smtp = smtplib.SMTP('localhost')
+            smtp.sendmail(user.email, recipient.address, str(message))
+            smtp.close()
 
-        log.debug("Sending vacation notification to '%s' for '%s'",
-            recipient.address, user.email)
+            log.debug("Sending vacation notification to '%s' for '%s'",
+                recipient.address, user.email)
 
-        # Store that the recipient has been notified so we don't spam them
-        # with useless information.
-        notification = VacationNotification()
-        notification.on_vacation = user.email
-        notification.notified = destination
-        notification.notified_at = datetime.datetime.now()
-        rw_db.add(notification)
+            # Store that the recipient has been notified so we don't spam them
+            # with useless information.
+            notification = VacationNotification()
+            notification.on_vacation = user.email
+            notification.notified = destination
+            notification.notified_at = datetime.datetime.now()
+            session.add(notification)
 
-        # FIXME: This is a kludgy fix to prevent unrequired error messages
-        # when a vacation message is attempted to be sent to the same person
-        # more than once. This should be resolved properly by allowing
-        # configurable notification intervals and modifying the database
-        # accordingly.
-        try:
-            rw_db.commit()
-        except IntegrityError:
-            pass
+            # FIXME: This is a kludgy fix to prevent unrequired error messages
+            # when a vacation message is attempted to be sent to the same person
+            # more than once. This should be resolved properly by allowing
+            # configurable notification intervals and modifying the database
+            # accordingly.
+            try:
+                session.commit()
+            except IntegrityError:
+                session.rollback()
 
-        return True
+            return True
 
     ######################
     # Management Methods #
@@ -868,29 +869,31 @@ class Core(object):
     def save_user(self, user, params):
         if not params:
             return
-        try:
-            if user:
-                if 'password' in params:
-                    params['_cleartext'] = params['password']
-                    del params['password']
 
-                params = dict([(getattr(User, k), params[k]) for k in params])
-                if isinstance(user, (int, long)):
-                    rw_db.query(User).filter_by(id=user).update(params)
+        with self.db_session() as session:
+            try:
+                if user:
+                    if 'password' in params:
+                        params['_cleartext'] = params['password']
+                        del params['password']
+
+                    params = dict([(getattr(User, k), params[k]) for k in params])
+                    if isinstance(user, (int, long)):
+                        session.query(User).filter_by(id=user).update(params)
+                    else:
+                        session.query(User).filter_by(email=user).update(params)
+                    session.commit()
+
                 else:
-                    rw_db.query(User).filter_by(email=user).update(params)
-                rw_db.commit()
-
-            else:
-                user = User()
-                for k, v in params.iteritems():
-                    setattr(user, k, v)
-                rw_db.add(user)
-                rw_db.commit()
-                send_welcome_message(user.email)
-                return user.id
-        except Exception, e:
-            log.exception(e)
+                    user = User()
+                    for k, v in params.iteritems():
+                        setattr(user, k, v)
+                    session.add(user)
+                    session.commit()
+                    send_welcome_message(user.email)
+                    return user.id
+            except Exception, e:
+                log.exception(e)
 
     @export
     def save_vacation(self, vacation, params):
