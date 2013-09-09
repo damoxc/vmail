@@ -54,6 +54,9 @@ daily_blocks = (
     datetime.timedelta(days=4),
 )
 
+BLOCK_COMMENT = """Suspected spam source. Please go to
+http://www.ukplc.net/abuse?ip=%s for more information."""
+
 def update_forwardings(db, source, domain_id=None):
     """
     This method updates the forwardings table converting the vmail
@@ -326,10 +329,8 @@ class Core(object):
 
             host = Host()
             host.ip_address = remote_addr
-            host.action = 'DENY_DISCONNECT'
-            host.comment = 'Suspected spam source. Please go to\n'
-            host.comment += 'http://www.ukplc.net/abous?ip=%s ' % remote_addr
-            host.comment += 'for more information.'
+            host.action  = 'DENY_DISCONNECT'
+            host.comment = BLOCK_COMMENT % remote_addr
             session.add(host)
             session.commit()
 
