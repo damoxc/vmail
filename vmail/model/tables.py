@@ -101,6 +101,7 @@ def create_tables(meta, *tables):
             Column('ip_address', String(15)),
             Column('action', String(20)),
             Column('comment', String(100)),
+            Column('reason', String(255), default=''),
             PrimaryKeyConstraint('ip_address')
         )
 
@@ -258,6 +259,7 @@ def create_tables(meta, *tables):
             Column('quota', Integer),
             Column('enabled', Boolean, default=True),
             Column('admin', Boolean, default=False),
+            Column('master', Boolean, default=False),
             Column('daily_limit', Integer, nullable=True, default=None),
             Column('hourly_limit', Integer, nullable=True, default=None),
             PrimaryKeyConstraint('id'),
