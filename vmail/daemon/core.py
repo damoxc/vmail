@@ -375,7 +375,7 @@ class Core(object):
 
             # Check for a sending block placed on the user
             block = user.get_block(BLOCK_SENDING)
-            if block and block.expires > now:
+            if block and block.expires and block.expires > now:
                 return {'action': 'deny', 'type': 'block', 'expires': block.expires.ctime()}
 
             daily_limit  = user.daily_limit
