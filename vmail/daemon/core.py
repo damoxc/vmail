@@ -642,11 +642,16 @@ class Core(object):
 
             # Send the message to the local SMTP server
             smtp = smtplib.SMTP('localhost')
-            smtp.sendmail(user.email, recipient.address, str(message))
-            smtp.close()
+            try:
+                log.debug("Sending vacation notification to '%s' for '%s'",
+                    recipient.address, user.email)
+                smtp.sendmail(user.email, recipient.address, str(message))
+            except smtplib.SMTPRecipientsRefused:
+                log.debug("Failed sending vacation notification to '%s' for '%s'",
+                    recipient.address, user.email)
+            finally:
+                smtp.close()
 
-            log.debug("Sending vacation notification to '%s' for '%s'",
-                recipient.address, user.email)
 
             # Store that the recipient has been notified so we don't spam them
             # with useless information.
