@@ -107,11 +107,11 @@ class Health(object):
             if pop: pop.quit()
 
     @export
-    def check_smtp_public(self):
+    def check_smtp_public(self, port=25):
         smtp = None
         try:
             me = socket.gethostname()
-            smtp = smtplib.SMTP(me)
+            smtp = smtplib.SMTP(me, port)
             code, msg = smtp.helo()
             assert code == 250, 'SMTP responded with %d %s' % (code, msg)
 
