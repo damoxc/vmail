@@ -602,6 +602,32 @@ class Core(object):
             session.commit()
 
     @export
+    def send_vacation_messages(self, sender, recipients):
+        """
+        Sends vacation messages to the sender for any of the recipients who
+        currently have a vacation message set.
+
+        :param sender: The email address of the user sending the email
+        :type sender: str
+        :param recipients: List of the recipients of the email
+        :type recipients: list(str)
+        :return: List of addresses a message has been sent to
+        """
+
+        destinations = []
+        for rcpt in recipients:
+            destinations += self.get_local_destinations(rcpt)
+
+        destinations = set(destinations)
+        log.debug('detected destinations are %s', destinations)
+
+        for destination in destinations:
+            try:
+                self.send_vacation(destination, sender)
+            except UserNotFoundError:
+                continue
+
+    @export
     def send_vacation(self, email, destination):
         """
         Sends a vacation message to the destination address unless they have
@@ -612,6 +638,7 @@ class Core(object):
         :param destination: The email address of the remote address
         :type destination: str
         """
+        log.debug('Attempting to send vacation message to %s from %s', destination, email)
 
         with self.db_session() as session:
             user = session.query(User).filter_by(email = email).first()
