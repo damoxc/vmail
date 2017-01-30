@@ -5,7 +5,7 @@ Maintainer: Damien Churchill <damoxc@gmail.com>
 Uploaders: Damien Churchill <damoxc@gmail.com>
 Build-Depends: debhelper (>= 7)
 Build-Depends-Indep: python-dev,
-                     python-support (>= 0.90),
+                     dh-python,
                      python-setuptools (>= 0.6.10)
 Standards-Version: 3.8.3
 Homepage: http://www.ukplc.net
