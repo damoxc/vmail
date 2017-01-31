@@ -40,8 +40,7 @@ def create_tables(meta, *tables):
         tables = (
             'blacklist', 'blocks', 'domains', 'forwardings', 'forwards', 'hosts', 'logins',
             'logins_domains', 'logins_hourly', 'mysql_sucks', 'messages', 'packages',
-            'qpsmtpd_connections', 'qpsmtpd_log', 'qpsmtpd_transactions',
-            'qpsmtpd_rcpts', 'resolved_forwards', 'transport', 'users', 'user_quotas',
+            'resolved_forwards', 'transport', 'users', 'user_quotas',
             'vacation', 'vacation_notification', 'whitelist'
         )
 
@@ -157,76 +156,11 @@ def create_tables(meta, *tables):
         tbls['packages'] = Table('packages', meta,
             Column('id', Integer),
             Column('name', String(100)),
-            Column('quota', Integer(20)),
+            Column('quota', Integer),
             Column('account_limit', Integer),
             Column('daily_limit', Integer),
             Column('hourly_limit', Integer),
             PrimaryKeyConstraint('id')
-        )
-
-    if 'qpsmtpd_connections' in tables:
-        tbls['qpsmtpd_connections'] = Table('qpsmtpd_connections', meta,
-            Column('id', Integer),
-            Column('local_addr', String(80)),
-            Column('remote_addr', String(80)),
-            Column('user', String(100)),
-            Column('relay_client', Boolean, default=False),
-            Column('tls', Boolean, default=False),
-            Column('date', DateTime, default=datetime.datetime.now),
-            PrimaryKeyConstraint('id')
-        )
-
-    if 'qpsmtpd_log' in tables:
-        tbls['qpsmtpd_log'] = Table('qpsmtpd_log', meta,
-            Column('id', Integer),
-            Column('connection_id', Integer),
-            Column('transaction', Integer),
-            Column('hook', String(20)),
-            Column('plugin', String(40)),
-            Column('level', Integer),
-            Column('message', String(255)),
-            Column('date', DateTime, default=datetime.datetime.now),
-            PrimaryKeyConstraint('id'),
-            ForeignKeyConstraint(['connection_id'], ['qpsmtpd_connections.id'])
-        )
-
-    if 'qpsmtpd_transactions' in tables:
-        tbls['qpsmtpd_transactions'] = Table('qpsmtpd_transactions', meta,
-            Column('connection_id', Integer),
-            Column('transaction', Integer),
-            Column('date', DateTime, default=datetime.datetime.now),
-            Column('sender', String(100)),
-            Column('size', Integer),
-            Column('subject', String(255)),
-            Column('success', Boolean, default=False),
-            Column('message', String(255)),
-            PrimaryKeyConstraint('connection_id', 'transaction'),
-            ForeignKeyConstraint(
-                ['connection_id'],
-                ['qpsmtpd_connections.id']
-            ),
-            ForeignKeyConstraint(
-                ['connection_id', 'transaction'],
-                ['qpsmtpd_log.connection_id', 'qpsmtpd_log.transaction']
-            )
-        )
-
-    if 'qpsmtpd_rcpts' in tables:
-        tbls['qpsmtpd_rcpts'] = Table('qpsmtpd_rcpts', meta,
-            Column('connection_id', Integer),
-            Column('transaction', Integer),
-            Column('email_addr', String(100)),
-            Column('success', Boolean),
-            Column('message', String(255)),
-            PrimaryKeyConstraint('connection_id', 'transaction', 'email_addr'),
-            ForeignKeyConstraint(
-                ['connection_id', 'transaction'],
-                ['qpsmtpd_transactions.connection_id', 'qpsmtpd_transactions.transaction']
-            ),
-            ForeignKeyConstraint(
-                ['connection_id', 'transaction'],
-                ['qpsmtpd_log.connection_id', 'qpsmtpd_log.transaction']
-            )
         )
 
     if 'resolved_forwards' in tables:

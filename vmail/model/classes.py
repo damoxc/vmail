@@ -304,22 +304,6 @@ mapper(LoginHourly, logins_hourly)
 
 mapper(Message, messages)
 
-mapper(QpsmtpdConnection, qpsmtpd_connections)
-
-mapper(QpsmtpdLog, qpsmtpd_log, properties = {
-    'connection': relation(QpsmtpdConnection, backref='log')
-})
-
-mapper(QpsmtpdTransaction, qpsmtpd_transactions, properties = {
-    'connection': relation(QpsmtpdConnection, backref='transactions'),
-    'log': relation(QpsmtpdLog)
-})
-
-mapper(QpsmtpdRecipient, qpsmtpd_rcpts, properties = {
-    'transaction': relation(QpsmtpdTransaction, backref='recipients'),
-    '_transaction': qpsmtpd_rcpts.c.transaction
-})
-
 mapper(ResolvedForward, resolved_forwards)
 
 mapper(Transport, transport)
